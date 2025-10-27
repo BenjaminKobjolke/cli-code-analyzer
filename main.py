@@ -1,0 +1,97 @@
+#!/usr/bin/env python3
+"""
+CLI Code Analyzer - Analyze code files based on configurable rules
+"""
+
+import argparse
+import sys
+from pathlib import Path
+from analyzer import CodeAnalyzer
+from reporter import Reporter
+from models import OutputLevel, LogLevel
+
+
+def main():
+    """Main entry point"""
+    parser = argparse.ArgumentParser(
+        description='Analyze code files based on configurable rules',
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  python main.py --language flutter --path src/ --rules rules.json
+  python main.py --language flutter --path . --rules rules.json --output minimal
+  python main.py --language flutter --path lib/ --output verbose
+  python main.py --language flutter --path src/ --loglevel error
+        """
+    )
+
+    parser.add_argument(
+        '--language',
+        required=True,
+        help='Programming language to analyze (currently supported: flutter)'
+    )
+
+    parser.add_argument(
+        '--path',
+        required=True,
+        help='Path to the code directory or file to analyze'
+    )
+
+    parser.add_argument(
+        '--rules',
+        default='rules.json',
+        help='Path to the rules JSON file (default: rules.json)'
+    )
+
+    parser.add_argument(
+        '--output',
+        default='normal',
+        choices=['minimal', 'normal', 'verbose'],
+        help='Output verbosity level (default: normal)'
+    )
+
+    parser.add_argument(
+        '--loglevel',
+        default='all',
+        choices=['error', 'warning', 'all'],
+        help='Filter violations by severity level (default: all)'
+    )
+
+    args = parser.parse_args()
+
+    # Validate path exists
+    if not Path(args.path).exists():
+        print(f"Error: Path '{args.path}' does not exist")
+        sys.exit(1)
+
+    # Convert output string to enum
+    output_level = OutputLevel(args.output)
+    log_level = LogLevel(args.loglevel)
+
+    # Run analysis
+    try:
+        analyzer = CodeAnalyzer(args.language, args.path, args.rules)
+        analyzer.analyze()
+
+        # Generate report
+        reporter = Reporter(
+            analyzer.get_violations(),
+            analyzer.get_file_count(),
+            output_level,
+            log_level
+        )
+        has_errors = reporter.report()
+
+        # Exit with error code if violations found
+        sys.exit(1 if has_errors else 0)
+
+    except ValueError as e:
+        print(f"Error: {e}")
+        sys.exit(1)
+    except Exception as e:
+        print(f"Unexpected error: {e}")
+        sys.exit(1)
+
+
+if __name__ == '__main__':
+    main()

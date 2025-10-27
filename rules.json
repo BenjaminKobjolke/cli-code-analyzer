@@ -1,0 +1,7 @@
+{
+  "max_lines_per_file": {
+    "enabled": true,
+    "warning": 300,
+    "error": 500
+  }
+}
