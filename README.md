@@ -28,7 +28,25 @@ install.bat
 pip install -r requirements.txt
 ```
 
+3. Activate the virtual environment (required before each use):
+```bash
+# On Windows
+activate_environment.bat
+
+# On Linux/Mac
+source venv/bin/activate
+```
+
 ## Usage
+
+**Important:** Always activate the virtual environment before running the analyzer:
+```bash
+# On Windows
+activate_environment.bat
+
+# On Linux/Mac
+source venv/bin/activate
+```
 
 ### Basic Command Structure
 
@@ -48,9 +66,23 @@ python main.py --language <language> --path <path> [options]
 
 ## Examples
 
+### Quick Start
+
+To get started quickly with the example project:
+
+```bash
+# 1. Activate the virtual environment
+activate_environment.bat
+
+# 2. Run the analyzer on the example directory
+python main.py --language flutter --path example/lib --rules example/rules.json
+```
+
 ### Test with the Example Directory
 
 The project includes an `example/` directory with a sample Flutter project that exceeds the configured line limits.
+
+> **Note:** All examples below assume you have already activated the virtual environment with `activate_environment.bat` (Windows) or `source venv/bin/activate` (Linux/Mac).
 
 #### 1. Basic Analysis (Normal Output)
 ```bash
