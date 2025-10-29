@@ -28,7 +28,7 @@ Examples:
     parser.add_argument(
         '--language',
         required=True,
-        help='Programming language to analyze (currently supported: flutter)'
+        help='Programming language to analyze (currently supported: flutter, python)'
     )
 
     parser.add_argument(

@@ -11,6 +11,7 @@ class FileDiscovery:
 
     LANGUAGE_EXTENSIONS = {
         'flutter': ['.dart'],
+        'python': ['.py'],
     }
 
     def __init__(self, language: str, path: str):
