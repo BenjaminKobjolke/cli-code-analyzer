@@ -10,7 +10,7 @@ A flexible command-line tool for analyzing code files based on configurable rule
 - **File export capability**: Save analysis reports to files for CI/CD integration
 - **Severity filtering**: Filter violations by error or warning levels
 - **Line count rules**: Check maximum lines per file with warning and error thresholds
-- **Duplicate code detection**: Integrated PMD CPD for finding copy-paste code across projects
+- **Duplicate code detection**: Integrated [PMD](https://pmd.github.io/) CPD for finding copy-paste code across projects
 - **Language-specific exclusions**: Automatically exclude generated files (e.g., `**.g.dart`, `**.freezed.dart`)
 - **Relative path display**: Clean, readable output with relative file paths
 
@@ -285,11 +285,11 @@ python main.py --language flutter --path test/ --rules rules-lenient.json
 
 ### PMD Duplicate Code Detection
 
-The analyzer integrates with PMD's Copy-Paste Detector (CPD) to find duplicate code blocks across your project.
+The analyzer integrates with [PMD](https://pmd.github.io/)'s Copy-Paste Detector (CPD) to find duplicate code blocks across your project.
 
 #### Enabling PMD Duplicate Detection
 
-1. Install PMD (see Installation step 4)
+1. Install [PMD](https://pmd.github.io/) (see Installation step 4)
 2. Enable the rule in `rules.json`:
 
 ```json
