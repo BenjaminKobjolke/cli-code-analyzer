@@ -4,11 +4,14 @@ A flexible command-line tool for analyzing code files based on configurable rule
 
 ## Features
 
-- **Multi-language support**: Currently supports Flutter/Dart (extensible to other languages)
+- **Multi-language support**: Currently supports Flutter/Dart, Python, Java, JavaScript, TypeScript (extensible to other languages)
 - **Configurable rules**: Define custom rules via JSON configuration
 - **Multiple output formats**: Minimal, normal, and verbose output modes
+- **File export capability**: Save analysis reports to files for CI/CD integration
 - **Severity filtering**: Filter violations by error or warning levels
 - **Line count rules**: Check maximum lines per file with warning and error thresholds
+- **Duplicate code detection**: Integrated PMD CPD for finding copy-paste code across projects
+- **Language-specific exclusions**: Automatically exclude generated files (e.g., `**.g.dart`, `**.freezed.dart`)
 - **Relative path display**: Clean, readable output with relative file paths
 
 ## Installation
@@ -37,6 +40,11 @@ activate_environment.bat
 source venv/bin/activate
 ```
 
+4. (Optional) Install PMD for duplicate code detection:
+   - Download PMD from [https://pmd.github.io/](https://pmd.github.io/)
+   - Extract to a location on your system
+   - The analyzer will prompt for the path to `pmd.bat` on first use
+
 ## Usage
 
 **Important:** Always activate the virtual environment before running the analyzer:
@@ -58,10 +66,11 @@ python main.py --language <language> --path <path> [options]
 
 | Argument | Required | Default | Description |
 |----------|----------|---------|-------------|
-| `--language` | Yes | - | Programming language to analyze (currently: `flutter`) |
-| `--path` | Yes | - | Path to analyze - can be a **directory** (analyzes all files recursively) or a **single file** |
+| `--language` | Yes | - | Programming language to analyze. **Line counting:** `flutter`, `python`. **Duplicate detection (PMD):** `dart`, `python`, `java`, `javascript`, `typescript` |
+| `--path` | Yes | - | Path to the code directory (analyzes recursively) or single file to analyze |
 | `--rules` | No | `rules.json` | Path to the rules JSON configuration file |
-| `--output` | No | `normal` | Output verbosity level: `minimal`, `normal`, or `verbose` |
+| `--verbosity` | No | `normal` | Output verbosity level: `minimal`, `normal`, or `verbose` |
+| `--output` | No | - | Path to output folder for reports. If set, saves reports to files (`line_count_report.txt`, `duplicate_code.csv`) instead of console output |
 | `--loglevel` | No | `all` | Filter violations by severity: `error`, `warning`, or `all` |
 
 ## Examples
@@ -102,7 +111,7 @@ Summary: 1 error(s), 0 warning(s)
 
 #### 2. Minimal Output Format
 ```bash
-python main.py --language flutter --path example/lib --rules example/rules.json --output minimal
+python main.py --language flutter --path example/lib --rules example/rules.json --verbosity minimal
 ```
 
 **Output:**
@@ -113,7 +122,7 @@ Summary: 1 error(s), 0 warning(s)
 
 #### 3. Verbose Output Format
 ```bash
-python main.py --language flutter --path example/lib --rules example/rules.json --output verbose
+python main.py --language flutter --path example/lib --rules example/rules.json --verbosity verbose
 ```
 
 **Output:**
@@ -152,7 +161,7 @@ Summary: 1 error(s)
 
 #### 5. Show Only Errors with Minimal Output
 ```bash
-python main.py --language flutter --path example/lib --rules example/rules.json --output minimal --loglevel error
+python main.py --language flutter --path example/lib --rules example/rules.json --verbosity minimal --loglevel error
 ```
 
 **Output:**
@@ -160,6 +169,18 @@ python main.py --language flutter --path example/lib --rules example/rules.json 
 sample_widget.dart errors:1 maxlines>350
 Summary: 1 error(s)
 ```
+
+#### 6. Save Reports to Files
+```bash
+python main.py --language flutter --path example/lib --rules example/rules.json --output reports/
+```
+
+**Output:**
+```
+Line count report saved to: reports/line_count_report.txt
+```
+
+This will create a `reports/` folder with analysis results in files instead of printing to console. Useful for CI/CD pipelines and automated reporting.
 
 ### Single File vs Directory Analysis
 
@@ -262,6 +283,98 @@ python main.py --language flutter --path test/ --rules rules-lenient.json
 }
 ```
 
+### PMD Duplicate Code Detection
+
+The analyzer integrates with PMD's Copy-Paste Detector (CPD) to find duplicate code blocks across your project.
+
+#### Enabling PMD Duplicate Detection
+
+1. Install PMD (see Installation step 4)
+2. Enable the rule in `rules.json`:
+
+```json
+{
+  "max_lines_per_file": {
+    "enabled": true,
+    "warning": 300,
+    "error": 500
+  },
+  "pmd_duplicates": {
+    "enabled": true,
+    "minimum_tokens": 100,
+    "exclude_patterns": {
+      "dart": ["*.g.dart", "*.freezed.dart"],
+      "python": ["**/__pycache__/**", "*.pyc"],
+      "java": ["**/target/**", "**/build/**"],
+      "javascript": ["**/node_modules/**", "**/dist/**", "**/build/**"],
+      "typescript": ["**/node_modules/**", "**/dist/**", "**/build/**"]
+    }
+  }
+}
+```
+
+**Configuration Options:**
+
+- `enabled`: Enable/disable duplicate code detection
+- `minimum_tokens`: Minimum number of duplicate tokens to report (lower = more sensitive)
+- `exclude_patterns`: Language-specific glob patterns to exclude (e.g., `*.g.dart` for generated files, `**/node_modules/**` for dependencies)
+
+#### Using PMD Duplicate Detection
+
+**Console Output (Text Format):**
+```bash
+python main.py --language flutter --path lib/
+```
+
+The duplicate code report will be printed directly to the console.
+
+**File Output (CSV Format):**
+```bash
+python main.py --language flutter --path lib/ --output reports/
+```
+
+This creates two files:
+- `reports/line_count_report.txt` - Line count analysis
+- `reports/duplicate_code.csv` - Duplicate code detection results
+
+#### First-Time Setup
+
+On first run with PMD enabled, you'll be prompted to enter the path to PMD:
+
+```
+PMD path not configured. Please enter the path to pmd.bat
+[Default: E:\downloads\pmd-dist-7.17.0-bin\pmd-bin-7.17.0\bin\pmd.bat]:
+```
+
+Enter the path to your PMD installation, or press Enter to use the default. The path will be saved to `settings.ini` for future use.
+
+#### Supported Languages for Duplicate Detection
+
+- Dart/Flutter
+- Python
+- Java
+- JavaScript
+- TypeScript
+
+#### Example: Finding Duplicates in a Flutter Project
+
+```bash
+# Enable pmd_duplicates in rules.json first
+python main.py --language flutter --path lib/ --output reports/
+```
+
+**Output:**
+```
+Duplicate code report saved to: reports/duplicate_code.csv
+Line count report saved to: reports/line_count_report.txt
+```
+
+The CSV file contains:
+- Number of duplicate lines
+- Number of duplicate tokens
+- Number of occurrences
+- File locations of duplicates
+
 ## Project Structure
 
 ```
@@ -270,13 +383,16 @@ cli-code-analyzer/
 ├── analyzer.py                 # Main analyzer orchestration
 ├── file_discovery.py           # File discovery logic
 ├── config.py                   # Configuration loading
+├── settings.py                 # Settings management (INI-based)
 ├── models.py                   # Data models (Violation, Severity, etc.)
-├── reporter.py                 # Report formatting (minimal/normal/verbose)
+├── reporter.py                 # Report formatting (minimal/normal/verbose/file)
 ├── rules/
 │   ├── __init__.py            # Rules module
 │   ├── base.py                # Base rule class
-│   └── max_lines.py           # Max lines per file rule
+│   ├── max_lines.py           # Max lines per file rule
+│   └── pmd_duplicates.py      # PMD duplicate code detection rule
 ├── rules.json                  # Default rules configuration
+├── settings.ini                # User settings (PMD path, etc.)
 └── example/                    # Example project for testing
     ├── rules.json             # Example rules (warning:200, error:300)
     └── lib/
@@ -296,10 +412,19 @@ Add to your CI/CD pipeline to enforce code quality:
 
 ```bash
 # GitHub Actions, GitLab CI, etc.
-python main.py --language flutter --path lib/ --loglevel error --output minimal
+python main.py --language flutter --path lib/ --loglevel error --verbosity minimal
 ```
 
 This will fail the build if any files exceed the error threshold.
+
+**With File Output for Artifact Storage:**
+
+```bash
+# Save reports as CI artifacts
+python main.py --language flutter --path lib/ --output ci-reports/
+```
+
+The generated reports can be stored as CI artifacts for later review.
 
 ### Pre-commit Hook
 
@@ -307,7 +432,7 @@ Create a pre-commit hook to check code before commits:
 
 ```bash
 #!/bin/bash
-python main.py --language flutter --path lib/ --output minimal
+python main.py --language flutter --path lib/ --verbosity minimal
 ```
 
 ### Code Review
@@ -315,7 +440,19 @@ python main.py --language flutter --path lib/ --output minimal
 Use during code reviews to identify files that need refactoring:
 
 ```bash
-python main.py --language flutter --path lib/ --output verbose
+python main.py --language flutter --path lib/ --verbosity verbose
+```
+
+### Duplicate Code Refactoring
+
+Find and eliminate duplicate code across your project:
+
+```bash
+# Generate duplicate code report
+python main.py --language flutter --path lib/ --output reports/
+
+# Review the reports/duplicate_code.csv file
+# Refactor duplicated code into reusable functions/classes
 ```
 
 ## Extending the Analyzer

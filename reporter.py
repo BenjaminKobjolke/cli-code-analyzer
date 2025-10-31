@@ -2,7 +2,8 @@
 Report generation and formatting
 """
 
-from typing import List, Dict
+from typing import List, Dict, Optional
+from pathlib import Path
 from collections import defaultdict
 from models import Violation, Severity, OutputLevel, LogLevel
 
@@ -10,12 +11,13 @@ from models import Violation, Severity, OutputLevel, LogLevel
 class Reporter:
     """Handles report generation in different formats"""
 
-    def __init__(self, violations: List[Violation], file_count: int, output_level: OutputLevel, log_level: LogLevel = LogLevel.ALL):
+    def __init__(self, violations: List[Violation], file_count: int, output_level: OutputLevel, log_level: LogLevel = LogLevel.ALL, output_folder: Optional[Path] = None):
         self.all_violations = violations
         self.violations = self._filter_violations(violations, log_level)
         self.file_count = file_count
         self.output_level = output_level
         self.log_level = log_level
+        self.output_folder = output_folder
 
     def _filter_violations(self, violations: List[Violation], log_level: LogLevel) -> List[Violation]:
         """Filter violations based on log level"""
@@ -33,6 +35,11 @@ class Reporter:
         Returns:
             True if errors were found, False otherwise
         """
+        # If output folder is specified, write to files instead of console
+        if self.output_folder:
+            return self._report_to_file()
+
+        # Otherwise, print to console
         if self.output_level == OutputLevel.MINIMAL:
             return self._report_minimal()
         elif self.output_level == OutputLevel.VERBOSE:
@@ -91,7 +98,7 @@ class Reporter:
     def _report_normal(self) -> bool:
         """Generate normal output format"""
         if not self.violations:
-            print("✓ No violations found!")
+            print("No violations found!")
             return False
 
         # Separate errors and warnings
@@ -132,7 +139,7 @@ class Reporter:
         print(f"Analyzing {self.file_count} file(s)...\n")
 
         if not self.violations:
-            print("✓ No violations found!")
+            print("No violations found!")
             return False
 
         # Separate errors and warnings
@@ -192,3 +199,64 @@ class Reporter:
         elif "warning:" in violation.message:
             return int(violation.message.split("warning:")[-1].strip().rstrip(")"))
         return 0
+
+    def _report_to_file(self) -> bool:
+        """Write report to files in output folder.
+
+        Returns:
+            True if errors were found, False otherwise
+        """
+        # Separate violations by rule type
+        line_violations = [v for v in self.violations if v.rule_name != 'pmd_duplicates']
+        pmd_violations = [v for v in self.violations if v.rule_name == 'pmd_duplicates']
+
+        # Write line count violations to file (if any)
+        if line_violations:
+            output_file = self.output_folder / 'line_count_report.txt'
+            with open(output_file, 'w', encoding='utf-8') as f:
+                f.write("LINE COUNT ANALYSIS REPORT\n")
+                f.write("=" * 80 + "\n\n")
+
+                # Separate errors and warnings
+                errors = [v for v in line_violations if v.severity == Severity.ERROR]
+                warnings = [v for v in line_violations if v.severity == Severity.WARNING]
+
+                # Write errors
+                if errors:
+                    f.write(f"ERRORS ({len(errors)}):\n")
+                    f.write("=" * 80 + "\n")
+                    for violation in errors:
+                        f.write(f"  {violation.file_path}\n")
+                        f.write(f"    {violation.message}\n")
+                        f.write("\n")
+
+                # Write warnings
+                if warnings:
+                    f.write(f"WARNINGS ({len(warnings)}):\n")
+                    f.write("=" * 80 + "\n")
+                    for violation in warnings:
+                        f.write(f"  {violation.file_path}\n")
+                        f.write(f"    {violation.message}\n")
+                        f.write("\n")
+
+                # Write summary
+                f.write("=" * 80 + "\n")
+                f.write(f"Files analyzed: {self.file_count}\n")
+                files_with_violations = len(set(v.file_path for v in line_violations))
+                f.write(f"Files with violations: {files_with_violations}\n")
+                f.write(f"Summary: {len(errors)} error(s), {len(warnings)} warning(s)\n")
+
+            print(f"Line count report saved to: {output_file}")
+        else:
+            print("No line count violations found")
+
+        # PMD duplicates report is already saved by the PMD rule itself
+        # We just print a summary message
+        if pmd_violations:
+            pmd_file = self.output_folder / 'duplicate_code.csv'
+            if pmd_file.exists():
+                print(f"PMD duplicate code report already saved to: {pmd_file}")
+
+        # Determine if there are errors
+        total_errors = sum(1 for v in self.violations if v.severity == Severity.ERROR)
+        return total_errors > 0
