@@ -38,7 +38,7 @@ LANGUAGE_TO_PMD = {
 class PMDDuplicatesRule(BaseRule):
     """Rule to detect duplicate code using PMD CPD"""
 
-    def __init__(self, config: dict, base_path: Path = None, language: str = None, output_folder: Optional[Path] = None):
+    def __init__(self, config: dict, base_path: Path = None, language: str = None, output_folder: Optional[Path] = None, max_errors: Optional[int] = None):
         """Initialize PMD duplicates rule.
 
         Args:
@@ -46,8 +46,9 @@ class PMDDuplicatesRule(BaseRule):
             base_path: Base path for analysis
             language: Programming language being analyzed
             output_folder: Optional folder for file output (None = console output)
+            max_errors: Optional limit on number of violations to include in CSV
         """
-        super().__init__(config, base_path)
+        super().__init__(config, base_path, max_errors)
         self.language = language
         self.output_folder = output_folder
         self.settings = Settings()
@@ -396,6 +397,22 @@ class PMDDuplicatesRule(BaseRule):
                     violations.append(violation)
         except Exception as e:
             print(f"Error parsing PMD CSV output: {e}")
+
+        # Apply max_errors filter if specified
+        if self.max_errors and len(violations) > self.max_errors:
+            # Sort by lines (higher = worse) and take first N
+            # Extract line count from message like "Duplicate code found: 45 lines..."
+            def get_lines(v):
+                try:
+                    # Message format: "Duplicate code found: X lines..."
+                    parts = v.message.split()
+                    if len(parts) >= 4:
+                        return int(parts[3])
+                except:
+                    return 0
+
+            violations.sort(key=get_lines, reverse=True)
+            violations = violations[:self.max_errors]
 
         return violations
 

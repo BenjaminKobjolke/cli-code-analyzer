@@ -17,7 +17,7 @@ from settings import Settings
 class DartAnalyzeRule(BaseRule):
     """Rule to analyze Dart/Flutter code using dart analyze"""
 
-    def __init__(self, config: dict, base_path: Path = None, output_folder: Optional[Path] = None, log_level: LogLevel = LogLevel.ALL):
+    def __init__(self, config: dict, base_path: Path = None, output_folder: Optional[Path] = None, log_level: LogLevel = LogLevel.ALL, max_errors: Optional[int] = None):
         """Initialize Dart analyze rule.
 
         Args:
@@ -25,8 +25,9 @@ class DartAnalyzeRule(BaseRule):
             base_path: Base path for analysis
             output_folder: Optional folder for file output (None = console output)
             log_level: Log level for filtering violations
+            max_errors: Optional limit on number of violations to include in CSV
         """
-        super().__init__(config, base_path)
+        super().__init__(config, base_path, max_errors)
         self.output_folder = output_folder
         self.log_level = log_level
         self.settings = Settings()
@@ -280,6 +281,16 @@ class DartAnalyzeRule(BaseRule):
                     continue
 
                 filtered_diagnostics.append(diagnostic)
+
+            # Apply max_errors limit
+            if self.max_errors and len(filtered_diagnostics) > self.max_errors:
+                # Sort by severity (ERROR first), then alphabetically
+                def diagnostic_sort_key(d):
+                    severity_order = {'ERROR': 0, 'WARNING': 1, 'INFO': 2}
+                    return (severity_order.get(d.get('severity', 'WARNING'), 3),)
+
+                filtered_diagnostics.sort(key=diagnostic_sort_key)
+                filtered_diagnostics = filtered_diagnostics[:self.max_errors]
 
             # Don't create CSV if no violations match the filter
             if not filtered_diagnostics:

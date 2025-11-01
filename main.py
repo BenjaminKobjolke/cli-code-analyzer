@@ -64,6 +64,13 @@ Examples:
         help='Filter violations by severity level (default: all)'
     )
 
+    parser.add_argument(
+        '--maxamountoferrors',
+        type=int,
+        default=None,
+        help='Maximum number of violations to include in CSV reports (default: unlimited)'
+    )
+
     args = parser.parse_args()
 
     # Validate path exists
@@ -90,7 +97,7 @@ Examples:
 
     # Run analysis
     try:
-        analyzer = CodeAnalyzer(args.language, args.path, args.rules, output_folder, log_level)
+        analyzer = CodeAnalyzer(args.language, args.path, args.rules, output_folder, log_level, args.maxamountoferrors)
         analyzer.analyze()
 
         # Generate report
@@ -99,7 +106,8 @@ Examples:
             analyzer.get_file_count(),
             output_level,
             log_level,
-            output_folder
+            output_folder,
+            args.maxamountoferrors
         )
         has_errors = reporter.report()
 

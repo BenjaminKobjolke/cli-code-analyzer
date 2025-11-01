@@ -12,13 +12,14 @@ from models import Violation, Severity, OutputLevel, LogLevel
 class Reporter:
     """Handles report generation in different formats"""
 
-    def __init__(self, violations: List[Violation], file_count: int, output_level: OutputLevel, log_level: LogLevel = LogLevel.ALL, output_folder: Optional[Path] = None):
+    def __init__(self, violations: List[Violation], file_count: int, output_level: OutputLevel, log_level: LogLevel = LogLevel.ALL, output_folder: Optional[Path] = None, max_errors: Optional[int] = None):
         self.all_violations = violations
         self.violations = self._filter_violations(violations, log_level)
         self.file_count = file_count
         self.output_level = output_level
         self.log_level = log_level
         self.output_folder = output_folder
+        self.max_errors = max_errors
 
     def _filter_violations(self, violations: List[Violation], log_level: LogLevel) -> List[Violation]:
         """Filter violations based on log level"""
@@ -28,6 +29,32 @@ class Reporter:
             return [v for v in violations if v.severity in (Severity.WARNING, Severity.ERROR)]
         else:  # LogLevel.ALL
             return violations
+
+    def _apply_max_errors_filter(self, violations: List[Violation]) -> List[Violation]:
+        """Apply max errors limit by sorting violations by priority.
+
+        Sorts by severity (ERROR > WARNING > INFO), then by value (line_count).
+        Returns top N violations.
+        """
+        if not self.max_errors or len(violations) <= self.max_errors:
+            return violations
+
+        def violation_sort_key(v: Violation):
+            # Priority: ERROR=0, WARNING=1, INFO=2 (lower = higher priority)
+            severity_priority = {
+                Severity.ERROR: 0,
+                Severity.WARNING: 1,
+                Severity.INFO: 2
+            }
+            # Secondary sort: by line_count (higher = worse)
+            value = v.line_count if v.line_count else 0
+            # Return tuple: (severity_priority, -value)
+            # Negative value so higher line counts come first
+            return (severity_priority.get(v.severity, 999), -value)
+
+        # Sort by priority and take first N
+        sorted_violations = sorted(violations, key=violation_sort_key)
+        return sorted_violations[:self.max_errors]
 
     def report(self) -> bool:
         """
@@ -231,6 +258,7 @@ class Reporter:
         """
         # Separate violations by rule type
         line_violations = [v for v in self.violations if v.rule_name == 'max_lines_per_file']
+        line_violations = self._apply_max_errors_filter(line_violations)
 
         # Write line count violations to CSV file (if any)
         if line_violations:

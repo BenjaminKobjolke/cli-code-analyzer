@@ -4,16 +4,17 @@ Base rule class for all code analysis rules
 
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import List
+from typing import List, Optional
 from models import Violation
 
 
 class BaseRule(ABC):
     """Abstract base class for all rules"""
 
-    def __init__(self, config: dict, base_path: Path = None):
+    def __init__(self, config: dict, base_path: Path = None, max_errors: Optional[int] = None):
         self.config = config
         self.base_path = base_path
+        self.max_errors = max_errors
 
     @abstractmethod
     def check(self, file_path: Path) -> List[Violation]:

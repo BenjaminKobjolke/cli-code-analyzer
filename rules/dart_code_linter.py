@@ -18,7 +18,7 @@ from settings import Settings
 class DartCodeLinterRule(BaseRule):
     """Rule to analyze Dart/Flutter code metrics using dart_code_linter"""
 
-    def __init__(self, config: dict, base_path: Path = None, output_folder: Optional[Path] = None, log_level: LogLevel = LogLevel.ALL):
+    def __init__(self, config: dict, base_path: Path = None, output_folder: Optional[Path] = None, log_level: LogLevel = LogLevel.ALL, max_errors: Optional[int] = None):
         """Initialize Dart Code Linter rule.
 
         Args:
@@ -26,8 +26,9 @@ class DartCodeLinterRule(BaseRule):
             base_path: Base path for analysis
             output_folder: Optional folder for file output (None = console output)
             log_level: Log level for filtering violations
+            max_errors: Optional limit on number of violations to include in CSV
         """
-        super().__init__(config, base_path)
+        super().__init__(config, base_path, max_errors)
         self.output_folder = output_folder
         self.log_level = log_level
         self.settings = Settings()
@@ -522,6 +523,16 @@ class DartCodeLinterRule(BaseRule):
                                                   context=f'function {func_name}')
                         if row and (row['file_path'], row['metric']) in violation_keys:
                             csv_rows.append(row)
+
+            # Apply max_errors limit to csv_rows
+            if self.max_errors and len(csv_rows) > self.max_errors:
+                # Sort by severity (ERROR first), then by value (higher = worse)
+                def row_sort_key(row):
+                    severity_order = {'ERROR': 0, 'WARNING': 1, 'INFO': 2}
+                    return (severity_order.get(row['severity'], 3), -row['value'])
+
+                csv_rows.sort(key=row_sort_key)
+                csv_rows = csv_rows[:self.max_errors]
 
             # Write CSV
             if csv_rows:

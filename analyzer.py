@@ -13,7 +13,7 @@ from models import Violation, LogLevel
 class CodeAnalyzer:
     """Main analyzer that orchestrates the analysis workflow"""
 
-    def __init__(self, language: str, path: str, rules_file: str, output_folder: Optional[Path] = None, log_level: LogLevel = LogLevel.ALL):
+    def __init__(self, language: str, path: str, rules_file: str, output_folder: Optional[Path] = None, log_level: LogLevel = LogLevel.ALL, max_errors: Optional[int] = None):
         self.language = language
         self.path = path
         self.base_path = Path(path).resolve()
@@ -22,6 +22,7 @@ class CodeAnalyzer:
         self.files: List[Path] = []
         self.output_folder = output_folder
         self.log_level = log_level
+        self.max_errors = max_errors
 
     def analyze(self):
         """Run the analysis"""
@@ -40,7 +41,8 @@ class CodeAnalyzer:
                 rule_config,
                 self.base_path,
                 self.language,
-                self.output_folder
+                self.output_folder,
+                self.max_errors
             )
             # PMD analyzes the entire directory, so we just call it once with any file
             if self.files:
@@ -54,7 +56,8 @@ class CodeAnalyzer:
                 rule_config,
                 self.base_path,
                 self.output_folder,
-                self.log_level
+                self.log_level,
+                self.max_errors
             )
             # Dart analyze analyzes the entire project, so we just call it once with any file
             if self.files:
@@ -68,7 +71,8 @@ class CodeAnalyzer:
                 rule_config,
                 self.base_path,
                 self.output_folder,
-                self.log_level
+                self.log_level,
+                self.max_errors
             )
             # Dart Code Linter analyzes the entire project, so we just call it once with any file
             if self.files:
