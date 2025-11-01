@@ -122,6 +122,9 @@ class DartAnalyzeRule(BaseRule):
             # Parse JSON output
             violations = self._parse_dart_json(output)
 
+            # Apply log level filter to violations
+            violations = self._filter_violations_by_log_level(violations)
+
             # Print summary
             if violations:
                 print(f"\nDart analyze found {len(violations)} issue(s)")
@@ -225,6 +228,28 @@ class DartAnalyzeRule(BaseRule):
             'ERROR': Severity.ERROR,
         }
         return severity_map.get(severity_str.upper(), Severity.WARNING)
+
+    def _filter_violations_by_log_level(self, violations: List[Violation]) -> List[Violation]:
+        """Filter violations based on log level.
+
+        Args:
+            violations: List of all violations
+
+        Returns:
+            Filtered list of violations based on log level
+        """
+        if self.log_level == LogLevel.ALL:
+            return violations
+
+        filtered = []
+        for violation in violations:
+            if self.log_level == LogLevel.ERROR and violation.severity != Severity.ERROR:
+                continue
+            elif self.log_level == LogLevel.WARNING and violation.severity not in (Severity.ERROR, Severity.WARNING):
+                continue
+            filtered.append(violation)
+
+        return filtered
 
     def _write_csv_output(self, output_file: Path, json_content: str):
         """Write dart analyze results to CSV file, filtered by log level.
