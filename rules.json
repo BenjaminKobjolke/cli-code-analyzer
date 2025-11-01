@@ -14,5 +14,8 @@
       "javascript": ["**/node_modules/**", "**/dist/**", "**/build/**"],
       "typescript": ["**/node_modules/**", "**/dist/**", "**/build/**"]
     }
+  },
+  "dart_analyze": {
+    "enabled": true
   }
 }

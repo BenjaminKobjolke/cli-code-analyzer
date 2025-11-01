@@ -79,3 +79,52 @@ class Settings:
         self.set_pmd_path(str(pmd_path))
         print(f"PMD path saved to {self.settings_file}")
         return str(pmd_path)
+
+    def get_dart_path(self) -> Optional[str]:
+        """Get the Dart executable path from settings.
+
+        Returns:
+            Path to Dart executable or None if not set
+        """
+        if 'dart' in self.config and 'dart_path' in self.config['dart']:
+            return self.config['dart']['dart_path']
+        return None
+
+    def set_dart_path(self, path: str):
+        """Set the Dart executable path and save to settings.
+
+        Args:
+            path: Path to Dart executable
+        """
+        if 'dart' not in self.config:
+            self.config['dart'] = {}
+        self.config['dart']['dart_path'] = path
+        self._save()
+
+    def prompt_and_save_dart_path(self) -> Optional[str]:
+        """Prompt user for Dart path, validate it, and save to settings.
+
+        Returns:
+            Validated Dart path, or None if validation failed
+        """
+        print("\nDart executable not found in PATH.")
+        print("Please ensure Flutter/Dart SDK is installed.")
+        print("Download from: https://docs.flutter.dev/get-started/install")
+        prompt_msg = "\nEnter path to dart executable (or press Enter to skip): "
+        user_input = input(prompt_msg).strip()
+
+        # If user pressed enter (empty input), skip
+        if not user_input:
+            print("Skipping dart analyze rule. Install Dart SDK and configure later.")
+            return None
+
+        # Validate user-provided path exists
+        dart_path = Path(user_input)
+        if not dart_path.exists():
+            print(f"Error: Dart executable not found at: {user_input}")
+            return None
+
+        # Save and return
+        self.set_dart_path(str(dart_path))
+        print(f"Dart path saved to {self.settings_file}")
+        return str(dart_path)

@@ -240,25 +240,36 @@ class PMDDuplicatesRule(BaseRule):
         # Execute PMD
         try:
             if output_file:
-                # Output to file
-                with open(output_file, 'w', encoding='utf-8') as f:
-                    result = subprocess.run(
-                        cmd,
-                        stdout=f,
-                        stderr=subprocess.PIPE,
-                        text=True,
-                        check=False
-                    )
+                # First capture output to check if there are duplicates
+                result = subprocess.run(
+                    cmd,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    text=True,
+                    check=False
+                )
+
                 if result.returncode != 0 and result.stderr:
                     print(f"PMD CPD warning: {result.stderr}")
 
-                print(f"Duplicate code report saved to: {output_file}")
+                # Check if there are any duplicates in the output
+                has_duplicates = self._has_duplicates_in_csv(result.stdout)
 
-                # Print CSV content and statistics
-                self._print_csv_statistics(output_file)
+                if has_duplicates:
+                    # Only write file if duplicates found
+                    with open(output_file, 'w', encoding='utf-8') as f:
+                        f.write(result.stdout)
 
-                # Parse CSV file to return violations
-                return self._parse_csv_output(output_file)
+                    print(f"Duplicate code report saved to: {output_file}")
+
+                    # Print CSV content and statistics
+                    self._print_csv_statistics(output_file)
+
+                    # Parse CSV file to return violations
+                    return self._parse_csv_output(output_file)
+                else:
+                    print("\nNo duplicate code found.")
+                    return []
             else:
                 # Output to console (text format)
                 result = subprocess.run(
@@ -293,6 +304,22 @@ class PMDDuplicatesRule(BaseRule):
                     exclude_file_list.unlink()
                 except Exception as e:
                     print(f"Warning: Could not delete temporary exclude file: {e}")
+
+    def _has_duplicates_in_csv(self, csv_content: str) -> bool:
+        """Check if CSV output contains any duplicate code.
+
+        Args:
+            csv_content: CSV content as string
+
+        Returns:
+            True if duplicates found, False otherwise
+        """
+        if not csv_content or not csv_content.strip():
+            return False
+
+        lines = csv_content.strip().split('\n')
+        # CSV has header + data rows. If only header exists, no duplicates
+        return len(lines) > 1
 
     def _print_csv_statistics(self, csv_file: Path) -> None:
         """Print duplicate code statistics.

@@ -11,6 +11,7 @@ A flexible command-line tool for analyzing code files based on configurable rule
 - **Severity filtering**: Filter violations by error or warning levels
 - **Line count rules**: Check maximum lines per file with warning and error thresholds
 - **Duplicate code detection**: Integrated [PMD](https://pmd.github.io/) CPD for finding copy-paste code across projects
+- **Flutter/Dart static analysis**: Integrated `dart analyze --fatal-infos` for comprehensive Dart code analysis with severity mapping (info/warning/error)
 - **Language-specific exclusions**: Automatically exclude generated files (e.g., `**.g.dart`, `**.freezed.dart`)
 - **Relative path display**: Clean, readable output with relative file paths
 
@@ -44,6 +45,10 @@ source venv/bin/activate
    - Download PMD from [https://pmd.github.io/](https://pmd.github.io/)
    - Extract to a location on your system
    - The analyzer will prompt for the path to `pmd.bat` on first use
+
+5. (Optional) Install Flutter/Dart SDK for Dart analysis:
+   - Download Flutter SDK from [https://docs.flutter.dev/get-started/install](https://docs.flutter.dev/get-started/install)
+   - Ensure `dart` is in your PATH, or the analyzer will prompt for the path on first use
 
 ## Usage
 
@@ -375,6 +380,117 @@ The CSV file contains:
 - Number of occurrences
 - File locations of duplicates
 
+### Dart Static Analysis
+
+The analyzer integrates with Flutter/Dart's built-in `dart analyze` tool to perform comprehensive static analysis on Dart/Flutter projects. This catches issues like unused variables, type errors, missing return types, and many other code quality issues.
+
+#### Enabling Dart Analysis
+
+1. Install Flutter/Dart SDK (see Installation step 5)
+2. Ensure the rule is enabled in `rules.json`:
+
+```json
+{
+  "max_lines_per_file": {
+    "enabled": true,
+    "warning": 300,
+    "error": 500
+  },
+  "pmd_duplicates": {
+    "enabled": true,
+    "minimum_tokens": 100
+  },
+  "dart_analyze": {
+    "enabled": true
+  }
+}
+```
+
+**Note:** The `dart_analyze` rule is enabled by default for Flutter/Dart projects.
+
+#### Using Dart Analysis
+
+**Console Output:**
+```bash
+python main.py --language flutter --path lib/
+```
+
+Dart analyze will run automatically on Flutter/Dart projects and report issues with their original severity levels (info, warning, error).
+
+**File Output:**
+```bash
+python main.py --language flutter --path lib/ --output reports/
+```
+
+This creates `reports/dart_analyze.csv` with the full analysis results in CSV format.
+
+#### First-Time Setup
+
+If `dart` is not found in your PATH, you'll be prompted:
+
+```
+Dart executable not found in PATH.
+Please ensure Flutter/Dart SDK is installed.
+Download from: https://docs.flutter.dev/get-started/install
+
+Enter path to dart executable (or press Enter to skip):
+```
+
+Enter the path to your Dart executable (e.g., `C:\flutter\bin\dart.exe`), or press Enter to skip. The path will be saved to `settings.ini` for future use.
+
+#### What Dart Analyze Detects
+
+The `dart analyze --fatal-infos` command checks for:
+
+- **Errors**: Type errors, undefined methods, syntax errors
+- **Warnings**: Missing return types, unused imports, deprecated API usage
+- **Infos**: Unused variables, unnecessary casts, style guide violations
+- **Lints**: Code style and best practice recommendations
+
+#### Severity Mapping
+
+The analyzer preserves Dart's original severity levels:
+- `info` → INFO (informational issues)
+- `warning` → WARNING (code smells, potential issues)
+- `error` → ERROR (code that won't compile or will fail at runtime)
+
+#### Example: Analyzing a Flutter Project
+
+```bash
+# Analyze with all rules including dart analyze
+python main.py --language flutter --path lib/
+
+# Only show errors from dart analyze
+python main.py --language flutter --path lib/ --loglevel error
+
+# Save dart analyze results to file
+python main.py --language flutter --path lib/ --output reports/
+```
+
+**Example Output:**
+```
+Dart analyze found 3 issue(s)
+
+ERRORS (1):
+================================================================================
+  lib/main.dart
+    The method 'foo' isn't defined for the type 'String' (undefined_method) at line 23, column 5
+
+WARNINGS (1):
+================================================================================
+  lib/utils.dart
+    Missing return type (type_annotate_public_apis) at line 15, column 3
+
+INFO (1):
+================================================================================
+  lib/widgets/button.dart
+    The declaration 'unusedVar' isn't referenced (unused_element) at line 10, column 7
+```
+
+#### Generated Files Handling
+
+Generated Dart files (like `*.g.dart`, `*.freezed.dart`) are automatically handled by Dart's analyzer. These files typically include `// ignore_for_file` comments at the top, which suppress lint warnings while still reporting errors. **No additional configuration is needed.**
+
 ## Project Structure
 
 ```
@@ -390,9 +506,10 @@ cli-code-analyzer/
 │   ├── __init__.py            # Rules module
 │   ├── base.py                # Base rule class
 │   ├── max_lines.py           # Max lines per file rule
-│   └── pmd_duplicates.py      # PMD duplicate code detection rule
+│   ├── pmd_duplicates.py      # PMD duplicate code detection rule
+│   └── dart_analyze.py        # Dart static analysis rule
 ├── rules.json                  # Default rules configuration
-├── settings.ini                # User settings (PMD path, etc.)
+├── settings.ini                # User settings (PMD path, Dart path, etc.)
 └── example/                    # Example project for testing
     ├── rules.json             # Example rules (warning:200, error:300)
     └── lib/

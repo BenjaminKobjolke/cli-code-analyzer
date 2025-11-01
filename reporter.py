@@ -25,7 +25,7 @@ class Reporter:
         if log_level == LogLevel.ERROR:
             return [v for v in violations if v.severity == Severity.ERROR]
         elif log_level == LogLevel.WARNING:
-            return [v for v in violations if v.severity == Severity.WARNING]
+            return [v for v in violations if v.severity in (Severity.WARNING, Severity.ERROR)]
         else:  # LogLevel.ALL
             return violations
 
@@ -102,9 +102,10 @@ class Reporter:
             print("No violations found!")
             return False
 
-        # Separate errors and warnings
+        # Separate errors, warnings, and infos
         errors = [v for v in self.violations if v.severity == Severity.ERROR]
         warnings = [v for v in self.violations if v.severity == Severity.WARNING]
+        infos = [v for v in self.violations if v.severity == Severity.INFO]
 
         # Print errors
         if errors:
@@ -124,14 +125,23 @@ class Reporter:
                 print(f"    {violation.message}")
                 print()
 
+        # Print infos
+        if infos:
+            print(f"INFO ({len(infos)}):")
+            print("=" * 80)
+            for violation in infos:
+                print(f"  {violation.file_path}")
+                print(f"    {violation.message}")
+                print()
+
         # Summary
         print("=" * 80)
         if self.log_level == LogLevel.ERROR:
             print(f"Summary: {len(errors)} error(s)")
         elif self.log_level == LogLevel.WARNING:
-            print(f"Summary: {len(warnings)} warning(s)")
-        else:  # LogLevel.ALL
             print(f"Summary: {len(errors)} error(s), {len(warnings)} warning(s)")
+        else:  # LogLevel.ALL
+            print(f"Summary: {len(errors)} error(s), {len(warnings)} warning(s), {len(infos)} info(s)")
 
         return len(errors) > 0
 
@@ -143,9 +153,10 @@ class Reporter:
             print("No violations found!")
             return False
 
-        # Separate errors and warnings
+        # Separate errors, warnings, and infos
         errors = [v for v in self.violations if v.severity == Severity.ERROR]
         warnings = [v for v in self.violations if v.severity == Severity.WARNING]
+        infos = [v for v in self.violations if v.severity == Severity.INFO]
 
         # Print errors
         if errors:
@@ -177,6 +188,17 @@ class Reporter:
                 print(f"    Message: {violation.message}")
                 print()
 
+        # Print infos
+        if infos:
+            print(f"INFO ({len(infos)}):")
+            print("=" * 80)
+            for violation in infos:
+                print(f"  {violation.file_path}")
+                print(f"    Rule: {violation.rule_name}")
+                print(f"    Severity: {violation.severity.value}")
+                print(f"    Message: {violation.message}")
+                print()
+
         # Summary
         print("=" * 80)
         print(f"Files analyzed: {self.file_count}")
@@ -186,9 +208,9 @@ class Reporter:
         if self.log_level == LogLevel.ERROR:
             print(f"Summary: {len(errors)} error(s)")
         elif self.log_level == LogLevel.WARNING:
-            print(f"Summary: {len(warnings)} warning(s)")
-        else:  # LogLevel.ALL
             print(f"Summary: {len(errors)} error(s), {len(warnings)} warning(s)")
+        else:  # LogLevel.ALL
+            print(f"Summary: {len(errors)} error(s), {len(warnings)} warning(s), {len(infos)} info(s)")
 
         return len(errors) > 0
 
@@ -208,8 +230,7 @@ class Reporter:
             True if errors were found, False otherwise
         """
         # Separate violations by rule type
-        line_violations = [v for v in self.violations if v.rule_name != 'pmd_duplicates']
-        pmd_violations = [v for v in self.violations if v.rule_name == 'pmd_duplicates']
+        line_violations = [v for v in self.violations if v.rule_name == 'max_lines_per_file']
 
         # Write line count violations to CSV file (if any)
         if line_violations:
@@ -234,12 +255,8 @@ class Reporter:
         else:
             print("No line count violations found")
 
-        # PMD duplicates report is already saved by the PMD rule itself
-        # We just print a summary message
-        if pmd_violations:
-            pmd_file = self.output_folder / 'duplicate_code.csv'
-            if pmd_file.exists():
-                print(f"PMD duplicate code report already saved to: {pmd_file}")
+        # PMD duplicates and dart analyze reports are already saved by their respective rules
+        # They print their own "saved to" messages, so we don't need to print anything here
 
         # Determine if there are errors
         total_errors = sum(1 for v in self.violations if v.severity == Severity.ERROR)

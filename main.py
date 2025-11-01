@@ -82,12 +82,14 @@ Examples:
         output_folder.mkdir(parents=True, exist_ok=True)
 
         # Clean up old report files
-        (output_folder / 'line_count_report.txt').unlink(missing_ok=True)
+        (output_folder / 'line_count_report.csv').unlink(missing_ok=True)
+        (output_folder / 'line_count_report.txt').unlink(missing_ok=True)  # Legacy format
         (output_folder / 'duplicate_code.csv').unlink(missing_ok=True)
+        (output_folder / 'dart_analyze.csv').unlink(missing_ok=True)
 
     # Run analysis
     try:
-        analyzer = CodeAnalyzer(args.language, args.path, args.rules, output_folder)
+        analyzer = CodeAnalyzer(args.language, args.path, args.rules, output_folder, log_level)
         analyzer.analyze()
 
         # Generate report

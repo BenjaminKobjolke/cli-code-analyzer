@@ -6,14 +6,14 @@ from typing import List, Optional
 from pathlib import Path
 from config import Config
 from file_discovery import FileDiscovery
-from rules import MaxLinesRule, PMDDuplicatesRule
-from models import Violation
+from rules import MaxLinesRule, PMDDuplicatesRule, DartAnalyzeRule
+from models import Violation, LogLevel
 
 
 class CodeAnalyzer:
     """Main analyzer that orchestrates the analysis workflow"""
 
-    def __init__(self, language: str, path: str, rules_file: str, output_folder: Optional[Path] = None):
+    def __init__(self, language: str, path: str, rules_file: str, output_folder: Optional[Path] = None, log_level: LogLevel = LogLevel.ALL):
         self.language = language
         self.path = path
         self.base_path = Path(path).resolve()
@@ -21,6 +21,7 @@ class CodeAnalyzer:
         self.violations: List[Violation] = []
         self.files: List[Path] = []
         self.output_folder = output_folder
+        self.log_level = log_level
 
     def analyze(self):
         """Run the analysis"""
@@ -44,6 +45,20 @@ class CodeAnalyzer:
             # PMD analyzes the entire directory, so we just call it once with any file
             if self.files:
                 violations = pmd_rule.check(self.files[0])
+                self.violations.extend(violations)
+
+        # Run dart analyze check (once per analysis, not per file)
+        if self.config.is_rule_enabled('dart_analyze'):
+            rule_config = self.config.get_rule('dart_analyze')
+            dart_rule = DartAnalyzeRule(
+                rule_config,
+                self.base_path,
+                self.output_folder,
+                self.log_level
+            )
+            # Dart analyze analyzes the entire project, so we just call it once with any file
+            if self.files:
+                violations = dart_rule.check(self.files[0])
                 self.violations.extend(violations)
 
         # Run per-file rules on each file

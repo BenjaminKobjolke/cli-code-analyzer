@@ -8,6 +8,7 @@ from enum import Enum
 
 class Severity(Enum):
     """Severity levels for violations"""
+    INFO = "INFO"
     WARNING = "WARNING"
     ERROR = "ERROR"
 
