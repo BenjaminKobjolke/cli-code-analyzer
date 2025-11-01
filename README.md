@@ -492,7 +492,7 @@ INFO (1):
 
 Generated Dart files (like `*.g.dart`, `*.freezed.dart`) are automatically handled by Dart's analyzer. These files typically include `// ignore_for_file` comments at the top, which suppress lint warnings while still reporting errors. **No additional configuration is needed.**
 
-### Dart Code Linter (DCM) - Code Metrics Analysis
+### Dart Code Linter - Code Metrics Analysis
 
 The analyzer integrates with [dart_code_linter](https://pub.dev/packages/dart_code_linter) to perform advanced code metrics analysis on Dart/Flutter projects. This provides detailed metrics like cyclomatic complexity, maintainability index, lines of code per function/class, and more.
 
@@ -728,7 +728,7 @@ cli-code-analyzer/
 │   ├── max_lines.py           # Max lines per file rule
 │   ├── pmd_duplicates.py      # PMD duplicate code detection rule
 │   ├── dart_analyze.py        # Dart static analysis rule
-│   └── dart_code_linter.py    # Dart code metrics analysis rule (DCM)
+│   └── dart_code_linter.py    # Dart code metrics analysis rule
 ├── rules.json                  # Default rules configuration
 ├── settings.ini                # User settings (PMD path, Dart path, etc.)
 └── example/                    # Example project for testing
