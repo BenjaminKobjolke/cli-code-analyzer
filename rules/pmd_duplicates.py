@@ -302,12 +302,15 @@ class PMDDuplicatesRule(BaseRule):
         """
         try:
             with open(csv_file, 'r', encoding='utf-8') as f:
-                lines = f.readlines()
+                reader = csv.reader(f)
 
-            # Skip header (first line)
-            data_lines = [line.strip() for line in lines[1:] if line.strip()]
+                # Skip header row
+                next(reader, None)
 
-            if not data_lines:
+                # Process data rows
+                rows = list(reader)
+
+            if not rows:
                 print("\nNo duplicate code found.")
                 return
 
@@ -317,16 +320,16 @@ class PMDDuplicatesRule(BaseRule):
 
             # Calculate total duplicate lines
             total_lines = 0
-            for line in data_lines:
+            for row in rows:
                 # Extract first column (lines) for total calculation
-                try:
-                    first_value = line.split(',')[0]
-                    total_lines += int(first_value)
-                except (ValueError, IndexError):
-                    pass
+                if row:  # Ensure row is not empty
+                    try:
+                        total_lines += int(row[0])
+                    except (ValueError, IndexError):
+                        pass
 
             # Print statistics
-            print(f"Total CSV lines (duplicates found): {len(data_lines)}")
+            print(f"Total CSV lines (duplicates found): {len(rows)}")
             print(f"Total duplicate code lines: {total_lines}")
             print("="*80 + "\n")
 

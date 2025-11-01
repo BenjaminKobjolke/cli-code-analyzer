@@ -2,6 +2,7 @@
 Report generation and formatting
 """
 
+import csv
 from typing import List, Dict, Optional
 from pathlib import Path
 from collections import defaultdict
@@ -210,41 +211,24 @@ class Reporter:
         line_violations = [v for v in self.violations if v.rule_name != 'pmd_duplicates']
         pmd_violations = [v for v in self.violations if v.rule_name == 'pmd_duplicates']
 
-        # Write line count violations to file (if any)
+        # Write line count violations to CSV file (if any)
         if line_violations:
-            output_file = self.output_folder / 'line_count_report.txt'
-            with open(output_file, 'w', encoding='utf-8') as f:
-                f.write("LINE COUNT ANALYSIS REPORT\n")
-                f.write("=" * 80 + "\n\n")
+            output_file = self.output_folder / 'line_count_report.csv'
+            with open(output_file, 'w', encoding='utf-8', newline='') as f:
+                writer = csv.writer(f)
 
-                # Separate errors and warnings
-                errors = [v for v in line_violations if v.severity == Severity.ERROR]
-                warnings = [v for v in line_violations if v.severity == Severity.WARNING]
+                # Write header
+                writer.writerow(['file_path', 'line_count', 'threshold', 'severity'])
 
-                # Write errors
-                if errors:
-                    f.write(f"ERRORS ({len(errors)}):\n")
-                    f.write("=" * 80 + "\n")
-                    for violation in errors:
-                        f.write(f"  {violation.file_path}\n")
-                        f.write(f"    {violation.message}\n")
-                        f.write("\n")
-
-                # Write warnings
-                if warnings:
-                    f.write(f"WARNINGS ({len(warnings)}):\n")
-                    f.write("=" * 80 + "\n")
-                    for violation in warnings:
-                        f.write(f"  {violation.file_path}\n")
-                        f.write(f"    {violation.message}\n")
-                        f.write("\n")
-
-                # Write summary
-                f.write("=" * 80 + "\n")
-                f.write(f"Files analyzed: {self.file_count}\n")
-                files_with_violations = len(set(v.file_path for v in line_violations))
-                f.write(f"Files with violations: {files_with_violations}\n")
-                f.write(f"Summary: {len(errors)} error(s), {len(warnings)} warning(s)\n")
+                # Write each violation as a row
+                for violation in line_violations:
+                    threshold = self._get_threshold(violation)
+                    writer.writerow([
+                        violation.file_path,
+                        violation.line_count,
+                        threshold,
+                        violation.severity.value
+                    ])
 
             print(f"Line count report saved to: {output_file}")
         else:
