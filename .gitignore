@@ -207,3 +207,7 @@ __marimo__/
 .claude
 bin
 settings.ini
+
+# Test output folders
+minimal/
+reports/

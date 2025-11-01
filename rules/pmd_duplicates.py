@@ -254,6 +254,9 @@ class PMDDuplicatesRule(BaseRule):
 
                 print(f"Duplicate code report saved to: {output_file}")
 
+                # Print CSV content and statistics
+                self._print_csv_statistics(output_file)
+
                 # Parse CSV file to return violations
                 return self._parse_csv_output(output_file)
             else:
@@ -290,6 +293,45 @@ class PMDDuplicatesRule(BaseRule):
                     exclude_file_list.unlink()
                 except Exception as e:
                     print(f"Warning: Could not delete temporary exclude file: {e}")
+
+    def _print_csv_statistics(self, csv_file: Path) -> None:
+        """Print duplicate code statistics.
+
+        Args:
+            csv_file: Path to CSV output file
+        """
+        try:
+            with open(csv_file, 'r', encoding='utf-8') as f:
+                lines = f.readlines()
+
+            # Skip header (first line)
+            data_lines = [line.strip() for line in lines[1:] if line.strip()]
+
+            if not data_lines:
+                print("\nNo duplicate code found.")
+                return
+
+            print("\n" + "="*80)
+            print("DUPLICATE CODE DETECTION RESULTS")
+            print("="*80)
+
+            # Calculate total duplicate lines
+            total_lines = 0
+            for line in data_lines:
+                # Extract first column (lines) for total calculation
+                try:
+                    first_value = line.split(',')[0]
+                    total_lines += int(first_value)
+                except (ValueError, IndexError):
+                    pass
+
+            # Print statistics
+            print(f"Total CSV lines (duplicates found): {len(data_lines)}")
+            print(f"Total duplicate code lines: {total_lines}")
+            print("="*80 + "\n")
+
+        except Exception as e:
+            print(f"Error reading duplicate code statistics: {e}")
 
     def _parse_csv_output(self, csv_file: Path) -> List[Violation]:
         """Parse PMD CPD CSV output into violations.
