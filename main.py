@@ -86,6 +86,7 @@ Examples:
         (output_folder / 'line_count_report.txt').unlink(missing_ok=True)  # Legacy format
         (output_folder / 'duplicate_code.csv').unlink(missing_ok=True)
         (output_folder / 'dart_analyze.csv').unlink(missing_ok=True)
+        (output_folder / 'dart_code_linter.csv').unlink(missing_ok=True)
 
     # Run analysis
     try:

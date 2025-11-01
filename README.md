@@ -12,6 +12,7 @@ A flexible command-line tool for analyzing code files based on configurable rule
 - **Line count rules**: Check maximum lines per file with warning and error thresholds
 - **Duplicate code detection**: Integrated [PMD](https://pmd.github.io/) CPD for finding copy-paste code across projects
 - **Flutter/Dart static analysis**: Integrated `dart analyze --fatal-infos` for comprehensive Dart code analysis with severity mapping (info/warning/error)
+- **Dart code metrics**: Integrated [dart_code_linter](https://pub.dev/packages/dart_code_linter) for advanced metrics (cyclomatic complexity, maintainability index, technical debt, etc.)
 - **Language-specific exclusions**: Automatically exclude generated files (e.g., `**.g.dart`, `**.freezed.dart`)
 - **Relative path display**: Clean, readable output with relative file paths
 
@@ -491,6 +492,225 @@ INFO (1):
 
 Generated Dart files (like `*.g.dart`, `*.freezed.dart`) are automatically handled by Dart's analyzer. These files typically include `// ignore_for_file` comments at the top, which suppress lint warnings while still reporting errors. **No additional configuration is needed.**
 
+### Dart Code Linter (DCM) - Code Metrics Analysis
+
+The analyzer integrates with [dart_code_linter](https://pub.dev/packages/dart_code_linter) to perform advanced code metrics analysis on Dart/Flutter projects. This provides detailed metrics like cyclomatic complexity, maintainability index, lines of code per function/class, and more.
+
+#### Enabling Dart Code Linter
+
+1. The rule is disabled by default in `rules.json`. Enable it by setting `"enabled": true`:
+
+```json
+{
+  "dart_code_linter": {
+    "enabled": true,
+    "auto_install": false,
+    "analyze_path": "lib",
+    "metrics": {
+      "cyclomatic-complexity": {
+        "warning": 10,
+        "error": 20
+      },
+      "lines-of-code": {
+        "warning": 50,
+        "error": 100
+      },
+      "number-of-methods": {
+        "warning": 10,
+        "error": 20
+      },
+      "technical-debt": {
+        "warning": 10,
+        "error": 50
+      },
+      "maintainability-index": {
+        "warning": 40,
+        "error": 20
+      },
+      "maximum-nesting-level": {
+        "warning": 3,
+        "error": 5
+      }
+    }
+  }
+}
+```
+
+**Configuration Options:**
+
+- `enabled`: Enable/disable dart_code_linter analysis
+- `auto_install`: If `true`, automatically runs `dart pub add --dev dart_code_linter` if not installed
+- `analyze_path`: Path to analyze (default: `lib`)
+- `metrics`: Metric thresholds for warning and error levels
+
+#### Installing dart_code_linter
+
+**Option 1: Manual Installation (Recommended)**
+```bash
+cd your-flutter-project
+dart pub add --dev dart_code_linter
+```
+
+**Option 2: Automatic Installation**
+
+Set `"auto_install": true` in `rules.json`, and the analyzer will install it automatically if not found in `pubspec.yaml`.
+
+#### Using Dart Code Linter
+
+**Console Output:**
+```bash
+python main.py --language flutter --path lib/
+```
+
+Dart Code Linter will analyze your code and report metric violations based on configured thresholds.
+
+**File Output:**
+```bash
+python main.py --language flutter --path lib/ --output reports/
+```
+
+This creates `reports/dart_code_linter.csv` with all metric violations.
+
+#### Supported Metrics
+
+The following metrics can be configured with warning and error thresholds:
+
+| Metric ID | Description | Normal Direction |
+|-----------|-------------|------------------|
+| `cyclomatic-complexity` | Number of linearly independent paths through code | Higher is worse |
+| `lines-of-code` | Number of lines in a function/method | Higher is worse |
+| `source-lines-of-code` | Non-comment, non-blank lines of code | Higher is worse |
+| `number-of-methods` | Number of methods in a class | Higher is worse |
+| `technical-debt` | Estimated hours of technical debt | Higher is worse |
+| `maintainability-index` | Maintainability score (0-100) | **Lower is worse** |
+| `maximum-nesting-level` | Maximum depth of nested blocks | Higher is worse |
+| `halstead-volume` | Halstead complexity volume metric | Higher is worse |
+| `weight-of-class` | Class weight metric | Higher is worse |
+
+**Note:** For `maintainability-index`, lower values indicate worse code. A value of 100 is perfect, while lower scores indicate harder-to-maintain code.
+
+#### Example Output
+
+**Console:**
+```
+Dart Code Linter found 5 metric violation(s)
+
+ERRORS (2):
+================================================================================
+  lib/services/data_processor.dart
+    cyclomatic-complexity = 25 >= 20 (threshold) in function processData
+
+  lib/widgets/complex_form.dart
+    lines-of-code = 120 >= 100 (threshold) in class ComplexForm
+
+WARNINGS (3):
+================================================================================
+  lib/utils/helper.dart
+    cyclomatic-complexity = 12 >= 10 (threshold) in function calculateResult
+
+  lib/models/user.dart
+    number-of-methods = 15 >= 10 (threshold) in class User
+
+  lib/widgets/dashboard.dart
+    maintainability-index = 35 <= 40 (threshold) in function buildDashboard
+```
+
+**CSV Format (`dart_code_linter.csv`):**
+```csv
+file_path,metric,severity,message
+lib/services/data_processor.dart,dart_code_linter,ERROR,"cyclomatic-complexity = 25 >= 20 (threshold) in function processData"
+lib/widgets/complex_form.dart,dart_code_linter,ERROR,"lines-of-code = 120 >= 100 (threshold) in class ComplexForm"
+```
+
+#### Customizing Metric Thresholds
+
+Adjust thresholds in `rules.json` based on your project's needs:
+
+**Strict Configuration (for new/clean code):**
+```json
+{
+  "dart_code_linter": {
+    "enabled": true,
+    "metrics": {
+      "cyclomatic-complexity": {
+        "warning": 5,
+        "error": 10
+      },
+      "lines-of-code": {
+        "warning": 30,
+        "error": 50
+      },
+      "maintainability-index": {
+        "warning": 60,
+        "error": 40
+      }
+    }
+  }
+}
+```
+
+**Lenient Configuration (for legacy code):**
+```json
+{
+  "dart_code_linter": {
+    "enabled": true,
+    "metrics": {
+      "cyclomatic-complexity": {
+        "warning": 20,
+        "error": 30
+      },
+      "lines-of-code": {
+        "warning": 100,
+        "error": 200
+      },
+      "maintainability-index": {
+        "warning": 30,
+        "error": 10
+      }
+    }
+  }
+}
+```
+
+#### Focusing on Specific Metrics
+
+You can track only the metrics you care about by removing others from the configuration:
+
+```json
+{
+  "dart_code_linter": {
+    "enabled": true,
+    "metrics": {
+      "cyclomatic-complexity": {
+        "warning": 10,
+        "error": 20
+      },
+      "maintainability-index": {
+        "warning": 40,
+        "error": 20
+      }
+    }
+  }
+}
+```
+
+Only metrics listed in the configuration will be checked. Unlisted metrics will be ignored.
+
+#### Integration with Other Rules
+
+Dart Code Linter works alongside other analyzer rules:
+
+```bash
+# All rules enabled (line count + duplicates + dart analyze + dart_code_linter)
+python main.py --language flutter --path lib/ --output reports/
+
+# This creates:
+# - reports/line_count_report.csv
+# - reports/duplicate_code.csv
+# - reports/dart_analyze.csv
+# - reports/dart_code_linter.csv
+```
+
 ## Project Structure
 
 ```
@@ -507,7 +727,8 @@ cli-code-analyzer/
 │   ├── base.py                # Base rule class
 │   ├── max_lines.py           # Max lines per file rule
 │   ├── pmd_duplicates.py      # PMD duplicate code detection rule
-│   └── dart_analyze.py        # Dart static analysis rule
+│   ├── dart_analyze.py        # Dart static analysis rule
+│   └── dart_code_linter.py    # Dart code metrics analysis rule (DCM)
 ├── rules.json                  # Default rules configuration
 ├── settings.ini                # User settings (PMD path, Dart path, etc.)
 └── example/                    # Example project for testing

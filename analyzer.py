@@ -6,7 +6,7 @@ from typing import List, Optional
 from pathlib import Path
 from config import Config
 from file_discovery import FileDiscovery
-from rules import MaxLinesRule, PMDDuplicatesRule, DartAnalyzeRule
+from rules import MaxLinesRule, PMDDuplicatesRule, DartAnalyzeRule, DartCodeLinterRule
 from models import Violation, LogLevel
 
 
@@ -59,6 +59,20 @@ class CodeAnalyzer:
             # Dart analyze analyzes the entire project, so we just call it once with any file
             if self.files:
                 violations = dart_rule.check(self.files[0])
+                self.violations.extend(violations)
+
+        # Run dart_code_linter check (once per analysis, not per file)
+        if self.config.is_rule_enabled('dart_code_linter'):
+            rule_config = self.config.get_rule('dart_code_linter')
+            dcm_rule = DartCodeLinterRule(
+                rule_config,
+                self.base_path,
+                self.output_folder,
+                self.log_level
+            )
+            # Dart Code Linter analyzes the entire project, so we just call it once with any file
+            if self.files:
+                violations = dcm_rule.check(self.files[0])
                 self.violations.extend(violations)
 
         # Run per-file rules on each file

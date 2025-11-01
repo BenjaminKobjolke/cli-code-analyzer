@@ -50,6 +50,8 @@ class DartAnalyzeRule(BaseRule):
 
         self._dart_executed = True
 
+        print("\nRunning dart analyze...")
+
         # Get dart path
         dart_path = self._get_or_prompt_dart_path()
         if not dart_path:

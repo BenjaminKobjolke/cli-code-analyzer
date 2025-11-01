@@ -71,6 +71,8 @@ class PMDDuplicatesRule(BaseRule):
 
         self._pmd_executed = True
 
+        print("\nChecking for duplicate code...")
+
         # Get PMD path
         pmd_path = self._get_or_prompt_pmd_path()
         if not pmd_path:

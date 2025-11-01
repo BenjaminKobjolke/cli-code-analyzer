@@ -17,5 +17,49 @@
   },
   "dart_analyze": {
     "enabled": true
+  },
+  "dart_code_linter": {
+    "enabled": true,
+    "auto_install": false,
+    "analyze_path": "lib",
+    "keep_report": false,
+    "metrics": {
+      "cyclomatic-complexity": {
+        "warning": 10,
+        "error": 15
+      },
+      "lines-of-code": {
+        "warning": 0,
+        "error": 0
+      },
+      "number-of-methods": {
+        "warning": 10,
+        "error": 20
+      },
+      "technical-debt": {
+        "warning": 10,
+        "error": 50
+      },
+      "maintainability-index": {
+        "warning": 40,
+        "error": 20
+      },
+      "maximum-nesting-level": {
+        "warning": 3,
+        "error": 5
+      },
+      "halstead-volume": {
+        "warning": 800,
+        "error": 1200
+      },
+      "source-lines-of-code": {
+        "warning": 0,
+        "error": 0
+      },
+      "weight-of-class-disabled": {
+        "warning": 0.4,
+        "error": 0.3
+      }
+    }
   }
 }
