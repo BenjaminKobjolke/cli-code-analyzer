@@ -17,7 +17,7 @@ from settings import Settings
 class DartAnalyzeRule(BaseRule):
     """Rule to analyze Dart/Flutter code using dart analyze"""
 
-    def __init__(self, config: dict, base_path: Path = None, output_folder: Optional[Path] = None, log_level: LogLevel = LogLevel.ALL, max_errors: Optional[int] = None):
+    def __init__(self, config: dict, base_path: Path = None, output_folder: Optional[Path] = None, log_level: LogLevel = LogLevel.ALL, max_errors: Optional[int] = None, rules_file_path: str = None):
         """Initialize Dart analyze rule.
 
         Args:
@@ -26,8 +26,9 @@ class DartAnalyzeRule(BaseRule):
             output_folder: Optional folder for file output (None = console output)
             log_level: Log level for filtering violations
             max_errors: Optional limit on number of violations to include in CSV
+            rules_file_path: Path to the rules.json file
         """
-        super().__init__(config, base_path, max_errors)
+        super().__init__(config, base_path, max_errors, rules_file_path)
         self.output_folder = output_folder
         self.log_level = log_level
         self.settings = Settings()

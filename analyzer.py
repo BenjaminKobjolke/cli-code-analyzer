@@ -18,6 +18,7 @@ class CodeAnalyzer:
         self.path = path
         self.base_path = Path(path).resolve()
         self.config = Config(rules_file)
+        self.rules_file = self.config.rules_file
         self.violations: List[Violation] = []
         self.files: List[Path] = []
         self.output_folder = output_folder
@@ -42,7 +43,8 @@ class CodeAnalyzer:
                 self.base_path,
                 self.language,
                 self.output_folder,
-                self.max_errors
+                self.max_errors,
+                self.rules_file
             )
             # PMD analyzes the entire directory, so we just call it once with any file
             if self.files:
@@ -57,7 +59,8 @@ class CodeAnalyzer:
                 self.base_path,
                 self.output_folder,
                 self.log_level,
-                self.max_errors
+                self.max_errors,
+                self.rules_file
             )
             # Dart analyze analyzes the entire project, so we just call it once with any file
             if self.files:
@@ -72,7 +75,8 @@ class CodeAnalyzer:
                 self.base_path,
                 self.output_folder,
                 self.log_level,
-                self.max_errors
+                self.max_errors,
+                self.rules_file
             )
             # Dart Code Linter analyzes the entire project, so we just call it once with any file
             if self.files:
@@ -88,7 +92,7 @@ class CodeAnalyzer:
         # Check max lines rule
         if self.config.is_rule_enabled('max_lines_per_file'):
             rule_config = self.config.get_rule('max_lines_per_file')
-            rule = MaxLinesRule(rule_config, self.base_path)
+            rule = MaxLinesRule(rule_config, self.base_path, self.max_errors, self.rules_file)
             violations = rule.check(file_path)
             self.violations.extend(violations)
 

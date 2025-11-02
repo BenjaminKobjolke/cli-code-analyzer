@@ -38,7 +38,7 @@ LANGUAGE_TO_PMD = {
 class PMDDuplicatesRule(BaseRule):
     """Rule to detect duplicate code using PMD CPD"""
 
-    def __init__(self, config: dict, base_path: Path = None, language: str = None, output_folder: Optional[Path] = None, max_errors: Optional[int] = None):
+    def __init__(self, config: dict, base_path: Path = None, language: str = None, output_folder: Optional[Path] = None, max_errors: Optional[int] = None, rules_file_path: str = None):
         """Initialize PMD duplicates rule.
 
         Args:
@@ -47,8 +47,9 @@ class PMDDuplicatesRule(BaseRule):
             language: Programming language being analyzed
             output_folder: Optional folder for file output (None = console output)
             max_errors: Optional limit on number of violations to include in CSV
+            rules_file_path: Path to the rules.json file
         """
-        super().__init__(config, base_path, max_errors)
+        super().__init__(config, base_path, max_errors, rules_file_path)
         self.language = language
         self.output_folder = output_folder
         self.settings = Settings()

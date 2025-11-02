@@ -18,7 +18,7 @@ from settings import Settings
 class DartCodeLinterRule(BaseRule):
     """Rule to analyze Dart/Flutter code metrics using dart_code_linter"""
 
-    def __init__(self, config: dict, base_path: Path = None, output_folder: Optional[Path] = None, log_level: LogLevel = LogLevel.ALL, max_errors: Optional[int] = None):
+    def __init__(self, config: dict, base_path: Path = None, output_folder: Optional[Path] = None, log_level: LogLevel = LogLevel.ALL, max_errors: Optional[int] = None, rules_file_path: str = None):
         """Initialize Dart Code Linter rule.
 
         Args:
@@ -27,8 +27,9 @@ class DartCodeLinterRule(BaseRule):
             output_folder: Optional folder for file output (None = console output)
             log_level: Log level for filtering violations
             max_errors: Optional limit on number of violations to include in CSV
+            rules_file_path: Path to the rules.json file
         """
-        super().__init__(config, base_path, max_errors)
+        super().__init__(config, base_path, max_errors, rules_file_path)
         self.output_folder = output_folder
         self.log_level = log_level
         self.settings = Settings()
@@ -201,8 +202,11 @@ class DartCodeLinterRule(BaseRule):
         # Use project_root if found, otherwise fall back to base_path
         working_dir = self.project_root if self.project_root else self.base_path
 
-        # Create temporary report path in project root
-        report_dir = working_dir / 'code_analysis'
+        # Create temporary report path - use output folder if specified, otherwise use project root
+        if self.output_folder:
+            report_dir = self.output_folder / 'code_analysis'
+        else:
+            report_dir = working_dir / 'code_analysis'
         report_dir.mkdir(exist_ok=True)
         report_json = report_dir / 'report.json'
 
@@ -211,7 +215,7 @@ class DartCodeLinterRule(BaseRule):
         cmd = [
             dart_path, 'run', 'dart_code_linter:metrics', 'analyze',
             '--fatal-warnings', '--fatal-style',
-            '--reporter=html',
+            '--reporter=json',
             f'--json-path={report_dir / "report"}',
             analyze_path
         ]
@@ -264,13 +268,13 @@ class DartCodeLinterRule(BaseRule):
                 output_file = self.output_folder / 'dart_code_linter.csv'
                 self._write_csv_output(output_file, violations, report_json)
 
-            # Cleanup report.json if keep_report is false
+            # Cleanup entire report directory if keep_report is false
             if not self.config.get('keep_report', False):
                 try:
-                    report_json.unlink()
-                    print(f"Cleaned up: {report_json}")
+                    shutil.rmtree(report_dir)
+                    print(f"Cleaned up: {report_dir}")
                 except Exception as e:
-                    print(f"Warning: Could not delete report file: {e}")
+                    print(f"Warning: Could not delete report directory: {e}")
 
             return violations
 
@@ -384,8 +388,10 @@ class DartCodeLinterRule(BaseRule):
             return None
 
         threshold_config = thresholds[metric_id]
-        error_threshold = threshold_config.get('error')
-        warning_threshold = threshold_config.get('warning')
+        # Check for file-specific exceptions
+        effective_thresholds = self._get_threshold_for_file(Path(file_path), threshold_config, metric_id)
+        error_threshold = effective_thresholds.get('error')
+        warning_threshold = effective_thresholds.get('warning')
 
         # Skip metric if both thresholds are 0 (disabled)
         if error_threshold == 0 and warning_threshold == 0:
@@ -587,8 +593,10 @@ class DartCodeLinterRule(BaseRule):
             return None
 
         threshold_config = thresholds[metric_id]
-        error_threshold = threshold_config.get('error')
-        warning_threshold = threshold_config.get('warning')
+        # Check for file-specific exceptions
+        effective_thresholds = self._get_threshold_for_file(Path(file_path), threshold_config, metric_id)
+        error_threshold = effective_thresholds.get('error')
+        warning_threshold = effective_thresholds.get('warning')
 
         # Skip metric if both thresholds are 0 (disabled)
         if error_threshold == 0 and warning_threshold == 0:

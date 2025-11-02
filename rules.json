@@ -34,7 +34,14 @@
       },
       "number-of-methods": {
         "warning": 10,
-        "error": 20
+        "error": 20,
+        "exceptions": [
+          {
+            "file": "services/preferences_service.dart",
+            "warning": 70,
+            "error": 80
+          }
+        ]
       },
       "technical-debt": {
         "warning": 10,
