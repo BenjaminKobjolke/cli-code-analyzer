@@ -476,59 +476,59 @@ class DartCodeLinterRule(BaseRule):
 
         Args:
             output_file: Path to CSV output file
-            violations: List of violations (used for filtering)
-            report_json: Path to the JSON report file for extracting structured data
+            violations: List of FILTERED violations (already respects log_level)
+            report_json: Path to the JSON report file (unused, kept for compatibility)
         """
         try:
-            # Load JSON report
-            with open(report_json, 'r', encoding='utf-8') as f:
-                data = json.load(f)
-
-            # Get configured metric thresholds
-            metric_thresholds = self.config.get('metrics', {})
-
-            # Build a set of violation file+metric combinations for filtering
-            violation_keys = set()
-            for v in violations:
-                # Extract metric name from message (format: "metric-name = value ...")
-                if ' = ' in v.message:
-                    metric_name = v.message.split(' = ')[0]
-                    violation_keys.add((v.file_path, metric_name))
-
-            # Prepare CSV data
+            # Build CSV rows directly from filtered violations
             csv_rows = []
 
-            records = data.get('records', [])
-            for record in records:
-                file_path = record.get('path', 'unknown')
-
-                # Get relative path
+            for v in violations:
+                # Parse violation message: "metric-name = value >= threshold (threshold) in context"
+                # or: "metric-name = value >= threshold (threshold)"
                 try:
-                    rel_path = self._get_relative_path(Path(file_path))
-                except:
-                    rel_path = file_path
+                    # Extract metric name (before " = ")
+                    if ' = ' not in v.message:
+                        continue
 
-                # Process file-level metrics
-                for metric in record.get('fileMetrics', []):
-                    row = self._build_csv_row(rel_path, metric, metric_thresholds, context='file')
-                    if row and (row['file_path'], row['metric']) in violation_keys:
-                        csv_rows.append(row)
+                    parts = v.message.split(' = ', 1)
+                    metric_name = parts[0].strip()
+                    rest = parts[1]  # "value >= threshold (threshold) in context"
 
-                # Process class metrics
-                for class_name, class_data in record.get('classes', {}).items():
-                    for metric in class_data.get('metrics', []):
-                        row = self._build_csv_row(rel_path, metric, metric_thresholds,
-                                                  context=f'class {class_name}')
-                        if row and (row['file_path'], row['metric']) in violation_keys:
-                            csv_rows.append(row)
+                    # Extract value (between " = " and next space)
+                    value_parts = rest.split(' ', 1)
+                    value = float(value_parts[0])
 
-                # Process function metrics
-                for func_name, func_data in record.get('functions', {}).items():
-                    for metric in func_data.get('metrics', []):
-                        row = self._build_csv_row(rel_path, metric, metric_thresholds,
-                                                  context=f'function {func_name}')
-                        if row and (row['file_path'], row['metric']) in violation_keys:
-                            csv_rows.append(row)
+                    # Extract threshold (after operator and before "(threshold)")
+                    # Format: "value >= threshold (threshold)"
+                    if '>=' in rest or '<=' in rest:
+                        operator_split = rest.split('>=' if '>=' in rest else '<=')
+                        if len(operator_split) > 1:
+                            threshold_part = operator_split[1].split('(threshold)')[0].strip()
+                            threshold = float(threshold_part)
+                        else:
+                            threshold = value
+                    else:
+                        threshold = value
+
+                    # Extract context (after "in ")
+                    context = ''
+                    if ' in ' in rest:
+                        context = rest.split(' in ', 1)[1].strip()
+
+                    # Build CSV row
+                    csv_rows.append({
+                        'file_path': v.file_path,
+                        'metric': metric_name,
+                        'value': value,
+                        'threshold': threshold,
+                        'severity': v.severity.value,  # Convert enum to string
+                        'context': context
+                    })
+
+                except Exception as e:
+                    print(f"Warning: Could not parse violation message: {v.message} - {e}")
+                    continue
 
             # Apply max_errors limit to csv_rows
             if self.max_errors and len(csv_rows) > self.max_errors:
@@ -560,80 +560,11 @@ class DartCodeLinterRule(BaseRule):
                         ])
 
                 print(f"Dart Code Linter report saved to: {output_file}")
+            else:
+                print("No violations to write to CSV (after log level filtering)")
 
         except Exception as e:
             import traceback
             print(f"Error writing dart_code_linter CSV file: {e}")
             print("Full traceback:")
             traceback.print_exc()
-
-    def _build_csv_row(
-        self,
-        file_path: str,
-        metric: Dict[str, Any],
-        thresholds: Dict[str, Dict[str, int]],
-        context: str = ''
-    ) -> Optional[Dict[str, Any]]:
-        """Build a CSV row dict if the metric exceeds configured thresholds.
-
-        Args:
-            file_path: Path to the file
-            metric: Metric data from JSON
-            thresholds: Configured thresholds from rules.json
-            context: Additional context (e.g., 'class Foo', 'function bar', 'file')
-
-        Returns:
-            Dict with row data if threshold exceeded, None otherwise
-        """
-        metric_id = metric.get('metricsId', 'unknown')
-        value = metric.get('value', 0)
-
-        # Check if this metric has configured thresholds
-        if metric_id not in thresholds:
-            return None
-
-        threshold_config = thresholds[metric_id]
-        # Check for file-specific exceptions
-        effective_thresholds = self._get_threshold_for_file(Path(file_path), threshold_config, metric_id)
-        error_threshold = effective_thresholds.get('error')
-        warning_threshold = effective_thresholds.get('warning')
-
-        # Skip metric if both thresholds are 0 (disabled)
-        if error_threshold == 0 and warning_threshold == 0:
-            return None
-
-        severity = None
-        threshold_value = None
-
-        # Special handling for inverse metrics (lower is worse)
-        is_inverse_metric = metric_id in ['maintainability-index', 'weight-of-class']
-
-        if is_inverse_metric:
-            # Lower values are worse for inverse metrics
-            if error_threshold is not None and value <= error_threshold:
-                severity = 'ERROR'
-                threshold_value = error_threshold
-            elif warning_threshold is not None and value <= warning_threshold:
-                severity = 'WARNING'
-                threshold_value = warning_threshold
-        else:
-            # Higher values are worse for most metrics
-            if error_threshold is not None and value >= error_threshold:
-                severity = 'ERROR'
-                threshold_value = error_threshold
-            elif warning_threshold is not None and value >= warning_threshold:
-                severity = 'WARNING'
-                threshold_value = warning_threshold
-
-        # No threshold exceeded
-        if severity is None:
-            return None
-
-        return {
-            'file_path': file_path,
-            'metric': metric_id,
-            'value': value,
-            'threshold': threshold_value,
-            'severity': severity,
-            'context': context
-        }
