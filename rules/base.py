@@ -6,15 +6,16 @@ from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import List, Optional, Dict, Any
 from fnmatch import fnmatch
-from models import Violation
+from models import Violation, LogLevel, Severity
 
 
 class BaseRule(ABC):
     """Abstract base class for all rules"""
 
-    def __init__(self, config: dict, base_path: Path = None, max_errors: Optional[int] = None, rules_file_path: str = None):
+    def __init__(self, config: dict, base_path: Path = None, log_level: LogLevel = LogLevel.ALL, max_errors: Optional[int] = None, rules_file_path: str = None):
         self.config = config
         self.base_path = base_path
+        self.log_level = log_level
         self.max_errors = max_errors
         self.rules_file_path = rules_file_path
 
@@ -176,3 +177,25 @@ class BaseRule(ABC):
             return True
 
         return False
+
+    def _filter_violations_by_log_level(self, violations: List[Violation]) -> List[Violation]:
+        """Filter violations based on log level.
+
+        Args:
+            violations: List of all violations
+
+        Returns:
+            Filtered list of violations based on log level
+        """
+        if self.log_level == LogLevel.ALL:
+            return violations
+
+        filtered = []
+        for violation in violations:
+            if self.log_level == LogLevel.ERROR and violation.severity != Severity.ERROR:
+                continue
+            elif self.log_level == LogLevel.WARNING and violation.severity not in (Severity.ERROR, Severity.WARNING):
+                continue
+            filtered.append(violation)
+
+        return filtered

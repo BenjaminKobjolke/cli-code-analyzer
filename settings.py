@@ -128,3 +128,52 @@ class Settings:
         self.set_dart_path(str(dart_path))
         print(f"Dart path saved to {self.settings_file}")
         return str(dart_path)
+
+    def get_flutter_path(self) -> Optional[str]:
+        """Get the Flutter executable path from settings.
+
+        Returns:
+            Path to Flutter executable or None if not set
+        """
+        if 'flutter' in self.config and 'flutter_path' in self.config['flutter']:
+            return self.config['flutter']['flutter_path']
+        return None
+
+    def set_flutter_path(self, path: str):
+        """Set the Flutter executable path and save to settings.
+
+        Args:
+            path: Path to Flutter executable
+        """
+        if 'flutter' not in self.config:
+            self.config['flutter'] = {}
+        self.config['flutter']['flutter_path'] = path
+        self._save()
+
+    def prompt_and_save_flutter_path(self) -> Optional[str]:
+        """Prompt user for Flutter path, validate it, and save to settings.
+
+        Returns:
+            Validated Flutter path, or None if validation failed
+        """
+        print("\nFlutter executable not found in PATH.")
+        print("Please ensure Flutter SDK is installed.")
+        print("Download from: https://docs.flutter.dev/get-started/install")
+        prompt_msg = "\nEnter path to flutter executable (or press Enter to skip): "
+        user_input = input(prompt_msg).strip()
+
+        # If user pressed enter (empty input), skip
+        if not user_input:
+            print("Skipping flutter analyze rule. Install Flutter SDK and configure later.")
+            return None
+
+        # Validate user-provided path exists
+        flutter_path = Path(user_input)
+        if not flutter_path.exists():
+            print(f"Error: Flutter executable not found at: {user_input}")
+            return None
+
+        # Save and return
+        self.set_flutter_path(str(flutter_path))
+        print(f"Flutter path saved to {self.settings_file}")
+        return str(flutter_path)

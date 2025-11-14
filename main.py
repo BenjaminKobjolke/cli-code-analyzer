@@ -80,7 +80,12 @@ Examples:
 
     # Convert verbosity string to enum
     output_level = OutputLevel(args.verbosity)
-    log_level = LogLevel(args.loglevel)
+
+    # Determine if --loglevel was explicitly provided by user
+    # If not provided, pass None to let CodeAnalyzer use config values
+    cli_log_level = None
+    if '--loglevel' in sys.argv:
+        cli_log_level = LogLevel(args.loglevel)
 
     # Validate and create output folder if specified
     output_folder = None
@@ -97,15 +102,18 @@ Examples:
 
     # Run analysis
     try:
-        analyzer = CodeAnalyzer(args.language, args.path, args.rules, output_folder, log_level, args.maxamountoferrors)
+        analyzer = CodeAnalyzer(args.language, args.path, args.rules, output_folder, cli_log_level, args.maxamountoferrors)
         analyzer.analyze()
 
         # Generate report
+        # For reporter, use CLI log level if provided, otherwise use 'all' as default
+        # (violations are already filtered by rules, reporter filtering is redundant but kept for backward compatibility)
+        reporter_log_level = cli_log_level if cli_log_level else LogLevel.ALL
         reporter = Reporter(
             analyzer.get_violations(),
             analyzer.get_file_count(),
             output_level,
-            log_level,
+            reporter_log_level,
             output_folder,
             args.maxamountoferrors
         )

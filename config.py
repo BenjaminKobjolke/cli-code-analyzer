@@ -34,3 +34,23 @@ class Config:
         """Check if a rule is enabled"""
         rule = self.get_rule(rule_name)
         return rule.get('enabled', False)
+
+    def get_global_log_level(self) -> str:
+        """Get global log level from rules configuration.
+
+        Returns:
+            Global log level string ('error', 'warning', or 'all'), or None if not set
+        """
+        return self.rules.get('log_level')
+
+    def get_rule_log_level(self, rule_name: str) -> str:
+        """Get log level for a specific rule.
+
+        Args:
+            rule_name: Name of the rule
+
+        Returns:
+            Rule-specific log level string ('error', 'warning', or 'all'), or None if not set
+        """
+        rule = self.get_rule(rule_name)
+        return rule.get('log_level')

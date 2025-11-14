@@ -8,7 +8,7 @@ import tempfile
 from pathlib import Path
 from typing import List, Optional
 from rules.base import BaseRule
-from models import Violation, Severity
+from models import Violation, Severity, LogLevel
 from settings import Settings
 
 
@@ -38,7 +38,7 @@ LANGUAGE_TO_PMD = {
 class PMDDuplicatesRule(BaseRule):
     """Rule to detect duplicate code using PMD CPD"""
 
-    def __init__(self, config: dict, base_path: Path = None, language: str = None, output_folder: Optional[Path] = None, max_errors: Optional[int] = None, rules_file_path: str = None):
+    def __init__(self, config: dict, base_path: Path = None, language: str = None, output_folder: Optional[Path] = None, log_level: LogLevel = LogLevel.ALL, max_errors: Optional[int] = None, rules_file_path: str = None):
         """Initialize PMD duplicates rule.
 
         Args:
@@ -46,10 +46,11 @@ class PMDDuplicatesRule(BaseRule):
             base_path: Base path for analysis
             language: Programming language being analyzed
             output_folder: Optional folder for file output (None = console output)
+            log_level: Log level for filtering violations
             max_errors: Optional limit on number of violations to include in CSV
             rules_file_path: Path to the rules.json file
         """
-        super().__init__(config, base_path, max_errors, rules_file_path)
+        super().__init__(config, base_path, log_level, max_errors, rules_file_path)
         self.language = language
         self.output_folder = output_folder
         self.settings = Settings()
@@ -109,7 +110,8 @@ class PMDDuplicatesRule(BaseRule):
             output_file=output_file
         )
 
-        return violations
+        # Filter violations based on log level
+        return self._filter_violations_by_log_level(violations)
 
     def _get_or_prompt_pmd_path(self) -> Optional[str]:
         """Get PMD path from settings or prompt user.

@@ -12,6 +12,7 @@ A flexible command-line tool for analyzing code files based on configurable rule
 - **Line count rules**: Check maximum lines per file with warning and error thresholds
 - **Duplicate code detection**: Integrated [PMD](https://pmd.github.io/) CPD for finding copy-paste code across projects
 - **Flutter/Dart static analysis**: Integrated `dart analyze --fatal-infos` for comprehensive Dart code analysis with severity mapping (info/warning/error)
+- **Flutter analyze**: Integrated `flutter analyze` for Flutter-specific code analysis with text output parsing
 - **Dart code metrics**: Integrated [dart_code_linter](https://pub.dev/packages/dart_code_linter) for advanced metrics (cyclomatic complexity, maintainability index, technical debt, etc.)
 - **Language-specific exclusions**: Automatically exclude generated files (e.g., `**.g.dart`, `**.freezed.dart`)
 - **Relative path display**: Clean, readable output with relative file paths
@@ -289,6 +290,156 @@ python main.py --language flutter --path test/ --rules rules-lenient.json
 }
 ```
 
+### Log Level Configuration
+
+The analyzer supports flexible log level configuration at three levels: global, per-rule, and via CLI flag.
+
+#### Log Level Hierarchy
+
+Log levels are resolved using the following precedence (highest to lowest):
+
+1. **CLI flag `--loglevel`** (highest priority, overrides everything)
+2. **Per-rule `log_level`** in rules.json
+3. **Global `log_level`** in rules.json
+4. **Default: "all"** (if nothing is specified)
+
+#### Available Log Levels
+
+- `all`: Show all violations (INFO, WARNING, ERROR)
+- `warning`: Show only WARNING and ERROR violations
+- `error`: Show only ERROR violations
+
+#### Global Log Level
+
+Set a default log level for all rules at the top level of `rules.json`:
+
+```json
+{
+  "log_level": "warning",
+  "max_lines_per_file": {
+    "enabled": true,
+    "warning": 300,
+    "error": 500
+  },
+  "dart_analyze": {
+    "enabled": true
+  }
+}
+```
+
+This will filter all rules to show only warnings and errors by default.
+
+#### Per-Rule Log Level
+
+Override the log level for specific rules:
+
+```json
+{
+  "log_level": "all",
+  "max_lines_per_file": {
+    "enabled": true,
+    "log_level": "error",
+    "warning": 300,
+    "error": 500
+  },
+  "dart_analyze": {
+    "enabled": true,
+    "log_level": "warning"
+  },
+  "pmd_duplicates": {
+    "enabled": true,
+    "minimum_tokens": 100
+  }
+}
+```
+
+In this example:
+- `max_lines_per_file` only shows ERROR violations
+- `dart_analyze` shows WARNING and ERROR violations
+- `pmd_duplicates` inherits the global "all" level
+
+#### CLI Flag Override
+
+The `--loglevel` CLI flag overrides all configuration:
+
+```bash
+# Ignores all rules.json log_level settings, shows only errors
+python main.py --language flutter --path lib/ --loglevel error
+
+# Uses rules.json log_level settings (no CLI override)
+python main.py --language flutter --path lib/
+```
+
+#### Example Use Cases
+
+**Use Case 1: Strict CI/CD Pipeline**
+```json
+{
+  "log_level": "error",
+  "max_lines_per_file": {
+    "enabled": true,
+    "warning": 300,
+    "error": 500
+  },
+  "dart_analyze": {
+    "enabled": true
+  }
+}
+```
+
+CI/CD will only fail on errors, warnings are ignored.
+
+**Use Case 2: Focus on Specific Rules**
+```json
+{
+  "log_level": "all",
+  "max_lines_per_file": {
+    "enabled": true,
+    "log_level": "error",
+    "warning": 300,
+    "error": 500
+  },
+  "dart_analyze": {
+    "enabled": true,
+    "log_level": "warning"
+  }
+}
+```
+
+- See all issues from most rules
+- Only see critical file length violations
+- Hide info-level issues from dart analyze
+
+**Use Case 3: Development vs Production**
+
+**rules-dev.json** (show everything):
+```json
+{
+  "log_level": "all",
+  "dart_analyze": {
+    "enabled": true
+  }
+}
+```
+
+**rules-production.json** (strict):
+```json
+{
+  "log_level": "error",
+  "dart_analyze": {
+    "enabled": true
+  }
+}
+```
+
+```bash
+# Development: see all issues
+python main.py --language flutter --path lib/ --rules rules-dev.json
+
+# CI/CD: fail only on errors
+python main.py --language flutter --path lib/ --rules rules-production.json
+```
+
 ### PMD Duplicate Code Detection
 
 The analyzer integrates with [PMD](https://pmd.github.io/)'s Copy-Paste Detector (CPD) to find duplicate code blocks across your project.
@@ -491,6 +642,141 @@ INFO (1):
 #### Generated Files Handling
 
 Generated Dart files (like `*.g.dart`, `*.freezed.dart`) are automatically handled by Dart's analyzer. These files typically include `// ignore_for_file` comments at the top, which suppress lint warnings while still reporting errors. **No additional configuration is needed.**
+
+### Flutter Analyze
+
+The analyzer integrates with Flutter's built-in `flutter analyze` tool to perform comprehensive static analysis specifically for Flutter projects. This is similar to `dart analyze` but uses the Flutter executable and is particularly useful for Flutter-specific validations.
+
+#### Enabling Flutter Analyze
+
+1. Install Flutter SDK (see Installation step 5)
+2. Enable the rule in `rules.json`:
+
+```json
+{
+  "dart_analyze": {
+    "enabled": true
+  },
+  "flutter_analyze": {
+    "enabled": true,
+    "exclude_patterns": ["*.g.dart", "*.freezed.dart"]
+  }
+}
+```
+
+**Configuration Options:**
+
+- `enabled`: Enable/disable flutter analyze analysis
+- `exclude_patterns`: Glob patterns for files to exclude (for future use)
+
+**Note:** The `flutter_analyze` rule is disabled by default. Enable it if you want to use `flutter` executable instead of `dart` for analysis.
+
+#### Flutter Project Detection
+
+The analyzer automatically detects Flutter projects by checking `pubspec.yaml` for a `flutter:` dependency. If detected, it will run `flutter analyze` on the project root.
+
+#### Using Flutter Analyze
+
+**Console Output:**
+```bash
+python main.py --language flutter --path lib/
+```
+
+Flutter analyze will run automatically on detected Flutter projects and report issues with their original severity levels (info, warning, error).
+
+**File Output:**
+```bash
+python main.py --language flutter --path lib/ --output reports/
+```
+
+This creates `reports/flutter_analyze.csv` with the full analysis results in CSV format.
+
+#### First-Time Setup
+
+If `flutter` is not found in your PATH, you'll be prompted:
+
+```
+Flutter executable not found in PATH.
+Please ensure Flutter SDK is installed.
+Download from: https://docs.flutter.dev/get-started/install
+
+Enter path to flutter executable (or press Enter to skip):
+```
+
+Enter the path to your Flutter executable (e.g., `C:\flutter\bin\flutter.bat`), or press Enter to skip. The path will be saved to `settings.ini` for future use.
+
+#### What Flutter Analyze Detects
+
+The `flutter analyze` command checks for:
+
+- **Errors**: Type errors, undefined methods, syntax errors
+- **Warnings**: Missing return types, unused imports, deprecated API usage, implementation imports
+- **Infos**: Unused variables, unnecessary imports, style guide violations
+
+#### Severity Mapping
+
+The analyzer maps Flutter analyze severity levels:
+- `info` → INFO (informational issues like unnecessary imports)
+- `warning` → WARNING (code smells, unused code)
+- `error` → ERROR (code that won't compile or will fail at runtime)
+
+#### Example Output
+
+**Console:**
+```
+Flutter analyze found 5 issue(s)
+
+WARNINGS (4):
+================================================================================
+  lib/screens/directory_browser_screen.dart
+    Unused import: 'package:path/path.dart' (unused_import) at line 3, column 8
+
+  lib/screens/directory_browser_screen.dart
+    Unused import: 'package:saf/src/storage_access_framework/api.dart' (unused_import) at line 6, column 8
+
+  lib/screens/directory_browser_screen.dart
+    Unused import: '../models/sort_settings.dart' (unused_import) at line 7, column 8
+
+  lib/screens/directory_browser_screen.dart
+    Unused import: '../utils/custom_snackbar_helper.dart' (unused_import) at line 12, column 8
+
+INFO (1):
+================================================================================
+  lib/screens/directory_browser_screen.dart
+    Import of a library in the 'lib/src' directory of another package (implementation_imports) at line 6, column 8
+```
+
+**CSV Format (`flutter_analyze.csv`):**
+```csv
+file,line,column,severity,code,message
+lib/screens/directory_browser_screen.dart,3,8,WARNING,unused_import,Unused import: 'package:path/path.dart'
+lib/screens/directory_browser_screen.dart,6,8,WARNING,unused_import,Unused import: 'package:saf/src/storage_access_framework/api.dart'
+lib/screens/directory_browser_screen.dart,6,8,INFO,implementation_imports,Import of a library in the 'lib/src' directory of another package
+```
+
+#### Flutter vs Dart Analyze
+
+Both `dart_analyze` and `flutter_analyze` provide similar functionality. Choose based on your needs:
+
+- **Use `dart_analyze`**: For general Dart projects, or when you want JSON output format
+- **Use `flutter_analyze`**: For Flutter projects, or when you prefer using the Flutter executable
+- **Use both**: Can be enabled simultaneously (though usually redundant)
+
+#### Integration with Other Rules
+
+Flutter analyze works alongside other analyzer rules:
+
+```bash
+# All rules enabled
+python main.py --language flutter --path lib/ --output reports/
+
+# This can create:
+# - reports/line_count_report.csv
+# - reports/duplicate_code.csv
+# - reports/dart_analyze.csv (if enabled)
+# - reports/flutter_analyze.csv (if enabled)
+# - reports/dart_code_linter.csv (if enabled)
+```
 
 ### Dart Code Linter - Code Metrics Analysis
 
@@ -728,6 +1014,7 @@ cli-code-analyzer/
 │   ├── max_lines.py           # Max lines per file rule
 │   ├── pmd_duplicates.py      # PMD duplicate code detection rule
 │   ├── dart_analyze.py        # Dart static analysis rule
+│   ├── flutter_analyze.py     # Flutter static analysis rule
 │   └── dart_code_linter.py    # Dart code metrics analysis rule
 ├── rules.json                  # Default rules configuration
 ├── settings.ini                # User settings (PMD path, Dart path, etc.)

@@ -1,4 +1,5 @@
 {
+  "log_level": "all",
   "max_lines_per_file": {
     "enabled": true,
     "warning": 300,
@@ -68,5 +69,9 @@
         "error": 0.3
       }
     }
+  },
+  "flutter_analyze": {
+    "enabled": false,
+    "exclude_patterns": ["*.g.dart", "*.freezed.dart"]
   }
 }

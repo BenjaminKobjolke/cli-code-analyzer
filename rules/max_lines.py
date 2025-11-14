@@ -5,14 +5,14 @@ Max lines per file rule
 from pathlib import Path
 from typing import List, Optional
 from rules.base import BaseRule
-from models import Violation, Severity
+from models import Violation, Severity, LogLevel
 
 
 class MaxLinesRule(BaseRule):
     """Rule to check maximum lines per file"""
 
-    def __init__(self, config: dict, base_path: Path = None, max_errors: Optional[int] = None, rules_file_path: str = None):
-        super().__init__(config, base_path, max_errors, rules_file_path)
+    def __init__(self, config: dict, base_path: Path = None, log_level: LogLevel = LogLevel.ALL, max_errors: Optional[int] = None, rules_file_path: str = None):
+        super().__init__(config, base_path, log_level, max_errors, rules_file_path)
         self.warning_threshold = config.get('warning', 300)
         self.error_threshold = config.get('error', 500)
 
@@ -52,4 +52,5 @@ class MaxLinesRule(BaseRule):
                 line_count=line_count
             ))
 
-        return violations
+        # Filter violations based on log level
+        return self._filter_violations_by_log_level(violations)
