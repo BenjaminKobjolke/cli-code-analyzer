@@ -27,44 +27,19 @@ class BaseRule(ABC):
 
     @abstractmethod
     def check(self, file_path: Path) -> list[Violation]:
-        """
-        Check the file against this rule
-
-        Args:
-            file_path: Path to the file to check
-
-        Returns:
-            List of violations found
-        """
+        """Check the file against this rule and return list of violations."""
 
     def _get_relative_path(self, file_path: Path) -> str:
-        """
-        Get relative path from base path
-
-        Args:
-            file_path: Absolute path to the file
-
-        Returns:
-            Relative path as string
-        """
+        """Get relative path from base path, or absolute path if not relative."""
         if self.base_path:
             try:
                 return str(file_path.resolve().relative_to(self.base_path))
             except ValueError:
-                # If file is not relative to base_path, return absolute path
                 return str(file_path)
         return str(file_path)
 
     def _count_lines(self, file_path: Path) -> int:
-        """
-        Utility method to count lines in a file
-
-        Args:
-            file_path: Path to the file
-
-        Returns:
-            Number of lines in the file
-        """
+        """Count lines in a file, returning 0 on error."""
         try:
             with open(file_path, encoding='utf-8') as f:
                 return sum(1 for _ in f)
@@ -72,39 +47,27 @@ class BaseRule(ABC):
             print(f"Warning: Could not read {file_path}: {e}")
             return 0
 
+    def _build_threshold_dict(self, exception: dict | None, base: dict) -> dict[str, int]:
+        """Build threshold dict from exception overrides or base config."""
+        if exception:
+            return {'error': exception.get('error', base.get('error')),
+                    'warning': exception.get('warning', base.get('warning'))}
+        return {'error': base.get('error'), 'warning': base.get('warning')}
+
     def _get_threshold_for_file(
-        self,
-        file_path: Path,
-        threshold_config: dict[str, Any],
+        self, file_path: Path, threshold_config: dict[str, Any],
         metric_id: str | None = None,  # noqa: ARG002
     ) -> dict[str, int]:
-        """Get thresholds for a file, checking for exceptions first.
-
-        Args:
-            file_path: Path to the file being checked
-            threshold_config: Base threshold configuration
-            metric_id: Optional metric ID (for dart_code_linter metrics)
-
-        Returns:
-            Dict with 'error' and 'warning' thresholds
-        """
-        # Check if there are exceptions defined
+        """Get thresholds for a file, checking for exceptions first."""
         exceptions = threshold_config.get('exceptions', [])
-
         if not exceptions:
-            return {
-                'error': threshold_config.get('error'),
-                'warning': threshold_config.get('warning')
-            }
+            return self._build_threshold_dict(None, threshold_config)
 
-        # Get various path representations for matching
         try:
-            # Relative to --path (base_path)
             rel_path_to_base = self._get_relative_path(file_path)
         except Exception:
             rel_path_to_base = str(file_path)
 
-        # Relative to rules.json location
         rel_path_to_rules = None
         if self.rules_file_path:
             try:
@@ -113,82 +76,29 @@ class BaseRule(ABC):
             except Exception:
                 pass
 
-        # Normalize path separators for comparison (handle Windows/Unix)
-        rel_path_to_base_normalized = rel_path_to_base.replace('\\', '/')
-        rel_path_to_rules_normalized = rel_path_to_rules.replace('\\', '/') if rel_path_to_rules else None
-
-        # Get filename only
+        rel_path_base = rel_path_to_base.replace('\\', '/')
+        rel_path_rules = rel_path_to_rules.replace('\\', '/') if rel_path_to_rules else None
         filename_only = Path(file_path).name
 
-        # Check each exception for a match
         for exception in exceptions:
-            exception_pattern = exception.get('file', '')
-            exception_pattern_normalized = exception_pattern.replace('\\', '/')
+            pattern = exception.get('file', '').replace('\\', '/')
+            if (self._match_file_path(rel_path_base, pattern) or
+                (rel_path_rules and self._match_file_path(rel_path_rules, pattern)) or
+                self._match_file_path(filename_only, pattern)):
+                return self._build_threshold_dict(exception, threshold_config)
 
-            # Try multiple matching strategies in order:
-            # 1. Relative to --path (base_path)
-            if self._match_file_path(rel_path_to_base_normalized, exception_pattern_normalized):
-                return {
-                    'error': exception.get('error', threshold_config.get('error')),
-                    'warning': exception.get('warning', threshold_config.get('warning'))
-                }
-
-            # 2. Relative to rules.json location
-            if rel_path_to_rules_normalized and self._match_file_path(rel_path_to_rules_normalized, exception_pattern_normalized):
-                return {
-                    'error': exception.get('error', threshold_config.get('error')),
-                    'warning': exception.get('warning', threshold_config.get('warning'))
-                }
-
-            # 3. Filename only match
-            if self._match_file_path(filename_only, exception_pattern_normalized):
-                return {
-                    'error': exception.get('error', threshold_config.get('error')),
-                    'warning': exception.get('warning', threshold_config.get('warning'))
-                }
-
-        # No exception matched, return base thresholds
-        return {
-            'error': threshold_config.get('error'),
-            'warning': threshold_config.get('warning')
-        }
+        return self._build_threshold_dict(None, threshold_config)
 
     def _match_file_path(self, file_path: str, pattern: str) -> bool:
-        """Check if a file path matches a pattern.
-
-        Supports:
-        - Exact match: "services/preferences_service.dart"
-        - Glob patterns: "services/*.dart", "**/test_*.dart"
-        - Ends with: pattern "preferences_service.dart" matches "lib/services/preferences_service.dart"
-
-        Args:
-            file_path: Normalized file path (forward slashes)
-            pattern: Pattern to match against (forward slashes)
-
-        Returns:
-            True if path matches pattern
-        """
-        # Try exact match first (most common case)
+        """Check if path matches pattern (exact, glob, or ends-with)."""
         if file_path == pattern:
             return True
-
-        # Try glob pattern match
         if fnmatch(file_path, pattern):
             return True
-
-        # Check if file ends with pattern (for relative patterns)
-        # e.g., pattern "preferences_service.dart" matches "lib/services/preferences_service.dart"
         return file_path.endswith((pattern, '/' + pattern))
 
     def _map_severity(self, severity_str: str) -> Severity:
-        """Map severity string to Severity enum.
-
-        Args:
-            severity_str: Severity string (INFO/WARNING/ERROR)
-
-        Returns:
-            Mapped Severity enum value
-        """
+        """Map severity string (INFO/WARNING/ERROR) to Severity enum."""
         severity_map = {
             'INFO': Severity.INFO,
             'WARNING': Severity.WARNING,
@@ -197,14 +107,7 @@ class BaseRule(ABC):
         return severity_map.get(severity_str.upper(), Severity.WARNING)
 
     def _filter_violations_by_log_level(self, violations: list[Violation]) -> list[Violation]:
-        """Filter violations based on log level.
-
-        Args:
-            violations: List of all violations
-
-        Returns:
-            Filtered list of violations based on log level
-        """
+        """Filter violations based on configured log level."""
         if self.log_level == LogLevel.ALL:
             return violations
 
@@ -220,15 +123,7 @@ class BaseRule(ABC):
         return filtered
 
     def _run_subprocess(self, cmd: list[str], cwd: Path | None = None) -> subprocess.CompletedProcess:
-        """Run subprocess with platform-appropriate settings.
-
-        Args:
-            cmd: Command and arguments
-            cwd: Working directory
-
-        Returns:
-            CompletedProcess result
-        """
+        """Run subprocess with platform-appropriate shell settings."""
         use_shell = platform.system() == 'Windows'
         return subprocess.run(
             cmd, cwd=cwd, capture_output=True,
@@ -236,29 +131,17 @@ class BaseRule(ABC):
         )
 
     def _get_tool_path(self, tool_name: str, get_method: Callable, prompt_method: Callable) -> str | None:
-        """Get tool path from PATH, settings, or prompt user.
-
-        Args:
-            tool_name: Name of tool (e.g., 'dart', 'flutter', 'pmd')
-            get_method: Settings method to get saved path
-            prompt_method: Settings method to prompt and save path
-
-        Returns:
-            Path to tool executable or None
-        """
-        # Check if tool is in PATH
+        """Get tool path from PATH, settings, or prompt user."""
         tool_in_path = shutil.which(tool_name)
         if tool_in_path:
             return tool_in_path
 
-        # Check settings
         tool_path = get_method()
         if not tool_path:
             tool_path = prompt_method()
             if not tool_path:
                 return None
 
-        # Validate path exists
         if not Path(tool_path).exists():
             print(f"Error: {tool_name} executable not found at: {tool_path}")
             return None
@@ -266,11 +149,7 @@ class BaseRule(ABC):
         return tool_path
 
     def _find_pubspec(self) -> Path | None:
-        """Find pubspec.yaml in base_path or parent directory.
-
-        Returns:
-            Path to directory containing pubspec.yaml, or None
-        """
+        """Find pubspec.yaml in base_path or parent, return containing dir."""
         pubspec_path = self.base_path / 'pubspec.yaml'
         if not pubspec_path.exists():
             pubspec_path = self.base_path.parent / 'pubspec.yaml'
@@ -280,18 +159,10 @@ class BaseRule(ABC):
 
     def _write_violations_csv(self, output_file: Path, violations: list[Violation],
                                headers: list[str], row_mapper: Callable[[Violation], list]) -> None:
-        """Write violations to CSV file with max_errors limit.
-
-        Args:
-            output_file: Path to output CSV file
-            violations: List of violations
-            headers: CSV column headers
-            row_mapper: Function to convert Violation to CSV row list
-        """
+        """Write violations to CSV, sorted by severity, limited by max_errors."""
         if not violations:
             return
 
-        # Sort by severity (ERROR first) and apply max_errors limit
         severity_order = {Severity.ERROR: 0, Severity.WARNING: 1, Severity.INFO: 2}
         sorted_violations = sorted(violations, key=lambda v: severity_order.get(v.severity, 3))
 

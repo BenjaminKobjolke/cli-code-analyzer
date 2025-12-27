@@ -7,7 +7,7 @@ import json
 import re
 import shutil
 from pathlib import Path
-from typing import Any
+from typing import Any, ClassVar
 
 import yaml
 
@@ -20,193 +20,100 @@ class DartCodeLinterRule(BaseRule):
     """Rule to analyze Dart/Flutter code metrics using dart_code_linter"""
 
     def __init__(self, config: dict, base_path: Path | None = None, output_folder: Path | None = None, log_level: LogLevel = LogLevel.ALL, max_errors: int | None = None, rules_file_path: str | None = None):
-        """Initialize Dart Code Linter rule.
-
-        Args:
-            config: Rule configuration from rules.json
-            base_path: Base path for analysis
-            output_folder: Optional folder for file output (None = console output)
-            log_level: Log level for filtering violations
-            max_errors: Optional limit on number of violations to include in CSV
-            rules_file_path: Path to the rules.json file
-        """
+        """Initialize Dart Code Linter rule with config and output settings."""
         super().__init__(config, base_path, max_errors, rules_file_path)
         self.output_folder = output_folder
         self.log_level = log_level
         self.settings = Settings()
-        self._executed = False  # Track if dart_code_linter has been executed
-        self.project_root = None  # Will be set when pubspec.yaml is found
+        self._executed = False
+        self.project_root = None
 
     def check(self, _file_path: Path) -> list[Violation]:
-        """Run dart_code_linter on the entire project (only once).
-
-        Note: dart_code_linter analyzes entire projects, not individual files.
-        This method will execute once on the first file and return empty for subsequent files.
-
-        Args:
-            file_path: Path to a file (used to determine base directory)
-
-        Returns:
-            List of violations found (only on first execution)
-        """
-        # Only execute once per analysis run
+        """Run dart_code_linter on the entire project (executes once, returns empty for subsequent calls)."""
         if self._executed:
             return []
-
         self._executed = True
 
         print("\nChecking dart_code_linter metrics...")
 
-        # Get dart path using base utility
         dart_path = self._get_tool_path('dart', self.settings.get_dart_path, self.settings.prompt_and_save_dart_path)
         if not dart_path:
             return []
 
-        # Check if dart_code_linter is installed in the project
         if not self._check_dart_code_linter_installed():
             if self.config.get('auto_install', False):
                 if not self._install_dart_code_linter(dart_path):
                     return []
             else:
-                print("Warning: dart_code_linter is not installed in this project")
-                print("Run: dart pub add --dev dart_code_linter")
-                print("Or set 'auto_install': true in rules.json")
+                print("Warning: dart_code_linter is not installed. Run: dart pub add --dev dart_code_linter")
                 return []
 
-        # Run dart_code_linter
-        violations = self._run_dart_code_linter(dart_path)
-
-        return violations
+        return self._run_dart_code_linter(dart_path)
 
     def _check_dart_code_linter_installed(self) -> bool:
-        """Check if dart_code_linter is listed in pubspec.yaml.
-
-        Uses base utility to find pubspec.yaml. Sets self.project_root when found.
-
-        Returns:
-            True if dart_code_linter is in dev_dependencies
-        """
-        # Use base utility to find pubspec
+        """Check if dart_code_linter is in dev_dependencies of pubspec.yaml."""
         self.project_root = self._find_pubspec()
         if not self.project_root:
             print(f"Warning: pubspec.yaml not found in {self.base_path} or parent directory")
             return False
 
-        pubspec_path = self.project_root / 'pubspec.yaml'
-
         try:
-            with open(pubspec_path, encoding='utf-8') as f:
+            with open(self.project_root / 'pubspec.yaml', encoding='utf-8') as f:
                 pubspec_data = yaml.safe_load(f)
-
-            if not pubspec_data:
-                return False
-
-            dev_dependencies = pubspec_data.get('dev_dependencies', {})
-            return bool(dev_dependencies and 'dart_code_linter' in dev_dependencies)
-
+            dev_deps = pubspec_data.get('dev_dependencies', {}) if pubspec_data else {}
+            return 'dart_code_linter' in dev_deps
         except Exception as e:
             print(f"Error reading pubspec.yaml: {e}")
             return False
 
     def _install_dart_code_linter(self, dart_path: str) -> bool:
-        """Install dart_code_linter using dart pub add.
-
-        Args:
-            dart_path: Path to dart executable
-
-        Returns:
-            True if installation succeeded
-        """
+        """Install dart_code_linter using dart pub add."""
         print("dart_code_linter not found. Installing...")
-
-        # Use project_root if found, otherwise fall back to base_path
-        install_dir = self.project_root if self.project_root else self.base_path
-
-        cmd = [dart_path, 'pub', 'add', '--dev', 'dart_code_linter']
-
+        install_dir = self.project_root or self.base_path
         try:
-            result = self._run_subprocess(cmd, install_dir)
-
+            result = self._run_subprocess([dart_path, 'pub', 'add', '--dev', 'dart_code_linter'], install_dir)
             if result.returncode == 0:
                 print("dart_code_linter installed successfully\n")
                 return True
-            else:
-                print(f"Failed to install dart_code_linter: {result.stderr}")
-                return False
-
+            print(f"Failed to install dart_code_linter: {result.stderr}")
+            return False
         except Exception as e:
             print(f"Error installing dart_code_linter: {e}")
             return False
 
     def _run_dart_code_linter(self, dart_path: str) -> list[Violation]:
-        """Execute dart_code_linter and parse results.
-
-        Args:
-            dart_path: Path to dart executable
-
-        Returns:
-            List of violations
-        """
-        # Get the path to analyze from config, default to 'lib'
+        """Execute dart_code_linter and return parsed violations."""
         analyze_path = self.config.get('analyze_path', 'lib')
-
         print(f"Running dart_code_linter analysis on '{analyze_path}'...")
 
-        # Use project_root if found, otherwise fall back to base_path
-        working_dir = self.project_root if self.project_root else self.base_path
-
-        # Create temporary report path - use output folder if specified, otherwise use project root
-        if self.output_folder:
-            report_dir = self.output_folder / 'code_analysis'
-        else:
-            report_dir = working_dir / 'code_analysis'
+        working_dir = self.project_root or self.base_path
+        report_dir = (self.output_folder or working_dir) / 'code_analysis'
         report_dir.mkdir(exist_ok=True)
         report_json = report_dir / 'report.json'
 
-        # Build command
-        # Note: dart_code_linter adds .json extension automatically, so we pass the path without extension
-        cmd = [
-            dart_path, 'run', 'dart_code_linter:metrics', 'analyze',
-            '--fatal-warnings', '--fatal-style',
-            '--reporter=json',
-            f'--json-path={report_dir / "report"}',
-            analyze_path
-        ]
+        cmd = [dart_path, 'run', 'dart_code_linter:metrics', 'analyze',
+               '--fatal-warnings', '--fatal-style', '--reporter=json',
+               f'--json-path={report_dir / "report"}', analyze_path]
 
-        # Execute dart_code_linter from project root using base utility
         try:
             result = self._run_subprocess(cmd, working_dir)
 
-            # Check if report.json was created
             if not report_json.exists():
-                print("Warning: dart_code_linter did not generate report.json")
-                print(f"Command executed: {' '.join(cmd)}")
-                print(f"Return code: {result.returncode}")
+                print(f"Warning: dart_code_linter did not generate report.json (rc={result.returncode})")
                 if result.stdout:
                     print(f"Stdout: {result.stdout}")
                 if result.stderr:
                     print(f"Stderr: {result.stderr}")
                 return []
 
-            # Report file exists - print location
             print(f"Metrics report saved to: {report_json}")
+            violations = self._filter_violations_by_log_level(self._parse_metrics_json(report_json))
+            print(f"\nDart Code Linter found {len(violations)} metric violation(s)" if violations
+                  else "\nDart Code Linter: No metric violations found")
 
-            # Parse JSON output and apply log level filter
-            violations = self._parse_metrics_json(report_json)
-            violations = self._filter_violations_by_log_level(violations)
-
-            # Print summary
-            if violations:
-                print(f"\nDart Code Linter found {len(violations)} metric violation(s)")
-            else:
-                print("\nDart Code Linter: No metric violations found")
-
-            # Write to CSV file if output folder is specified and violations found
             if self.output_folder and violations:
-                output_file = self.output_folder / 'dart_code_linter.csv'
-                self._write_csv_output(output_file, violations, report_json)
+                self._write_csv_output(self.output_folder / 'dart_code_linter.csv', violations, report_json)
 
-            # Cleanup entire report directory if keep_report is false
             if not self.config.get('keep_report', False):
                 try:
                     shutil.rmtree(report_dir)
@@ -215,219 +122,97 @@ class DartCodeLinterRule(BaseRule):
                     print(f"Warning: Could not delete report directory: {e}")
 
             return violations
-
-        except FileNotFoundError:
-            print(f"Error: Dart executable not found: {dart_path}")
-            return []
         except Exception as e:
             print(f"Error running dart_code_linter: {e}")
             return []
 
     def _parse_metrics_json(self, report_path: Path) -> list[Violation]:
-        """Parse dart_code_linter JSON report into violations.
-
-        Args:
-            report_path: Path to report.json file
-
-        Returns:
-            List of violations
-        """
+        """Parse dart_code_linter JSON report into violations."""
         violations = []
-
         try:
             with open(report_path, encoding='utf-8') as f:
                 data = json.load(f)
 
-            # Get configured metric thresholds
-            metric_thresholds = self.config.get('metrics', {})
-            records = data.get('records', [])
-
-            # Process each record (file)
-            for record in records:
+            thresholds = self.config.get('metrics', {})
+            for record in data.get('records', []):
                 file_path = record.get('path', 'unknown')
-
-                # Process file-level metrics
-                for metric in record.get('fileMetrics', []):
-                    violation = self._check_metric_threshold(
-                        file_path, metric, metric_thresholds, context='file'
-                    )
-                    if violation:
-                        violations.append(violation)
-
-                # Process class metrics
-                for class_name, class_data in record.get('classes', {}).items():
-                    for metric in class_data.get('metrics', []):
-                        violation = self._check_metric_threshold(
-                            file_path, metric, metric_thresholds,
-                            context=f'class {class_name}'
-                        )
-                        if violation:
-                            violations.append(violation)
-
-                # Process function metrics
-                for func_name, func_data in record.get('functions', {}).items():
-                    for metric in func_data.get('metrics', []):
-                        violation = self._check_metric_threshold(
-                            file_path, metric, metric_thresholds,
-                            context=f'function {func_name}'
-                        )
-                        if violation:
-                            violations.append(violation)
-
+                # Unified loop for file, class, and function metrics
+                metrics_sources = [
+                    (record.get('fileMetrics', []), 'file'),
+                    *[(cd.get('metrics', []), f'class {cn}') for cn, cd in record.get('classes', {}).items()],
+                    *[(fd.get('metrics', []), f'function {fn}') for fn, fd in record.get('functions', {}).items()],
+                ]
+                for metrics, context in metrics_sources:
+                    for metric in metrics:
+                        if v := self._check_metric_threshold(file_path, metric, thresholds, context):
+                            violations.append(v)
         except (FileNotFoundError, json.JSONDecodeError) as e:
             print(f"Error reading dart_code_linter report: {e}")
         except Exception as e:
             print(f"Error processing dart_code_linter results: {e}")
-
         return violations
 
-    def _check_metric_threshold(
-        self,
-        file_path: str,
-        metric: dict[str, Any],
-        thresholds: dict[str, dict[str, int]],
-        context: str = ''
-    ) -> Violation | None:
-        """Check if a metric exceeds configured thresholds.
+    INVERSE_METRICS: ClassVar[set[str]] = {'maintainability-index', 'weight-of-class'}
 
-        Args:
-            file_path: Path to the file
-            metric: Metric data from JSON
-            thresholds: Configured thresholds from rules.json
-            context: Additional context (e.g., 'class Foo', 'function bar')
-
-        Returns:
-            Violation if threshold exceeded, None otherwise
-        """
+    def _check_metric_threshold(self, file_path: str, metric: dict[str, Any],
+                                 thresholds: dict[str, dict[str, int]], context: str = '') -> Violation | None:
+        """Check if metric exceeds thresholds, return Violation or None."""
         metric_id = metric.get('metricsId', 'unknown')
         value = metric.get('value', 0)
 
-        # Check if this metric has configured thresholds
         if metric_id not in thresholds:
             return None
 
-        threshold_config = thresholds[metric_id]
-        # Check for file-specific exceptions
-        effective_thresholds = self._get_threshold_for_file(Path(file_path), threshold_config, metric_id)
-        error_threshold = effective_thresholds.get('error')
-        warning_threshold = effective_thresholds.get('warning')
-
-        # Skip metric if both thresholds are 0 (disabled)
-        if error_threshold == 0 and warning_threshold == 0:
+        eff = self._get_threshold_for_file(Path(file_path), thresholds[metric_id], metric_id)
+        err_th, warn_th = eff.get('error'), eff.get('warning')
+        if err_th == 0 and warn_th == 0:
             return None
 
-        severity = None
-        threshold_value = None
+        is_inverse = metric_id in self.INVERSE_METRICS
+        compare = (lambda v, t: v <= t) if is_inverse else (lambda v, t: v >= t)
 
-        # Special handling for inverse metrics (lower is worse)
-        is_inverse_metric = metric_id in ['maintainability-index', 'weight-of-class']
+        severity, threshold_value = None, None
+        if err_th is not None and compare(value, err_th):
+            severity, threshold_value = Severity.ERROR, err_th
+        elif warn_th is not None and compare(value, warn_th):
+            severity, threshold_value = Severity.WARNING, warn_th
 
-        if is_inverse_metric:
-            # For inverse metrics (lower is worse), error threshold should be LOWER than warning threshold
-            # Example: error: 20, warning: 40 means values below 20 are errors, below 40 are warnings
-            if (error_threshold is not None and warning_threshold is not None and
-                error_threshold >= warning_threshold):
-                print(f"Warning: Metric '{metric_id}' has backwards thresholds! " +
-                      f"For inverse metrics, error ({error_threshold}) should be < warning ({warning_threshold})")
-
-            # Lower values are worse for inverse metrics
-            if error_threshold is not None and value <= error_threshold:
-                severity = Severity.ERROR
-                threshold_value = error_threshold
-            elif warning_threshold is not None and value <= warning_threshold:
-                severity = Severity.WARNING
-                threshold_value = warning_threshold
-        else:
-            # Higher values are worse for most metrics
-            if error_threshold is not None and value >= error_threshold:
-                severity = Severity.ERROR
-                threshold_value = error_threshold
-            elif warning_threshold is not None and value >= warning_threshold:
-                severity = Severity.WARNING
-                threshold_value = warning_threshold
-
-        # No threshold exceeded
         if severity is None:
             return None
 
-        # Create relative path
         try:
             rel_path = self._get_relative_path(Path(file_path))
         except Exception:
             rel_path = file_path
 
-        # Build message
-        context_str = f" in {context}" if context else ""
-        operator = "<=" if is_inverse_metric else ">="
-        message = f"{metric_id} = {value} {operator} {threshold_value} (threshold){context_str}"
-
-        return Violation(
-            file_path=rel_path,
-            rule_name='dart_code_linter',
-            severity=severity,
-            message=message
-        )
+        op = "<=" if is_inverse else ">="
+        ctx = f" in {context}" if context else ""
+        return Violation(file_path=rel_path, rule_name='dart_code_linter', severity=severity,
+                         message=f"{metric_id} = {value} {op} {threshold_value} (threshold){ctx}")
 
     def _write_csv_output(self, output_file: Path, violations: list[Violation], _report_json: Path):
-        """Write dart_code_linter results to CSV file with structured columns.
-
-        Args:
-            output_file: Path to CSV output file
-            violations: List of FILTERED violations (already respects log_level)
-            _report_json: Path to the JSON report file (unused, kept for compatibility)
-        """
+        """Write dart_code_linter results to CSV, sorted by severity, limited by max_errors."""
         try:
-            # Build CSV rows directly from filtered violations
-            csv_rows = []
-
-            # Parse message format: "metric = value >=/<= threshold (threshold) in context"
             pattern = r'^(.+?) = ([\d.]+) [<>]= ([\d.]+) \(threshold\)(?: in (.+))?$'
-
+            csv_rows = []
             for v in violations:
-                match = re.match(pattern, v.message)
-                if not match:
-                    continue
-                csv_rows.append({
-                    'file_path': v.file_path,
-                    'metric': match.group(1),
-                    'value': float(match.group(2)),
-                    'threshold': float(match.group(3)),
-                    'severity': v.severity.value,
-                    'context': match.group(4) or ''
-                })
+                if m := re.match(pattern, v.message):
+                    csv_rows.append({'file_path': v.file_path, 'metric': m.group(1), 'value': float(m.group(2)),
+                                     'threshold': float(m.group(3)), 'severity': v.severity.value, 'context': m.group(4) or ''})
 
-            # Apply max_errors limit to csv_rows
             if self.max_errors and len(csv_rows) > self.max_errors:
-                # Sort by severity (ERROR first), then by value (higher = worse)
-                def row_sort_key(row):
-                    severity_order = {'ERROR': 0, 'WARNING': 1, 'INFO': 2}
-                    return (severity_order.get(row['severity'], 3), -row['value'])
-
-                csv_rows.sort(key=row_sort_key)
+                sev_order = {'ERROR': 0, 'WARNING': 1, 'INFO': 2}
+                csv_rows.sort(key=lambda r: (sev_order.get(r['severity'], 3), -r['value']))
                 csv_rows = csv_rows[:self.max_errors]
 
-            # Write CSV
             if csv_rows:
                 with open(output_file, 'w', encoding='utf-8', newline='') as f:
                     writer = csv.writer(f)
-
-                    # Write header
                     writer.writerow(['file_path', 'metric', 'value', 'threshold', 'severity', 'context'])
-
-                    # Write data rows
-                    for row in csv_rows:
-                        writer.writerow([
-                            row['file_path'],
-                            row['metric'],
-                            row['value'],
-                            row['threshold'],
-                            row['severity'],
-                            row['context']
-                        ])
-
+                    for r in csv_rows:
+                        writer.writerow([r['file_path'], r['metric'], r['value'], r['threshold'], r['severity'], r['context']])
                 print(f"Dart Code Linter report saved to: {output_file}")
             else:
                 print("No violations to write to CSV (after log level filtering)")
-
         except Exception as e:
             print(f"Error writing dart_code_linter CSV file: {e}")
