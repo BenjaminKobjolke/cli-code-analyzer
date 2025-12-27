@@ -3,16 +3,16 @@ Report generation and formatting
 """
 
 import csv
-from typing import List, Dict, Optional
-from pathlib import Path
 from collections import defaultdict
-from models import Violation, Severity, OutputLevel, LogLevel
+from pathlib import Path
+
+from models import LogLevel, OutputLevel, Severity, Violation
 
 
 class Reporter:
     """Handles report generation in different formats"""
 
-    def __init__(self, violations: List[Violation], file_count: int, output_level: OutputLevel, log_level: LogLevel = LogLevel.ALL, output_folder: Optional[Path] = None, max_errors: Optional[int] = None):
+    def __init__(self, violations: list[Violation], file_count: int, output_level: OutputLevel, log_level: LogLevel = LogLevel.ALL, output_folder: Path | None = None, max_errors: int | None = None):
         self.all_violations = violations
         self.violations = self._filter_violations(violations, log_level)
         self.file_count = file_count
@@ -21,7 +21,7 @@ class Reporter:
         self.output_folder = output_folder
         self.max_errors = max_errors
 
-    def _filter_violations(self, violations: List[Violation], log_level: LogLevel) -> List[Violation]:
+    def _filter_violations(self, violations: list[Violation], log_level: LogLevel) -> list[Violation]:
         """Filter violations based on log level"""
         if log_level == LogLevel.ERROR:
             return [v for v in violations if v.severity == Severity.ERROR]
@@ -30,7 +30,7 @@ class Reporter:
         else:  # LogLevel.ALL
             return violations
 
-    def _apply_max_errors_filter(self, violations: List[Violation]) -> List[Violation]:
+    def _apply_max_errors_filter(self, violations: list[Violation]) -> list[Violation]:
         """Apply max errors limit by sorting violations by priority.
 
         Sorts by severity (ERROR > WARNING > INFO), then by value (line_count).
@@ -82,7 +82,7 @@ class Reporter:
             return False
 
         # Group violations by file
-        file_violations: Dict[str, List[Violation]] = defaultdict(list)
+        file_violations: dict[str, list[Violation]] = defaultdict(list)
         for violation in self.violations:
             file_violations[violation.file_path].append(violation)
 
@@ -229,7 +229,7 @@ class Reporter:
         # Summary
         print("=" * 80)
         print(f"Files analyzed: {self.file_count}")
-        files_with_violations = len(set(v.file_path for v in self.violations))
+        files_with_violations = len({v.file_path for v in self.violations})
         print(f"Files with violations: {files_with_violations}")
 
         if self.log_level == LogLevel.ERROR:

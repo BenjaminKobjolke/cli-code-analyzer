@@ -1,0 +1,4 @@
+file,line,column,severity,code,message,url
+file_discovery.py,5,1,INFO,I001,Import block is un-sorted or un-formatted,https://docs.astral.sh/ruff/rules/unsorted-imports
+pmd_downloader.py,2,1,INFO,I001,Import block is un-sorted or un-formatted,https://docs.astral.sh/ruff/rules/unsorted-imports
+rules\pmd_duplicates.py,5,1,INFO,I001,Import block is un-sorted or un-formatted,https://docs.astral.sh/ruff/rules/unsorted-imports

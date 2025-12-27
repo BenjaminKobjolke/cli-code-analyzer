@@ -1,10 +1,7 @@
 """PMD downloader and installer."""
 import urllib.request
 import zipfile
-import shutil
 from pathlib import Path
-from typing import Optional
-
 
 PMD_VERSION = "7.17.0"
 PMD_DOWNLOAD_URL = f"https://github.com/pmd/pmd/releases/download/pmd_releases%2F{PMD_VERSION}/pmd-dist-{PMD_VERSION}-bin.zip"
@@ -21,7 +18,7 @@ def get_pmd_install_path() -> Path:
     return PMD_INSTALL_DIR / PMD_EXTRACTED_DIR / "bin" / "pmd.bat"
 
 
-def download_pmd() -> Optional[Path]:
+def download_pmd() -> Path | None:
     """Download and extract PMD from GitHub.
 
     Returns:

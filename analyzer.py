@@ -2,33 +2,46 @@
 Main code analyzer
 """
 
-from typing import List, Optional
 from pathlib import Path
+
 from config import Config
 from file_discovery import FileDiscovery
-from rules import MaxLinesRule, PMDDuplicatesRule, DartAnalyzeRule, DartCodeLinterRule, FlutterAnalyzeRule
-from models import Violation, LogLevel
+from models import LogLevel, Violation
+from rules import (
+    DartAnalyzeRule,
+    DartCodeLinterRule,
+    FlutterAnalyzeRule,
+    MaxLinesRule,
+    PMDDuplicatesRule,
+    RuffAnalyzeRule,
+)
 
 
 class CodeAnalyzer:
     """Main analyzer that orchestrates the analysis workflow"""
 
-    def __init__(self, language: str, path: str, rules_file: str, output_folder: Optional[Path] = None, cli_log_level: Optional[LogLevel] = None, max_errors: Optional[int] = None):
+    def __init__(self, language: str, path: str, rules_file: str, output_folder: Path | None = None, cli_log_level: LogLevel | None = None, max_errors: int | None = None):
         self.language = language
         self.path = path
         self.base_path = Path(path).resolve()
         self.config = Config(rules_file)
         self.rules_file = self.config.rules_file
-        self.violations: List[Violation] = []
-        self.files: List[Path] = []
+        self.violations: list[Violation] = []
+        self.files: list[Path] = []
         self.output_folder = output_folder
         self.cli_log_level = cli_log_level  # CLI-provided log level (highest priority)
         self.max_errors = max_errors
 
     def analyze(self):
         """Run the analysis"""
+        # Get exclude patterns from max_lines_per_file config if available
+        exclude_patterns = None
+        if self.config.is_rule_enabled('max_lines_per_file'):
+            rule_config = self.config.get_rule('max_lines_per_file')
+            exclude_patterns = rule_config.get('exclude_patterns')
+
         # Discover files
-        discovery = FileDiscovery(self.language, self.path)
+        discovery = FileDiscovery(self.language, self.path, exclude_patterns)
         self.files = discovery.discover()
 
         if not self.files:
@@ -104,6 +117,23 @@ class CodeAnalyzer:
                 violations = flutter_rule.check(self.files[0])
                 self.violations.extend(violations)
 
+        # Run ruff analyze check (once per analysis, not per file)
+        if self.config.is_rule_enabled('ruff_analyze'):
+            rule_config = self.config.get_rule('ruff_analyze')
+            ruff_log_level = self._resolve_log_level('ruff_analyze')
+            ruff_rule = RuffAnalyzeRule(
+                rule_config,
+                self.base_path,
+                self.output_folder,
+                ruff_log_level,
+                self.max_errors,
+                self.rules_file
+            )
+            # Ruff analyzes the entire project, so we just call it once with any file
+            if self.files:
+                violations = ruff_rule.check(self.files[0])
+                self.violations.extend(violations)
+
         # Run per-file rules on each file
         for file_path in self.files:
             self._check_file(file_path)
@@ -118,7 +148,7 @@ class CodeAnalyzer:
             violations = rule.check(file_path)
             self.violations.extend(violations)
 
-    def get_violations(self) -> List[Violation]:
+    def get_violations(self) -> list[Violation]:
         """Get all violations found"""
         return self.violations
 

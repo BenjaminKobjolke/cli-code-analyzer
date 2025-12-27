@@ -2,15 +2,13 @@
 PMD duplicate code detection rule
 """
 
-import subprocess
+import contextlib
 import csv
-import tempfile
 from pathlib import Path
-from typing import List, Optional
-from rules.base import BaseRule
-from models import Violation, Severity, LogLevel
-from settings import Settings
 
+from models import LogLevel, Severity, Violation
+from rules.base import BaseRule
+from settings import Settings
 
 # Default exclude patterns per language (glob patterns)
 DEFAULT_EXCLUDE_PATTERNS = {
@@ -38,7 +36,7 @@ LANGUAGE_TO_PMD = {
 class PMDDuplicatesRule(BaseRule):
     """Rule to detect duplicate code using PMD CPD"""
 
-    def __init__(self, config: dict, base_path: Path = None, language: str = None, output_folder: Optional[Path] = None, log_level: LogLevel = LogLevel.ALL, max_errors: Optional[int] = None, rules_file_path: str = None):
+    def __init__(self, config: dict, base_path: Path | None = None, language: str | None = None, output_folder: Path | None = None, log_level: LogLevel = LogLevel.ALL, max_errors: int | None = None, rules_file_path: str | None = None):
         """Initialize PMD duplicates rule.
 
         Args:
@@ -56,7 +54,7 @@ class PMDDuplicatesRule(BaseRule):
         self.settings = Settings()
         self._pmd_executed = False  # Track if PMD has been executed
 
-    def check(self, file_path: Path) -> List[Violation]:
+    def check(self, _file_path: Path) -> list[Violation]:
         """Run PMD CPD on the entire directory (only once).
 
         Note: PMD CPD analyzes entire directories, not individual files.
@@ -76,8 +74,8 @@ class PMDDuplicatesRule(BaseRule):
 
         print("\nChecking for duplicate code...")
 
-        # Get PMD path
-        pmd_path = self._get_or_prompt_pmd_path()
+        # Get PMD path using base utility
+        pmd_path = self._get_tool_path('pmd', self.settings.get_pmd_path, self.settings.prompt_and_save_pmd_path)
         if not pmd_path:
             return []
 
@@ -113,29 +111,7 @@ class PMDDuplicatesRule(BaseRule):
         # Filter violations based on log level
         return self._filter_violations_by_log_level(violations)
 
-    def _get_or_prompt_pmd_path(self) -> Optional[str]:
-        """Get PMD path from settings or prompt user.
-
-        Returns:
-            Path to PMD executable or None if failed
-        """
-        pmd_path = self.settings.get_pmd_path()
-
-        if not pmd_path:
-            # Prompt user to provide path or download
-            pmd_path = self.settings.prompt_and_save_pmd_path()
-            if not pmd_path:
-                return None
-
-        # Validate path exists
-        if not Path(pmd_path).exists():
-            print(f"Error: PMD executable not found at: {pmd_path}")
-            print("Please update the path in settings.ini or delete settings.ini to reconfigure")
-            return None
-
-        return pmd_path
-
-    def _get_pmd_language(self) -> Optional[str]:
+    def _get_pmd_language(self) -> str | None:
         """Map analyzer language to PMD language code.
 
         Returns:
@@ -143,7 +119,7 @@ class PMDDuplicatesRule(BaseRule):
         """
         return LANGUAGE_TO_PMD.get(self.language.lower())
 
-    def _get_exclude_patterns(self) -> List[str]:
+    def _get_exclude_patterns(self) -> list[str]:
         """Get exclude patterns from config or defaults.
 
         Returns:
@@ -162,7 +138,7 @@ class PMDDuplicatesRule(BaseRule):
         pmd_language = self._get_pmd_language()
         return DEFAULT_EXCLUDE_PATTERNS.get(pmd_language, [])
 
-    def _generate_exclude_file_list(self, exclude_patterns: List[str]) -> Optional[Path]:
+    def _generate_exclude_file_list(self, exclude_patterns: list[str]) -> Path | None:
         """Generate a temporary file containing paths to exclude.
 
         Args:
@@ -177,6 +153,11 @@ class PMDDuplicatesRule(BaseRule):
         # Find all files matching exclude patterns
         excluded_files = set()
         for pattern in exclude_patterns:
+            # Ensure directory patterns match all files inside
+            # venv/** should become venv/**/* to match files recursively
+            if pattern.endswith('/**'):
+                pattern = pattern + '/*'
+
             # Use rglob to find files matching the pattern
             try:
                 for file_path in self.base_path.rglob(pattern):
@@ -207,10 +188,10 @@ class PMDDuplicatesRule(BaseRule):
         language: str,
         directory: Path,
         minimum_tokens: int,
-        exclude_patterns: List[str],
+        exclude_patterns: list[str],
         output_format: str,
-        output_file: Optional[Path]
-    ) -> List[Violation]:
+        output_file: Path | None
+    ) -> list[Violation]:
         """Execute PMD CPD and parse results.
 
         Args:
@@ -243,17 +224,11 @@ class PMDDuplicatesRule(BaseRule):
         if exclude_file_list:
             cmd.extend(['--exclude-file-list', str(exclude_file_list)])
 
-        # Execute PMD
+        # Execute PMD using base utility
         try:
             if output_file:
                 # First capture output to check if there are duplicates
-                result = subprocess.run(
-                    cmd,
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE,
-                    text=True,
-                    check=False
-                )
+                result = self._run_subprocess(cmd)
 
                 if result.returncode != 0 and result.stderr:
                     print(f"PMD CPD warning: {result.stderr}")
@@ -278,13 +253,7 @@ class PMDDuplicatesRule(BaseRule):
                     return []
             else:
                 # Output to console (text format)
-                result = subprocess.run(
-                    cmd,
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE,
-                    text=True,
-                    check=False
-                )
+                result = self._run_subprocess(cmd)
 
                 if result.returncode != 0 and result.stderr:
                     print(f"PMD CPD warning: {result.stderr}")
@@ -334,7 +303,7 @@ class PMDDuplicatesRule(BaseRule):
             csv_file: Path to CSV output file
         """
         try:
-            with open(csv_file, 'r', encoding='utf-8') as f:
+            with open(csv_file, encoding='utf-8') as f:
                 reader = csv.reader(f)
 
                 # Skip header row
@@ -356,10 +325,8 @@ class PMDDuplicatesRule(BaseRule):
             for row in rows:
                 # Extract first column (lines) for total calculation
                 if row:  # Ensure row is not empty
-                    try:
+                    with contextlib.suppress(ValueError, IndexError):
                         total_lines += int(row[0])
-                    except (ValueError, IndexError):
-                        pass
 
             # Print statistics
             print(f"Total CSV lines (duplicates found): {len(rows)}")
@@ -369,7 +336,7 @@ class PMDDuplicatesRule(BaseRule):
         except Exception as e:
             print(f"Error reading duplicate code statistics: {e}")
 
-    def _parse_csv_output(self, csv_file: Path) -> List[Violation]:
+    def _parse_csv_output(self, csv_file: Path) -> list[Violation]:
         """Parse PMD CPD CSV output into violations.
 
         Args:
@@ -381,7 +348,7 @@ class PMDDuplicatesRule(BaseRule):
         violations = []
 
         try:
-            with open(csv_file, 'r', encoding='utf-8') as f:
+            with open(csv_file, encoding='utf-8') as f:
                 reader = csv.DictReader(f)
                 for row in reader:
                     lines = row.get('lines', 'N/A')
@@ -411,7 +378,7 @@ class PMDDuplicatesRule(BaseRule):
                     parts = v.message.split()
                     if len(parts) >= 4:
                         return int(parts[3])
-                except:
+                except Exception:
                     return 0
 
             violations.sort(key=get_lines, reverse=True)
@@ -419,7 +386,7 @@ class PMDDuplicatesRule(BaseRule):
 
         return violations
 
-    def _parse_text_output(self, text_output: str) -> List[Violation]:
+    def _parse_text_output(self, text_output: str) -> list[Violation]:
         """Parse PMD CPD text output into violations.
 
         Args:

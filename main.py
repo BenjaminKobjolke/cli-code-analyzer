@@ -6,9 +6,10 @@ CLI Code Analyzer - Analyze code files based on configurable rules
 import argparse
 import sys
 from pathlib import Path
+
 from analyzer import CodeAnalyzer
+from models import LogLevel, OutputLevel
 from reporter import Reporter
-from models import OutputLevel, LogLevel
 
 
 def main():

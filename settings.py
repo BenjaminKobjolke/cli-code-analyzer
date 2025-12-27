@@ -1,8 +1,8 @@
 """Settings management for the code analyzer."""
 import configparser
 from pathlib import Path
-from typing import Optional
-from pmd_downloader import download_pmd, get_pmd_install_path
+
+from pmd_downloader import download_pmd
 
 
 class Settings:
@@ -28,7 +28,7 @@ class Settings:
         with open(self.settings_file, 'w') as f:
             self.config.write(f)
 
-    def get_pmd_path(self) -> Optional[str]:
+    def get_pmd_path(self) -> str | None:
         """Get the PMD executable path from settings.
 
         Returns:
@@ -49,7 +49,7 @@ class Settings:
         self.config['pmd']['pmd_path'] = path
         self._save()
 
-    def prompt_and_save_pmd_path(self) -> Optional[str]:
+    def prompt_and_save_pmd_path(self) -> str | None:
         """Prompt user for PMD path or download PMD, validate it, and save to settings.
 
         Returns:
@@ -80,7 +80,7 @@ class Settings:
         print(f"PMD path saved to {self.settings_file}")
         return str(pmd_path)
 
-    def get_dart_path(self) -> Optional[str]:
+    def get_dart_path(self) -> str | None:
         """Get the Dart executable path from settings.
 
         Returns:
@@ -101,7 +101,7 @@ class Settings:
         self.config['dart']['dart_path'] = path
         self._save()
 
-    def prompt_and_save_dart_path(self) -> Optional[str]:
+    def prompt_and_save_dart_path(self) -> str | None:
         """Prompt user for Dart path, validate it, and save to settings.
 
         Returns:
@@ -129,7 +129,7 @@ class Settings:
         print(f"Dart path saved to {self.settings_file}")
         return str(dart_path)
 
-    def get_flutter_path(self) -> Optional[str]:
+    def get_flutter_path(self) -> str | None:
         """Get the Flutter executable path from settings.
 
         Returns:
@@ -150,7 +150,7 @@ class Settings:
         self.config['flutter']['flutter_path'] = path
         self._save()
 
-    def prompt_and_save_flutter_path(self) -> Optional[str]:
+    def prompt_and_save_flutter_path(self) -> str | None:
         """Prompt user for Flutter path, validate it, and save to settings.
 
         Returns:
@@ -177,3 +177,53 @@ class Settings:
         self.set_flutter_path(str(flutter_path))
         print(f"Flutter path saved to {self.settings_file}")
         return str(flutter_path)
+
+    def get_ruff_path(self) -> str | None:
+        """Get the Ruff executable path from settings.
+
+        Returns:
+            Path to Ruff executable or None if not set
+        """
+        if 'ruff' in self.config and 'ruff_path' in self.config['ruff']:
+            return self.config['ruff']['ruff_path']
+        return None
+
+    def set_ruff_path(self, path: str):
+        """Set the Ruff executable path and save to settings.
+
+        Args:
+            path: Path to Ruff executable
+        """
+        if 'ruff' not in self.config:
+            self.config['ruff'] = {}
+        self.config['ruff']['ruff_path'] = path
+        self._save()
+
+    def prompt_and_save_ruff_path(self) -> str | None:
+        """Prompt user for Ruff path, validate it, and save to settings.
+
+        Returns:
+            Validated Ruff path, or None if validation failed
+        """
+        print("\nRuff executable not found in PATH.")
+        print("Ruff is a fast Python linter written in Rust.")
+        print("Install with: pip install ruff")
+        print("Or download from: https://docs.astral.sh/ruff/installation/")
+        prompt_msg = "\nEnter path to ruff executable (or press Enter to skip): "
+        user_input = input(prompt_msg).strip()
+
+        # If user pressed enter (empty input), skip
+        if not user_input:
+            print("Skipping ruff analyze rule. Install Ruff and configure later.")
+            return None
+
+        # Validate user-provided path exists
+        ruff_path = Path(user_input)
+        if not ruff_path.exists():
+            print(f"Error: Ruff executable not found at: {user_input}")
+            return None
+
+        # Save and return
+        self.set_ruff_path(str(ruff_path))
+        print(f"Ruff path saved to {self.settings_file}")
+        return str(ruff_path)

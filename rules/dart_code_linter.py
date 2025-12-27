@@ -2,23 +2,24 @@
 Dart Code Linter (DCM) rule for Flutter/Dart code metrics analysis
 """
 
-import subprocess
-import json
 import csv
+import json
+import re
 import shutil
-import platform
-import yaml
 from pathlib import Path
-from typing import List, Optional, Dict, Any
+from typing import Any
+
+import yaml
+
+from models import LogLevel, Severity, Violation
 from rules.base import BaseRule
-from models import Violation, Severity, LogLevel
 from settings import Settings
 
 
 class DartCodeLinterRule(BaseRule):
     """Rule to analyze Dart/Flutter code metrics using dart_code_linter"""
 
-    def __init__(self, config: dict, base_path: Path = None, output_folder: Optional[Path] = None, log_level: LogLevel = LogLevel.ALL, max_errors: Optional[int] = None, rules_file_path: str = None):
+    def __init__(self, config: dict, base_path: Path | None = None, output_folder: Path | None = None, log_level: LogLevel = LogLevel.ALL, max_errors: int | None = None, rules_file_path: str | None = None):
         """Initialize Dart Code Linter rule.
 
         Args:
@@ -36,7 +37,7 @@ class DartCodeLinterRule(BaseRule):
         self._executed = False  # Track if dart_code_linter has been executed
         self.project_root = None  # Will be set when pubspec.yaml is found
 
-    def check(self, file_path: Path) -> List[Violation]:
+    def check(self, _file_path: Path) -> list[Violation]:
         """Run dart_code_linter on the entire project (only once).
 
         Note: dart_code_linter analyzes entire projects, not individual files.
@@ -56,8 +57,8 @@ class DartCodeLinterRule(BaseRule):
 
         print("\nChecking dart_code_linter metrics...")
 
-        # Get dart path
-        dart_path = self._get_or_prompt_dart_path()
+        # Get dart path using base utility
+        dart_path = self._get_tool_path('dart', self.settings.get_dart_path, self.settings.prompt_and_save_dart_path)
         if not dart_path:
             return []
 
@@ -77,69 +78,31 @@ class DartCodeLinterRule(BaseRule):
 
         return violations
 
-    def _get_or_prompt_dart_path(self) -> Optional[str]:
-        """Get dart path from settings or PATH, or prompt user.
-
-        Returns:
-            Path to dart executable or None if failed
-        """
-        # First check if dart is in PATH
-        dart_in_path = shutil.which('dart')
-        if dart_in_path:
-            return dart_in_path
-
-        # Check settings
-        dart_path = self.settings.get_dart_path()
-
-        if not dart_path:
-            # Prompt user to provide path
-            dart_path = self.settings.prompt_and_save_dart_path()
-            if not dart_path:
-                return None
-
-        # Validate path exists
-        if not Path(dart_path).exists():
-            print(f"Error: Dart executable not found at: {dart_path}")
-            print("Please update the path in settings.ini or delete settings.ini to reconfigure")
-            return None
-
-        return dart_path
-
     def _check_dart_code_linter_installed(self) -> bool:
         """Check if dart_code_linter is listed in pubspec.yaml.
 
-        Searches for pubspec.yaml in base_path, then parent directory.
-        Sets self.project_root when pubspec.yaml is found.
+        Uses base utility to find pubspec.yaml. Sets self.project_root when found.
 
         Returns:
             True if dart_code_linter is in dev_dependencies
         """
-        # Try base_path first
-        pubspec_path = self.base_path / 'pubspec.yaml'
-
-        # If not found in base_path, try parent directory (common when analyzing lib/ folder)
-        if not pubspec_path.exists():
-            pubspec_path = self.base_path.parent / 'pubspec.yaml'
-
-        if not pubspec_path.exists():
+        # Use base utility to find pubspec
+        self.project_root = self._find_pubspec()
+        if not self.project_root:
             print(f"Warning: pubspec.yaml not found in {self.base_path} or parent directory")
             return False
 
-        # Store project root for later use
-        self.project_root = pubspec_path.parent
+        pubspec_path = self.project_root / 'pubspec.yaml'
 
         try:
-            with open(pubspec_path, 'r', encoding='utf-8') as f:
+            with open(pubspec_path, encoding='utf-8') as f:
                 pubspec_data = yaml.safe_load(f)
 
             if not pubspec_data:
                 return False
 
             dev_dependencies = pubspec_data.get('dev_dependencies', {})
-            if dev_dependencies and 'dart_code_linter' in dev_dependencies:
-                return True
-
-            return False
+            return bool(dev_dependencies and 'dart_code_linter' in dev_dependencies)
 
         except Exception as e:
             print(f"Error reading pubspec.yaml: {e}")
@@ -160,19 +123,9 @@ class DartCodeLinterRule(BaseRule):
         install_dir = self.project_root if self.project_root else self.base_path
 
         cmd = [dart_path, 'pub', 'add', '--dev', 'dart_code_linter']
-        use_shell = platform.system() == 'Windows'
 
         try:
-            result = subprocess.run(
-                cmd,
-                cwd=install_dir,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                encoding='utf-8',
-                errors='replace',  # Replace invalid characters instead of crashing
-                check=False,
-                shell=use_shell
-            )
+            result = self._run_subprocess(cmd, install_dir)
 
             if result.returncode == 0:
                 print("dart_code_linter installed successfully\n")
@@ -185,7 +138,7 @@ class DartCodeLinterRule(BaseRule):
             print(f"Error installing dart_code_linter: {e}")
             return False
 
-    def _run_dart_code_linter(self, dart_path: str) -> List[Violation]:
+    def _run_dart_code_linter(self, dart_path: str) -> list[Violation]:
         """Execute dart_code_linter and parse results.
 
         Args:
@@ -220,20 +173,9 @@ class DartCodeLinterRule(BaseRule):
             analyze_path
         ]
 
-        use_shell = platform.system() == 'Windows'
-
-        # Execute dart_code_linter from project root
+        # Execute dart_code_linter from project root using base utility
         try:
-            result = subprocess.run(
-                cmd,
-                cwd=working_dir,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                encoding='utf-8',
-                errors='replace',  # Replace invalid characters instead of crashing
-                check=False,
-                shell=use_shell
-            )
+            result = self._run_subprocess(cmd, working_dir)
 
             # Check if report.json was created
             if not report_json.exists():
@@ -249,13 +191,9 @@ class DartCodeLinterRule(BaseRule):
             # Report file exists - print location
             print(f"Metrics report saved to: {report_json}")
 
-            # Parse JSON output
+            # Parse JSON output and apply log level filter
             violations = self._parse_metrics_json(report_json)
-            print(f"DEBUG: Parsed {len(violations)} violations from JSON")
-
-            # Apply log level filter to violations
             violations = self._filter_violations_by_log_level(violations)
-            print(f"DEBUG: After log level filter: {len(violations)} violations")
 
             # Print summary
             if violations:
@@ -280,16 +218,12 @@ class DartCodeLinterRule(BaseRule):
 
         except FileNotFoundError:
             print(f"Error: Dart executable not found: {dart_path}")
-            print("Please ensure Dart/Flutter SDK is installed and configured correctly")
             return []
         except Exception as e:
-            import traceback
             print(f"Error running dart_code_linter: {e}")
-            print("Full traceback:")
-            traceback.print_exc()
             return []
 
-    def _parse_metrics_json(self, report_path: Path) -> List[Violation]:
+    def _parse_metrics_json(self, report_path: Path) -> list[Violation]:
         """Parse dart_code_linter JSON report into violations.
 
         Args:
@@ -301,15 +235,12 @@ class DartCodeLinterRule(BaseRule):
         violations = []
 
         try:
-            with open(report_path, 'r', encoding='utf-8') as f:
+            with open(report_path, encoding='utf-8') as f:
                 data = json.load(f)
 
             # Get configured metric thresholds
             metric_thresholds = self.config.get('metrics', {})
-            print(f"DEBUG: Checking against {len(metric_thresholds)} configured metrics")
-
             records = data.get('records', [])
-            print(f"DEBUG: Processing {len(records)} file(s) from report")
 
             # Process each record (file)
             for record in records:
@@ -343,32 +274,20 @@ class DartCodeLinterRule(BaseRule):
                         if violation:
                             violations.append(violation)
 
-        except FileNotFoundError:
-            print(f"Error: Report file not found: {report_path}")
-        except json.JSONDecodeError as e:
-            print(f"Error parsing dart_code_linter JSON output: {e}")
-            # Show first 200 chars of file for debugging
-            try:
-                with open(report_path, 'r', encoding='utf-8') as f:
-                    content = f.read(200)
-                    print(f"File content (first 200 chars): {content}...")
-            except:
-                pass
+        except (FileNotFoundError, json.JSONDecodeError) as e:
+            print(f"Error reading dart_code_linter report: {e}")
         except Exception as e:
-            import traceback
             print(f"Error processing dart_code_linter results: {e}")
-            print("Full traceback:")
-            traceback.print_exc()
 
         return violations
 
     def _check_metric_threshold(
         self,
         file_path: str,
-        metric: Dict[str, Any],
-        thresholds: Dict[str, Dict[str, int]],
+        metric: dict[str, Any],
+        thresholds: dict[str, dict[str, int]],
         context: str = ''
-    ) -> Optional[Violation]:
+    ) -> Violation | None:
         """Check if a metric exceeds configured thresholds.
 
         Args:
@@ -434,7 +353,7 @@ class DartCodeLinterRule(BaseRule):
         # Create relative path
         try:
             rel_path = self._get_relative_path(Path(file_path))
-        except:
+        except Exception:
             rel_path = file_path
 
         # Build message
@@ -449,86 +368,33 @@ class DartCodeLinterRule(BaseRule):
             message=message
         )
 
-    def _filter_violations_by_log_level(self, violations: List[Violation]) -> List[Violation]:
-        """Filter violations based on log level.
-
-        Args:
-            violations: List of all violations
-
-        Returns:
-            Filtered list of violations based on log level
-        """
-        if self.log_level == LogLevel.ALL:
-            return violations
-
-        filtered = []
-        for violation in violations:
-            if self.log_level == LogLevel.ERROR and violation.severity != Severity.ERROR:
-                continue
-            elif self.log_level == LogLevel.WARNING and violation.severity not in (Severity.ERROR, Severity.WARNING):
-                continue
-            filtered.append(violation)
-
-        return filtered
-
-    def _write_csv_output(self, output_file: Path, violations: List[Violation], report_json: Path):
+    def _write_csv_output(self, output_file: Path, violations: list[Violation], _report_json: Path):
         """Write dart_code_linter results to CSV file with structured columns.
 
         Args:
             output_file: Path to CSV output file
             violations: List of FILTERED violations (already respects log_level)
-            report_json: Path to the JSON report file (unused, kept for compatibility)
+            _report_json: Path to the JSON report file (unused, kept for compatibility)
         """
         try:
             # Build CSV rows directly from filtered violations
             csv_rows = []
 
+            # Parse message format: "metric = value >=/<= threshold (threshold) in context"
+            pattern = r'^(.+?) = ([\d.]+) [<>]= ([\d.]+) \(threshold\)(?: in (.+))?$'
+
             for v in violations:
-                # Parse violation message: "metric-name = value >= threshold (threshold) in context"
-                # or: "metric-name = value >= threshold (threshold)"
-                try:
-                    # Extract metric name (before " = ")
-                    if ' = ' not in v.message:
-                        continue
-
-                    parts = v.message.split(' = ', 1)
-                    metric_name = parts[0].strip()
-                    rest = parts[1]  # "value >= threshold (threshold) in context"
-
-                    # Extract value (between " = " and next space)
-                    value_parts = rest.split(' ', 1)
-                    value = float(value_parts[0])
-
-                    # Extract threshold (after operator and before "(threshold)")
-                    # Format: "value >= threshold (threshold)"
-                    if '>=' in rest or '<=' in rest:
-                        operator_split = rest.split('>=' if '>=' in rest else '<=')
-                        if len(operator_split) > 1:
-                            threshold_part = operator_split[1].split('(threshold)')[0].strip()
-                            threshold = float(threshold_part)
-                        else:
-                            threshold = value
-                    else:
-                        threshold = value
-
-                    # Extract context (after "in ")
-                    context = ''
-                    if ' in ' in rest:
-                        context = rest.split(' in ', 1)[1].strip()
-
-                    # Build CSV row
-                    csv_rows.append({
-                        'file_path': v.file_path,
-                        'metric': metric_name,
-                        'value': value,
-                        'threshold': threshold,
-                        'severity': v.severity.value,  # Convert enum to string
-                        'context': context
-                    })
-
-                except Exception as e:
-                    print(f"Warning: Could not parse violation message: {v.message} - {e}")
+                match = re.match(pattern, v.message)
+                if not match:
                     continue
+                csv_rows.append({
+                    'file_path': v.file_path,
+                    'metric': match.group(1),
+                    'value': float(match.group(2)),
+                    'threshold': float(match.group(3)),
+                    'severity': v.severity.value,
+                    'context': match.group(4) or ''
+                })
 
             # Apply max_errors limit to csv_rows
             if self.max_errors and len(csv_rows) > self.max_errors:
@@ -564,7 +430,4 @@ class DartCodeLinterRule(BaseRule):
                 print("No violations to write to CSV (after log level filtering)")
 
         except Exception as e:
-            import traceback
             print(f"Error writing dart_code_linter CSV file: {e}")
-            print("Full traceback:")
-            traceback.print_exc()

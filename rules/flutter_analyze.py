@@ -2,23 +2,22 @@
 Flutter analyze rule for Flutter code analysis
 """
 
-import subprocess
 import csv
-import shutil
-import platform
 import re
-import yaml
 from pathlib import Path
-from typing import List, Optional, Dict, Any
+from typing import Any
+
+import yaml
+
+from models import LogLevel, Severity, Violation
 from rules.base import BaseRule
-from models import Violation, Severity, LogLevel
 from settings import Settings
 
 
 class FlutterAnalyzeRule(BaseRule):
     """Rule to analyze Flutter code using flutter analyze"""
 
-    def __init__(self, config: dict, base_path: Path = None, output_folder: Optional[Path] = None, log_level: LogLevel = LogLevel.ALL, max_errors: Optional[int] = None, rules_file_path: str = None):
+    def __init__(self, config: dict, base_path: Path | None = None, output_folder: Path | None = None, log_level: LogLevel = LogLevel.ALL, max_errors: int | None = None, rules_file_path: str | None = None):
         """Initialize Flutter analyze rule.
 
         Args:
@@ -36,7 +35,7 @@ class FlutterAnalyzeRule(BaseRule):
         self._flutter_executed = False  # Track if flutter analyze has been executed
         self.project_root = None
 
-    def check(self, file_path: Path) -> List[Violation]:
+    def check(self, _file_path: Path) -> list[Violation]:
         """Run flutter analyze on the entire project (only once).
 
         Note: flutter analyze analyzes entire projects, not individual files.
@@ -61,8 +60,8 @@ class FlutterAnalyzeRule(BaseRule):
             print("Not a Flutter project (no flutter dependency in pubspec.yaml)")
             return []
 
-        # Get flutter path
-        flutter_path = self._get_or_prompt_flutter_path()
+        # Get flutter path using base utility
+        flutter_path = self._get_tool_path('flutter', self.settings.get_flutter_path, self.settings.prompt_and_save_flutter_path)
         if not flutter_path:
             return []
 
@@ -77,23 +76,17 @@ class FlutterAnalyzeRule(BaseRule):
         Returns:
             True if Flutter project, False otherwise
         """
-        # Try base_path first
-        pubspec_path = self.base_path / 'pubspec.yaml'
-
-        # If not found in base_path, try parent directory
-        if not pubspec_path.exists():
-            pubspec_path = self.base_path.parent / 'pubspec.yaml'
-
-        if not pubspec_path.exists():
+        # Use base utility to find pubspec
+        self.project_root = self._find_pubspec()
+        if not self.project_root:
             print(f"Warning: pubspec.yaml not found in {self.base_path} or parent")
             return False
 
-        # Store project root for later use
-        self.project_root = pubspec_path.parent
+        pubspec_path = self.project_root / 'pubspec.yaml'
 
         # Parse pubspec.yaml and check for flutter dependency
         try:
-            with open(pubspec_path, 'r', encoding='utf-8') as f:
+            with open(pubspec_path, encoding='utf-8') as f:
                 pubspec_data = yaml.safe_load(f)
 
             if not pubspec_data:
@@ -106,45 +99,13 @@ class FlutterAnalyzeRule(BaseRule):
 
             # Also check dev_dependencies
             dev_dependencies = pubspec_data.get('dev_dependencies', {})
-            if 'flutter' in dev_dependencies:
-                return True
-
-            return False
+            return 'flutter' in dev_dependencies
 
         except Exception as e:
             print(f"Warning: Could not parse pubspec.yaml: {e}")
             return False
 
-    def _get_or_prompt_flutter_path(self) -> Optional[str]:
-        """Get flutter path from settings or PATH, or prompt user.
-
-        Returns:
-            Path to flutter executable or None if failed
-        """
-        # First check if flutter is in PATH
-        flutter_in_path = shutil.which('flutter')
-        if flutter_in_path:
-            # Return the full path found by shutil.which for better compatibility
-            return flutter_in_path
-
-        # Check settings
-        flutter_path = self.settings.get_flutter_path()
-
-        if not flutter_path:
-            # Prompt user to provide path
-            flutter_path = self.settings.prompt_and_save_flutter_path()
-            if not flutter_path:
-                return None
-
-        # Validate path exists
-        if not Path(flutter_path).exists():
-            print(f"Error: Flutter executable not found at: {flutter_path}")
-            print("Please update the path in settings.ini or delete settings.ini to reconfigure")
-            return None
-
-        return flutter_path
-
-    def _run_flutter_analyze(self, flutter_path: str) -> List[Violation]:
+    def _run_flutter_analyze(self, flutter_path: str) -> list[Violation]:
         """Execute flutter analyze and parse results.
 
         Args:
@@ -156,21 +117,9 @@ class FlutterAnalyzeRule(BaseRule):
         # Build command for text format output
         cmd = [flutter_path, 'analyze']
 
-        # On Windows, use shell=True for better PATH resolution
-        use_shell = platform.system() == 'Windows'
-
-        # Execute flutter analyze
+        # Execute flutter analyze using base utility
         try:
-            result = subprocess.run(
-                cmd,
-                cwd=self.project_root or self.base_path,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                encoding='utf-8',
-                errors='replace',
-                check=False,
-                shell=use_shell
-            )
+            result = self._run_subprocess(cmd, self.project_root or self.base_path)
 
             # Combine stdout and stderr
             output = result.stdout if result.stdout.strip() else result.stderr
@@ -202,7 +151,7 @@ class FlutterAnalyzeRule(BaseRule):
             print(f"Error running flutter analyze: {e}")
             return []
 
-    def _parse_flutter_text_output(self, output: str) -> List[Violation]:
+    def _parse_flutter_text_output(self, output: str) -> list[Violation]:
         """Parse flutter analyze text output into violations.
 
         The output format is:
@@ -284,7 +233,7 @@ class FlutterAnalyzeRule(BaseRule):
 
         return violations
 
-    def _create_violation(self, data: Dict[str, Any]) -> Violation:
+    def _create_violation(self, data: dict[str, Any]) -> Violation:
         """Create a Violation object from parsed data.
 
         Args:
@@ -307,7 +256,7 @@ class FlutterAnalyzeRule(BaseRule):
                     rel_path = self._get_relative_path(file_path)
             else:
                 rel_path = self._get_relative_path(file_path)
-        except:
+        except Exception:
             rel_path = data['file_path']
 
         # Build detailed message
@@ -321,45 +270,7 @@ class FlutterAnalyzeRule(BaseRule):
         )
         return violation
 
-    def _map_severity(self, severity_str: str) -> Severity:
-        """Map flutter analyze severity to our Severity enum.
-
-        Args:
-            severity_str: Severity string from flutter analyze (info/warning/error)
-
-        Returns:
-            Mapped Severity enum value
-        """
-        severity_map = {
-            'INFO': Severity.INFO,
-            'WARNING': Severity.WARNING,
-            'ERROR': Severity.ERROR,
-        }
-        return severity_map.get(severity_str.upper(), Severity.WARNING)
-
-    def _filter_violations_by_log_level(self, violations: List[Violation]) -> List[Violation]:
-        """Filter violations based on log level.
-
-        Args:
-            violations: List of all violations
-
-        Returns:
-            Filtered list of violations based on log level
-        """
-        if self.log_level == LogLevel.ALL:
-            return violations
-
-        filtered = []
-        for violation in violations:
-            if self.log_level == LogLevel.ERROR and violation.severity != Severity.ERROR:
-                continue
-            elif self.log_level == LogLevel.WARNING and violation.severity not in (Severity.ERROR, Severity.WARNING):
-                continue
-            filtered.append(violation)
-
-        return filtered
-
-    def _write_csv_output(self, output_file: Path, violations: List[Violation]):
+    def _write_csv_output(self, output_file: Path, violations: list[Violation]):
         """Write flutter analyze results to CSV file, filtered by log level.
 
         Args:

@@ -14,6 +14,8 @@ A flexible command-line tool for analyzing code files based on configurable rule
 - **Flutter/Dart static analysis**: Integrated `dart analyze --fatal-infos` for comprehensive Dart code analysis with severity mapping (info/warning/error)
 - **Flutter analyze**: Integrated `flutter analyze` for Flutter-specific code analysis with text output parsing
 - **Dart code metrics**: Integrated [dart_code_linter](https://pub.dev/packages/dart_code_linter) for advanced metrics (cyclomatic complexity, maintainability index, technical debt, etc.)
+- **Python linting**: Integrated [Ruff](https://docs.astral.sh/ruff/) for fast Python linting with 800+ rules
+- **Auto-fix support**: Automatically fix Python issues using Ruff with `ruff_fixer.py`
 - **Language-specific exclusions**: Automatically exclude generated files (e.g., `**.g.dart`, `**.freezed.dart`)
 - **Relative path display**: Clean, readable output with relative file paths
 
@@ -997,12 +999,60 @@ python main.py --language flutter --path lib/ --output reports/
 # - reports/dart_code_linter.csv
 ```
 
+### Python Auto-Fix with Ruff
+
+The analyzer includes a dedicated tool to automatically fix Python code issues using Ruff. It uses the same configuration from your `rules.json` file.
+
+#### Using the Ruff Fixer
+
+**Quick Start (Windows):**
+```bash
+fix_python_ruff_issues.bat
+```
+
+**Manual Usage:**
+```bash
+python ruff_fixer.py --path . --rules code_analysis_rules.json
+```
+
+**Dry Run (show what would be fixed):**
+```bash
+python ruff_fixer.py --path . --rules code_analysis_rules.json --dry-run
+```
+
+#### Ruff Fixer Options
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--path` | Path to code directory or file | Required |
+| `--rules` | Path to rules JSON file | `code_analysis_rules.json` |
+| `--dry-run` | Show changes without applying | False |
+
+The fixer reads the `ruff_analyze` configuration from your rules JSON:
+- `select`: Which rule categories to check/fix
+- `ignore`: Rules to ignore
+- `exclude_patterns`: Directories to skip
+
+#### Example Workflow
+
+```bash
+# 1. First, analyze to see issues
+python main.py --language python --path . --rules code_analysis_rules.json
+
+# 2. Auto-fix the issues
+python ruff_fixer.py --path . --rules code_analysis_rules.json
+
+# 3. Re-analyze to confirm fixes
+python main.py --language python --path . --rules code_analysis_rules.json
+```
+
 ## Project Structure
 
 ```
 cli-code-analyzer/
 ├── main.py                     # CLI entry point
 ├── analyzer.py                 # Main analyzer orchestration
+├── ruff_fixer.py               # Ruff auto-fix tool for Python
 ├── file_discovery.py           # File discovery logic
 ├── config.py                   # Configuration loading
 ├── settings.py                 # Settings management (INI-based)
@@ -1015,9 +1065,11 @@ cli-code-analyzer/
 │   ├── pmd_duplicates.py      # PMD duplicate code detection rule
 │   ├── dart_analyze.py        # Dart static analysis rule
 │   ├── flutter_analyze.py     # Flutter static analysis rule
-│   └── dart_code_linter.py    # Dart code metrics analysis rule
+│   ├── dart_code_linter.py    # Dart code metrics analysis rule
+│   └── ruff_analyze.py        # Ruff Python linter rule
 ├── rules.json                  # Default rules configuration
 ├── settings.ini                # User settings (PMD path, Dart path, etc.)
+├── fix_python_ruff_issues.bat  # Batch file to auto-fix Python issues
 └── example/                    # Example project for testing
     ├── rules.json             # Example rules (warning:200, error:300)
     └── lib/

@@ -3,20 +3,20 @@ Max lines per file rule
 """
 
 from pathlib import Path
-from typing import List, Optional
+
+from models import LogLevel, Severity, Violation
 from rules.base import BaseRule
-from models import Violation, Severity, LogLevel
 
 
 class MaxLinesRule(BaseRule):
     """Rule to check maximum lines per file"""
 
-    def __init__(self, config: dict, base_path: Path = None, log_level: LogLevel = LogLevel.ALL, max_errors: Optional[int] = None, rules_file_path: str = None):
+    def __init__(self, config: dict, base_path: Path | None = None, log_level: LogLevel = LogLevel.ALL, max_errors: int | None = None, rules_file_path: str | None = None):
         super().__init__(config, base_path, log_level, max_errors, rules_file_path)
         self.warning_threshold = config.get('warning', 300)
         self.error_threshold = config.get('error', 500)
 
-    def check(self, file_path: Path) -> List[Violation]:
+    def check(self, file_path: Path) -> list[Violation]:
         """
         Check if file exceeds line count thresholds
 
