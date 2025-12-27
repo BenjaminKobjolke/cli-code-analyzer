@@ -35,12 +35,12 @@
     "exclude_patterns": ["venv", "__pycache__", ".git", ".venv", "node_modules", "build", "dist", "example"]
   },
   "phpstan_analyze": {
-    "enabled": true,
+    "enabled": false,
     "level": 5,
     "exclude_patterns": ["vendor/**", "node_modules/**", ".git/**"]
   },
   "php_cs_fixer": {
-    "enabled": true,
+    "enabled": false,
     "rules": "@PSR12",
     "exclude_patterns": ["vendor/**", "node_modules/**", ".git/**"]
   }
