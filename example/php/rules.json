@@ -1,0 +1,25 @@
+{
+  "log_level": "all",
+  "max_lines_per_file": {
+    "enabled": true,
+    "warning": 200,
+    "error": 300
+  },
+  "pmd_duplicates": {
+    "enabled": true,
+    "minimum_tokens": 100,
+    "exclude_patterns": {
+      "php": ["vendor/**", "node_modules/**", ".git/**"]
+    }
+  },
+  "phpstan_analyze": {
+    "enabled": true,
+    "level": 5,
+    "exclude_patterns": ["vendor/**", "node_modules/**", ".git/**"]
+  },
+  "php_cs_fixer": {
+    "enabled": true,
+    "rules": "@PSR12",
+    "exclude_patterns": ["vendor/**", "node_modules/**", ".git/**"]
+  }
+}
