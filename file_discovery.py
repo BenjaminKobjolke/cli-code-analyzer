@@ -10,6 +10,7 @@ from typing import ClassVar
 DEFAULT_EXCLUDE_PATTERNS = {
     'flutter': ['*.g.dart', '*.freezed.dart'],
     'python': ['venv/**', '.venv/**', '__pycache__/**', '*.pyc', 'env/**', '.git/**'],
+    'php': ['vendor/**', 'node_modules/**', '.git/**'],
 }
 
 
@@ -19,6 +20,7 @@ class FileDiscovery:
     LANGUAGE_EXTENSIONS: ClassVar[dict[str, list[str]]] = {
         'flutter': ['.dart'],
         'python': ['.py'],
+        'php': ['.php'],
     }
 
     def __init__(self, language: str, path: str, exclude_patterns: list[str] | None = None):

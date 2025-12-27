@@ -12,6 +12,8 @@ from rules import (
     DartCodeLinterRule,
     FlutterAnalyzeRule,
     MaxLinesRule,
+    PHPCSFixerAnalyzeRule,
+    PHPStanAnalyzeRule,
     PMDDuplicatesRule,
     RuffAnalyzeRule,
 )
@@ -132,6 +134,40 @@ class CodeAnalyzer:
             # Ruff analyzes the entire project, so we just call it once with any file
             if self.files:
                 violations = ruff_rule.check(self.files[0])
+                self.violations.extend(violations)
+
+        # Run PHPStan analyze check (once per analysis, not per file)
+        if self.config.is_rule_enabled('phpstan_analyze'):
+            rule_config = self.config.get_rule('phpstan_analyze')
+            phpstan_log_level = self._resolve_log_level('phpstan_analyze')
+            phpstan_rule = PHPStanAnalyzeRule(
+                rule_config,
+                self.base_path,
+                self.output_folder,
+                phpstan_log_level,
+                self.max_errors,
+                self.rules_file
+            )
+            # PHPStan analyzes the entire project, so we just call it once with any file
+            if self.files:
+                violations = phpstan_rule.check(self.files[0])
+                self.violations.extend(violations)
+
+        # Run PHP-CS-Fixer check (once per analysis, not per file)
+        if self.config.is_rule_enabled('php_cs_fixer'):
+            rule_config = self.config.get_rule('php_cs_fixer')
+            fixer_log_level = self._resolve_log_level('php_cs_fixer')
+            fixer_rule = PHPCSFixerAnalyzeRule(
+                rule_config,
+                self.base_path,
+                self.output_folder,
+                fixer_log_level,
+                self.max_errors,
+                self.rules_file
+            )
+            # PHP-CS-Fixer analyzes the entire project, so we just call it once with any file
+            if self.files:
+                violations = fixer_rule.check(self.files[0])
                 self.violations.extend(violations)
 
         # Run per-file rules on each file

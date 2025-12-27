@@ -30,7 +30,7 @@ Examples:
     parser.add_argument(
         '--language',
         required=True,
-        help='Programming language to analyze. Line counting: flutter, python. Duplicate detection (PMD): dart, python, java, javascript, typescript'
+        help='Programming language to analyze. Line counting: flutter, python, php. Duplicate detection (PMD): dart, python, java, javascript, typescript, php. Static analysis: php (PHPStan, PHP-CS-Fixer)'
     )
 
     parser.add_argument(

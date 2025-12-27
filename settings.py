@@ -227,3 +227,71 @@ class Settings:
         self.set_ruff_path(str(ruff_path))
         print(f"Ruff path saved to {self.settings_file}")
         return str(ruff_path)
+
+    def get_phpstan_path(self) -> str | None:
+        """Get the PHPStan executable path from settings."""
+        if 'phpstan' in self.config and 'phpstan_path' in self.config['phpstan']:
+            return self.config['phpstan']['phpstan_path']
+        return None
+
+    def set_phpstan_path(self, path: str):
+        """Set the PHPStan executable path and save to settings."""
+        if 'phpstan' not in self.config:
+            self.config['phpstan'] = {}
+        self.config['phpstan']['phpstan_path'] = path
+        self._save()
+
+    def prompt_and_save_phpstan_path(self) -> str | None:
+        """Prompt user for PHPStan path, validate it, and save to settings."""
+        print("\nPHPStan executable not found in PATH.")
+        print("Install with: composer require --dev phpstan/phpstan")
+        print("Or in the php/ subfolder: cd php && composer install")
+        prompt_msg = "\nEnter path to phpstan executable (or press Enter to skip): "
+        user_input = input(prompt_msg).strip()
+
+        if not user_input:
+            print("Skipping phpstan analyze rule. Install PHPStan and configure later.")
+            return None
+
+        phpstan_path = Path(user_input)
+        if not phpstan_path.exists():
+            print(f"Error: PHPStan executable not found at: {user_input}")
+            return None
+
+        self.set_phpstan_path(str(phpstan_path))
+        print(f"PHPStan path saved to {self.settings_file}")
+        return str(phpstan_path)
+
+    def get_php_cs_fixer_path(self) -> str | None:
+        """Get the PHP-CS-Fixer executable path from settings."""
+        if 'php_cs_fixer' in self.config and 'php_cs_fixer_path' in self.config['php_cs_fixer']:
+            return self.config['php_cs_fixer']['php_cs_fixer_path']
+        return None
+
+    def set_php_cs_fixer_path(self, path: str):
+        """Set the PHP-CS-Fixer executable path and save to settings."""
+        if 'php_cs_fixer' not in self.config:
+            self.config['php_cs_fixer'] = {}
+        self.config['php_cs_fixer']['php_cs_fixer_path'] = path
+        self._save()
+
+    def prompt_and_save_php_cs_fixer_path(self) -> str | None:
+        """Prompt user for PHP-CS-Fixer path, validate it, and save to settings."""
+        print("\nPHP-CS-Fixer executable not found in PATH.")
+        print("Install with: composer require --dev friendsofphp/php-cs-fixer")
+        print("Or in the php/ subfolder: cd php && composer install")
+        prompt_msg = "\nEnter path to php-cs-fixer executable (or press Enter to skip): "
+        user_input = input(prompt_msg).strip()
+
+        if not user_input:
+            print("Skipping php_cs_fixer rule. Install PHP-CS-Fixer and configure later.")
+            return None
+
+        fixer_path = Path(user_input)
+        if not fixer_path.exists():
+            print(f"Error: PHP-CS-Fixer executable not found at: {user_input}")
+            return None
+
+        self.set_php_cs_fixer_path(str(fixer_path))
+        print(f"PHP-CS-Fixer path saved to {self.settings_file}")
+        return str(fixer_path)
