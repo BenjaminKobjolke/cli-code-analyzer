@@ -213,3 +213,4 @@ minimal/
 reports/
 PLAN.md
 code_analysis_results
+php/vendor/
