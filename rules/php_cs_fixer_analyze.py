@@ -19,6 +19,18 @@ class PHPCSFixerAnalyzeRule(BaseRule):
         self.settings = Settings()
         self._fixer_executed = False
 
+    def _get_bundled_fixer_path(self) -> str | None:
+        """Get PHP-CS-Fixer path from bundled php/vendor/bin folder."""
+        script_dir = Path(__file__).parent.parent
+        paths = [
+            script_dir / 'php' / 'vendor' / 'bin' / 'php-cs-fixer.bat',
+            script_dir / 'php' / 'vendor' / 'bin' / 'php-cs-fixer',
+        ]
+        for p in paths:
+            if p.exists():
+                return str(p)
+        return None
+
     def check(self, _file_path: Path) -> list[Violation]:
         """Run PHP-CS-Fixer check in dry-run mode on the entire project (only once)."""
         if self._fixer_executed:
@@ -27,7 +39,10 @@ class PHPCSFixerAnalyzeRule(BaseRule):
         self._fixer_executed = True
         print("\nRunning PHP-CS-Fixer check...")
 
-        fixer_path = self._get_tool_path('php-cs-fixer', self.settings.get_php_cs_fixer_path, self.settings.prompt_and_save_php_cs_fixer_path)
+        # First check bundled php/vendor/bin folder
+        fixer_path = self._get_bundled_fixer_path()
+        if not fixer_path:
+            fixer_path = self._get_tool_path('php-cs-fixer', self.settings.get_php_cs_fixer_path, self.settings.prompt_and_save_php_cs_fixer_path)
         if not fixer_path:
             return []
 

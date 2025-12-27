@@ -19,6 +19,18 @@ class PHPStanAnalyzeRule(BaseRule):
         self.settings = Settings()
         self._phpstan_executed = False
 
+    def _get_bundled_phpstan_path(self) -> str | None:
+        """Get PHPStan path from bundled php/vendor/bin folder."""
+        script_dir = Path(__file__).parent.parent
+        paths = [
+            script_dir / 'php' / 'vendor' / 'bin' / 'phpstan.bat',
+            script_dir / 'php' / 'vendor' / 'bin' / 'phpstan',
+        ]
+        for p in paths:
+            if p.exists():
+                return str(p)
+        return None
+
     def check(self, _file_path: Path) -> list[Violation]:
         """Run PHPStan check on the entire project (only once)."""
         if self._phpstan_executed:
@@ -27,7 +39,10 @@ class PHPStanAnalyzeRule(BaseRule):
         self._phpstan_executed = True
         print("\nRunning PHPStan check...")
 
-        phpstan_path = self._get_tool_path('phpstan', self.settings.get_phpstan_path, self.settings.prompt_and_save_phpstan_path)
+        # First check bundled php/vendor/bin folder
+        phpstan_path = self._get_bundled_phpstan_path()
+        if not phpstan_path:
+            phpstan_path = self._get_tool_path('phpstan', self.settings.get_phpstan_path, self.settings.prompt_and_save_phpstan_path)
         if not phpstan_path:
             return []
 

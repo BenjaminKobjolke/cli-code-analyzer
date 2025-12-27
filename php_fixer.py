@@ -31,16 +31,23 @@ def get_php_cs_fixer_path() -> str | None:
     """Get PHP-CS-Fixer executable path."""
     import shutil
 
+    # First check bundled php/vendor/bin folder (priority)
+    script_dir = Path(__file__).parent
+    bundled_paths = [
+        script_dir / 'php' / 'vendor' / 'bin' / 'php-cs-fixer.bat',
+        script_dir / 'php' / 'vendor' / 'bin' / 'php-cs-fixer',
+    ]
+    for bundled_fixer in bundled_paths:
+        if bundled_fixer.exists():
+            return str(bundled_fixer)
+
     # Check if php-cs-fixer is in PATH
     fixer_in_path = shutil.which('php-cs-fixer')
     if fixer_in_path:
         return fixer_in_path
 
-    # Check common vendor locations relative to script
-    script_dir = Path(__file__).parent
+    # Check other common vendor locations
     vendor_paths = [
-        script_dir / 'php' / 'vendor' / 'bin' / 'php-cs-fixer',
-        script_dir / 'php' / 'vendor' / 'bin' / 'php-cs-fixer.bat',
         script_dir / 'vendor' / 'bin' / 'php-cs-fixer',
         script_dir / 'vendor' / 'bin' / 'php-cs-fixer.bat',
     ]
