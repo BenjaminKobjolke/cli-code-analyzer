@@ -1,5 +1,0 @@
-file_path,line_count,threshold,severity
-rules\base.py,309,300,WARNING
-rules\dart_code_linter.py,433,300,WARNING
-rules\flutter_analyze.py,339,300,WARNING
-rules\pmd_duplicates.py,415,300,WARNING

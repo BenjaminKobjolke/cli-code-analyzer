@@ -211,3 +211,5 @@ settings.ini
 # Test output folders
 minimal/
 reports/
+PLAN.md
+code_analysis_results
