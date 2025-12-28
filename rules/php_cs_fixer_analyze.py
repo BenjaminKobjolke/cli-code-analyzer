@@ -54,12 +54,16 @@ class PHPCSFixerAnalyzeRule(BaseRule):
         cmd = [fixer_path, 'fix', '--dry-run', '--format=json', '--verbose']
 
         # Add rules configuration if specified
-        rules = self.config.get('rules', '@PSR12')
+        if isinstance(self.config, str):
+            rules = self.config
+            analyze_path = str(self.base_path)
+        else:
+            rules = self.config.get('rules', '@PSR12')
+            analyze_path = self.config.get('analyze_path', str(self.base_path))
         if rules:
             cmd.extend(['--rules', rules])
 
         # Add path to analyze
-        analyze_path = self.config.get('analyze_path', str(self.base_path))
         if not Path(analyze_path).is_absolute():
             analyze_path = str(self.base_path / analyze_path)
         cmd.append(analyze_path)

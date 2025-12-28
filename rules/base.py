@@ -63,6 +63,11 @@ class BaseRule(ABC):
         if not exceptions:
             return self._build_threshold_dict(None, threshold_config)
 
+        # Convert dict format to list format if needed
+        # Dict format: {"path": "description"} or {"path": {"warning": 600}}
+        if isinstance(exceptions, dict):
+            exceptions = [{'file': k, **(v if isinstance(v, dict) else {})} for k, v in exceptions.items()]
+
         try:
             rel_path_to_base = self._get_relative_path(file_path)
         except Exception:

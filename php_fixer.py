@@ -96,7 +96,10 @@ def run_php_cs_fixer(path: str, fixer_config: dict, dry_run: bool = False) -> in
     cmd.append('--verbose')
 
     # Add rules configuration if specified
-    rules = fixer_config.get('rules', '@PSR12')
+    if isinstance(fixer_config, str):
+        rules = fixer_config
+    else:
+        rules = fixer_config.get('rules', '@PSR12')
     if rules:
         cmd.extend(['--rules', rules])
 
@@ -111,7 +114,8 @@ def run_php_cs_fixer(path: str, fixer_config: dict, dry_run: bool = False) -> in
             capture_output=True,
             encoding='utf-8',
             errors='replace',
-            check=False
+            check=False,
+            cwd=path
         )
 
         # Print output
