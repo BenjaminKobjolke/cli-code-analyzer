@@ -8,13 +8,19 @@ from pmd_downloader import download_pmd
 class Settings:
     """Manages application settings stored in settings.ini"""
 
-    def __init__(self, settings_file: str = "settings.ini"):
+    def __init__(self, settings_file: str | None = None):
         """Initialize settings manager.
 
         Args:
-            settings_file: Path to the settings INI file
+            settings_file: Path to the settings INI file. If None, uses settings.ini
+                          in the cli-code-analyzer directory.
         """
-        self.settings_file = Path(settings_file)
+        if settings_file is None:
+            # Default to settings.ini in the cli-code-analyzer directory
+            script_dir = Path(__file__).parent
+            self.settings_file = script_dir / "settings.ini"
+        else:
+            self.settings_file = Path(settings_file)
         self.config = configparser.ConfigParser()
         self._load()
 
@@ -295,3 +301,37 @@ class Settings:
         self.set_php_cs_fixer_path(str(fixer_path))
         print(f"PHP-CS-Fixer path saved to {self.settings_file}")
         return str(fixer_path)
+
+    def get_dotnet_path(self) -> str | None:
+        """Get the dotnet executable path from settings."""
+        if 'dotnet' in self.config and 'dotnet_path' in self.config['dotnet']:
+            return self.config['dotnet']['dotnet_path']
+        return None
+
+    def set_dotnet_path(self, path: str):
+        """Set the dotnet executable path and save to settings."""
+        if 'dotnet' not in self.config:
+            self.config['dotnet'] = {}
+        self.config['dotnet']['dotnet_path'] = path
+        self._save()
+
+    def prompt_and_save_dotnet_path(self) -> str | None:
+        """Prompt user for dotnet path, validate it, and save to settings."""
+        print("\ndotnet executable not found in PATH.")
+        print("Please ensure .NET SDK is installed.")
+        print("Download from: https://dotnet.microsoft.com/download")
+        prompt_msg = "\nEnter path to dotnet executable (or press Enter to skip): "
+        user_input = input(prompt_msg).strip()
+
+        if not user_input:
+            print("Skipping dotnet_analyze rule. Install .NET SDK and configure later.")
+            return None
+
+        dotnet_path = Path(user_input)
+        if not dotnet_path.exists():
+            print(f"Error: dotnet executable not found at: {user_input}")
+            return None
+
+        self.set_dotnet_path(str(dotnet_path))
+        print(f"dotnet path saved to {self.settings_file}")
+        return str(dotnet_path)

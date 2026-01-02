@@ -11,6 +11,7 @@ DEFAULT_EXCLUDE_PATTERNS = {
     'flutter': ['*.g.dart', '*.freezed.dart'],
     'python': ['venv/**', '.venv/**', '__pycache__/**', '*.pyc', 'env/**', '.git/**'],
     'php': ['vendor/**', 'node_modules/**', '.git/**'],
+    'csharp': ['bin/**', 'obj/**', '.vs/**', 'packages/**', 'node_modules/**', '.git/**'],
 }
 
 
@@ -21,6 +22,7 @@ class FileDiscovery:
         'flutter': ['.dart'],
         'python': ['.py'],
         'php': ['.php'],
+        'csharp': ['.cs'],
     }
 
     def __init__(self, language: str, path: str, exclude_patterns: list[str] | None = None):

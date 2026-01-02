@@ -17,6 +17,7 @@ DEFAULT_EXCLUDE_PATTERNS = {
     'javascript': ['**/node_modules/**', '**/dist/**', '**/build/**'],
     'typescript': ['**/node_modules/**', '**/dist/**', '**/build/**'],
     'php': ['**/vendor/**', '**/node_modules/**'],
+    'cs': ['**/bin/**', '**/obj/**', '**/.vs/**', '**/packages/**'],
 }
 
 
@@ -31,6 +32,8 @@ LANGUAGE_TO_PMD = {
     'typescript': 'typescript',
     'ts': 'typescript',
     'php': 'php',
+    'csharp': 'cs',
+    'cs': 'cs',
 }
 
 

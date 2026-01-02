@@ -5,6 +5,7 @@ Rules module
 from rules.base import BaseRule
 from rules.dart_analyze import DartAnalyzeRule
 from rules.dart_code_linter import DartCodeLinterRule
+from rules.dotnet_analyze import DotnetAnalyzeRule
 from rules.flutter_analyze import FlutterAnalyzeRule
 from rules.max_lines import MaxLinesRule
 from rules.php_cs_fixer_analyze import PHPCSFixerAnalyzeRule
@@ -16,6 +17,7 @@ __all__ = [
     'BaseRule',
     'DartAnalyzeRule',
     'DartCodeLinterRule',
+    'DotnetAnalyzeRule',
     'FlutterAnalyzeRule',
     'MaxLinesRule',
     'PHPCSFixerAnalyzeRule',

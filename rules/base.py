@@ -147,7 +147,14 @@ class BaseRule(ABC):
             if not tool_path:
                 return None
 
-        if not Path(tool_path).exists():
+        tool_path_obj = Path(tool_path)
+        if not tool_path_obj.is_absolute():
+            # Resolve relative paths relative to cli-code-analyzer directory
+            script_dir = Path(__file__).parent.parent
+            tool_path_obj = script_dir / tool_path
+            tool_path = str(tool_path_obj)
+
+        if not tool_path_obj.exists():
             print(f"Error: {tool_name} executable not found at: {tool_path}")
             return None
 

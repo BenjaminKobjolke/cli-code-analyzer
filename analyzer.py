@@ -10,6 +10,7 @@ from models import LogLevel, Violation
 from rules import (
     DartAnalyzeRule,
     DartCodeLinterRule,
+    DotnetAnalyzeRule,
     FlutterAnalyzeRule,
     MaxLinesRule,
     PHPCSFixerAnalyzeRule,
@@ -168,6 +169,23 @@ class CodeAnalyzer:
             # PHP-CS-Fixer analyzes the entire project, so we just call it once with any file
             if self.files:
                 violations = fixer_rule.check(self.files[0])
+                self.violations.extend(violations)
+
+        # Run dotnet analyze check (once per analysis, not per file)
+        if self.config.is_rule_enabled('dotnet_analyze'):
+            rule_config = self.config.get_rule('dotnet_analyze')
+            dotnet_log_level = self._resolve_log_level('dotnet_analyze')
+            dotnet_rule = DotnetAnalyzeRule(
+                rule_config,
+                self.base_path,
+                self.output_folder,
+                dotnet_log_level,
+                self.max_errors,
+                self.rules_file
+            )
+            # Dotnet analyzes the entire project, so we just call it once with any file
+            if self.files:
+                violations = dotnet_rule.check(self.files[0])
                 self.violations.extend(violations)
 
         # Run per-file rules on each file
