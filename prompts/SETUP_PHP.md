@@ -4,9 +4,10 @@ Help me setup the cli-code-analyzer for a new PHP project. Ask me for the local 
 
 ## Files to Create
 
-1. Copy all files from `D:\GIT\BenjaminKobjolke\cli-code-analyzer\prompts\setup_files\` to project's `tools/` folder
-2. Edit `tools/config.bat`: set `LANGUAGE=php`
-3. Create `code_analysis_rules.json` in project root
+1. Copy batch files from `D:\GIT\BenjaminKobjolke\cli-code-analyzer\prompts\setup_files\` to project's `tools/` folder
+2. Copy `code_analysis.md` from `D:\GIT\BenjaminKobjolke\cli-code-analyzer\prompts\setup_files\` to project's `prompts/` folder
+3. Edit `tools/config.bat`: set `LANGUAGE=php`
+4. Create `code_analysis_rules.json` in project root
 
 ## Rules Configuration
 
