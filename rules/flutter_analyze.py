@@ -38,11 +38,11 @@ class FlutterAnalyzeRule(BaseRule):
             print("Not a Flutter project (no flutter dependency in pubspec.yaml)")
             return []
 
-        flutter_path = self._get_tool_path('flutter', self.settings.get_flutter_path, self.settings.prompt_and_save_flutter_path)
-        if not flutter_path:
+        flutter_cmd = self._get_flutter_command(self.settings.get_flutter_path, self.settings.prompt_and_save_flutter_path)
+        if not flutter_cmd:
             return []
 
-        return self._run_flutter_analyze(flutter_path)
+        return self._run_flutter_analyze(flutter_cmd)
 
     def _is_flutter_project(self) -> bool:
         """Check if project has flutter dependency in pubspec.yaml."""
@@ -63,10 +63,10 @@ class FlutterAnalyzeRule(BaseRule):
             print(f"Warning: Could not parse pubspec.yaml: {e}")
             return False
 
-    def _run_flutter_analyze(self, flutter_path: str) -> list[Violation]:
+    def _run_flutter_analyze(self, flutter_cmd: list[str]) -> list[Violation]:
         """Execute flutter analyze and return parsed violations."""
         try:
-            result = self._run_subprocess([flutter_path, 'analyze'], self.project_root or self.base_path)
+            result = self._run_subprocess(flutter_cmd + ['analyze'], self.project_root or self.base_path)
             output = result.stdout if result.stdout.strip() else result.stderr
             violations = self._filter_violations_by_log_level(self._parse_flutter_text_output(output))
 

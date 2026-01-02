@@ -169,6 +169,27 @@ class BaseRule(ABC):
             return None
         return pubspec_path.parent
 
+    def _is_fvm_project(self) -> bool:
+        """Check if project uses FVM (Flutter Version Management)."""
+        project_root = self._find_pubspec() or self.base_path
+        if not project_root:
+            return False
+        return (project_root / '.fvmrc').exists() or (project_root / '.fvm').is_dir()
+
+    def _get_flutter_command(self, settings_getter: Callable, settings_prompter: Callable) -> list[str]:
+        """Get flutter command, using FVM prefix if detected."""
+        if self._is_fvm_project() and shutil.which('fvm'):
+            return ['fvm', 'flutter']
+        path = self._get_tool_path('flutter', settings_getter, settings_prompter)
+        return [path] if path else []
+
+    def _get_dart_command(self, settings_getter: Callable, settings_prompter: Callable) -> list[str]:
+        """Get dart command, using FVM prefix if detected."""
+        if self._is_fvm_project() and shutil.which('fvm'):
+            return ['fvm', 'dart']
+        path = self._get_tool_path('dart', settings_getter, settings_prompter)
+        return [path] if path else []
+
     def _write_violations_csv(self, output_file: Path, violations: list[Violation],
                                headers: list[str], row_mapper: Callable[[Violation], list]) -> None:
         """Write violations to CSV, sorted by severity, limited by max_errors."""

@@ -36,19 +36,19 @@ class DartCodeLinterRule(BaseRule):
 
         print("\nChecking dart_code_linter metrics...")
 
-        dart_path = self._get_tool_path('dart', self.settings.get_dart_path, self.settings.prompt_and_save_dart_path)
-        if not dart_path:
+        dart_cmd = self._get_dart_command(self.settings.get_dart_path, self.settings.prompt_and_save_dart_path)
+        if not dart_cmd:
             return []
 
         if not self._check_dart_code_linter_installed():
             if self.config.get('auto_install', False):
-                if not self._install_dart_code_linter(dart_path):
+                if not self._install_dart_code_linter(dart_cmd):
                     return []
             else:
                 print("Warning: dart_code_linter is not installed. Run: dart pub add --dev dart_code_linter")
                 return []
 
-        return self._run_dart_code_linter(dart_path)
+        return self._run_dart_code_linter(dart_cmd)
 
     def _check_dart_code_linter_installed(self) -> bool:
         """Check if dart_code_linter is in dev_dependencies of pubspec.yaml."""
@@ -66,12 +66,12 @@ class DartCodeLinterRule(BaseRule):
             print(f"Error reading pubspec.yaml: {e}")
             return False
 
-    def _install_dart_code_linter(self, dart_path: str) -> bool:
+    def _install_dart_code_linter(self, dart_cmd: list[str]) -> bool:
         """Install dart_code_linter using dart pub add."""
         print("dart_code_linter not found. Installing...")
         install_dir = self.project_root or self.base_path
         try:
-            result = self._run_subprocess([dart_path, 'pub', 'add', '--dev', 'dart_code_linter'], install_dir)
+            result = self._run_subprocess(dart_cmd + ['pub', 'add', '--dev', 'dart_code_linter'], install_dir)
             if result.returncode == 0:
                 print("dart_code_linter installed successfully\n")
                 return True
@@ -81,7 +81,7 @@ class DartCodeLinterRule(BaseRule):
             print(f"Error installing dart_code_linter: {e}")
             return False
 
-    def _run_dart_code_linter(self, dart_path: str) -> list[Violation]:
+    def _run_dart_code_linter(self, dart_cmd: list[str]) -> list[Violation]:
         """Execute dart_code_linter and return parsed violations."""
         analyze_path = self.config.get('analyze_path', 'lib')
         print(f"Running dart_code_linter analysis on '{analyze_path}'...")
@@ -91,7 +91,7 @@ class DartCodeLinterRule(BaseRule):
         report_dir.mkdir(exist_ok=True)
         report_json = report_dir / 'report.json'
 
-        cmd = [dart_path, 'run', 'dart_code_linter:metrics', 'analyze',
+        cmd = dart_cmd + ['run', 'dart_code_linter:metrics', 'analyze',
                '--fatal-warnings', '--fatal-style', '--reporter=json',
                f'--json-path={report_dir / "report"}', analyze_path]
 
@@ -159,6 +159,10 @@ class DartCodeLinterRule(BaseRule):
         """Check if metric exceeds thresholds, return Violation or None."""
         metric_id = metric.get('metricsId', 'unknown')
         value = metric.get('value', 0)
+        try:
+            value = float(value)
+        except (ValueError, TypeError):
+            value = 0
 
         if metric_id not in thresholds:
             return None

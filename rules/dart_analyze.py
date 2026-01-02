@@ -51,27 +51,27 @@ class DartAnalyzeRule(BaseRule):
 
         print("\nRunning dart analyze...")
 
-        # Get dart path using base utility
-        dart_path = self._get_tool_path('dart', self.settings.get_dart_path, self.settings.prompt_and_save_dart_path)
-        if not dart_path:
+        # Get dart command using FVM-aware utility
+        dart_cmd = self._get_dart_command(self.settings.get_dart_path, self.settings.prompt_and_save_dart_path)
+        if not dart_cmd:
             return []
 
         # Run dart analyze
-        violations = self._run_dart_analyze(dart_path)
+        violations = self._run_dart_analyze(dart_cmd)
 
         return violations
 
-    def _run_dart_analyze(self, dart_path: str) -> list[Violation]:
+    def _run_dart_analyze(self, dart_cmd: list[str]) -> list[Violation]:
         """Execute dart analyze and parse results.
 
         Args:
-            dart_path: Path to dart executable
+            dart_cmd: Dart command as list (e.g., ['dart'] or ['fvm', 'dart'])
 
         Returns:
             List of violations
         """
         # Build command with JSON format
-        cmd = [dart_path, 'analyze', '--fatal-infos', '--format=json']
+        cmd = dart_cmd + ['analyze', '--fatal-infos', '--format=json']
 
         # Execute dart analyze using base utility
         try:
