@@ -25,7 +25,7 @@ class DartAnalyzeRule(BaseRule):
             max_errors: Optional limit on number of violations to include in CSV
             rules_file_path: Path to the rules.json file
         """
-        super().__init__(config, base_path, max_errors, rules_file_path)
+        super().__init__(config, base_path, log_level, max_errors, rules_file_path)
         self.output_folder = output_folder
         self.log_level = log_level
         self.settings = Settings()

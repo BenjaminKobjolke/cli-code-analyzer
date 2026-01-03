@@ -19,7 +19,7 @@ class FlutterAnalyzeRule(BaseRule):
 
     def __init__(self, config: dict, base_path: Path | None = None, output_folder: Path | None = None, log_level: LogLevel = LogLevel.ALL, max_errors: int | None = None, rules_file_path: str | None = None):
         """Initialize Flutter analyze rule with config and output settings."""
-        super().__init__(config, base_path, max_errors, rules_file_path)
+        super().__init__(config, base_path, log_level, max_errors, rules_file_path)
         self.output_folder = output_folder
         self.log_level = log_level
         self.settings = Settings()
