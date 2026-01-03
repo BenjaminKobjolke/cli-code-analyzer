@@ -81,6 +81,7 @@ python main.py --language <language> --path <path> [options]
 | `--verbosity` | No | `normal` | Output verbosity level: `minimal`, `normal`, or `verbose` |
 | `--output` | No | - | Path to output folder for reports. If set, saves reports to files (`line_count_report.txt`, `duplicate_code.csv`) instead of console output |
 | `--loglevel` | No | `all` | Filter violations by severity: `error`, `warning`, or `all` |
+| `--maxamountoferrors` | No | unlimited | Maximum number of violations to include in reports. When exceeded, keeps the largest violations (e.g., duplicates with most lines) |
 
 ## Examples
 
@@ -461,6 +462,7 @@ The analyzer integrates with [PMD](https://pmd.github.io/)'s Copy-Paste Detector
   "pmd_duplicates": {
     "enabled": true,
     "minimum_tokens": 100,
+    "max_results": 50,
     "exclude_patterns": {
       "dart": ["*.g.dart", "*.freezed.dart"],
       "python": ["**/__pycache__/**", "*.pyc"],
@@ -476,6 +478,11 @@ The analyzer integrates with [PMD](https://pmd.github.io/)'s Copy-Paste Detector
 
 - `enabled`: Enable/disable duplicate code detection
 - `minimum_tokens`: Minimum number of duplicate tokens to report (lower = more sensitive)
+
+- `max_results`:
+Maximum number of duplicate blocks to report (keeps largest duplicates when exceeded)
+Limit the maximum amount of errors this way.
+
 - `exclude_patterns`: Language-specific glob patterns to exclude (e.g., `*.g.dart` for generated files, `**/node_modules/**` for dependencies)
 
 #### Using PMD Duplicate Detection
