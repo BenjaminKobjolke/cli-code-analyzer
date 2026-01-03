@@ -47,17 +47,25 @@ class BaseRule(ABC):
             print(f"Warning: Could not read {file_path}: {e}")
             return 0
 
-    def _build_threshold_dict(self, exception: dict | None, base: dict) -> dict[str, int]:
+    def _build_threshold_dict(self, exception: dict | None, base: dict) -> dict[str, float | None]:
         """Build threshold dict from exception overrides or base config."""
+        def to_num(val):
+            if val is None:
+                return None
+            try:
+                return float(val)
+            except (ValueError, TypeError):
+                return None
+
         if exception:
-            return {'error': exception.get('error', base.get('error')),
-                    'warning': exception.get('warning', base.get('warning'))}
-        return {'error': base.get('error'), 'warning': base.get('warning')}
+            return {'error': to_num(exception.get('error', base.get('error'))),
+                    'warning': to_num(exception.get('warning', base.get('warning')))}
+        return {'error': to_num(base.get('error')), 'warning': to_num(base.get('warning'))}
 
     def _get_threshold_for_file(
         self, file_path: Path, threshold_config: dict[str, Any],
         metric_id: str | None = None,  # noqa: ARG002
-    ) -> dict[str, int]:
+    ) -> dict[str, float | None]:
         """Get thresholds for a file, checking for exceptions first."""
         exceptions = threshold_config.get('exceptions', [])
         if not exceptions:
