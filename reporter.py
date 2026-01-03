@@ -244,10 +244,13 @@ class Reporter:
     def _get_threshold(self, violation: Violation) -> int:
         """Extract threshold from violation message"""
         # Parse threshold from message like "File has 523 lines (limit: 500)"
-        if "limit:" in violation.message:
-            return int(violation.message.split("limit:")[-1].strip().rstrip(")"))
-        elif "warning:" in violation.message:
-            return int(violation.message.split("warning:")[-1].strip().rstrip(")"))
+        try:
+            if "limit:" in violation.message:
+                return int(float(violation.message.split("limit:")[-1].strip().rstrip(")")))
+            elif "warning:" in violation.message:
+                return int(float(violation.message.split("warning:")[-1].strip().rstrip(")")))
+        except (ValueError, TypeError):
+            pass
         return 0
 
     def _report_to_file(self) -> bool:
