@@ -66,20 +66,28 @@ class PMDDuplicatesRule(BaseRule):
             return []
 
         minimum_tokens = self.config.get('minimum_tokens', 100)
+        max_results = self.config.get('max_results', None)
+        if max_results and not self.max_errors:
+            self.max_errors = max_results
+        exclude_paths = self._get_exclude_paths()
         exclude_patterns = self._get_exclude_patterns()
         output_format = 'csv' if self.output_folder else 'text'
         output_file = self.output_folder / 'duplicate_code.csv' if self.output_folder else None
 
         violations = self._run_pmd_cpd(pmd_path, pmd_language, self.base_path, minimum_tokens,
-                                        exclude_patterns, output_format, output_file)
+                                        exclude_paths, exclude_patterns, output_format, output_file)
         return self._filter_violations_by_log_level(violations)
 
     def _get_pmd_language(self) -> str | None:
         """Map analyzer language to PMD language code."""
         return LANGUAGE_TO_PMD.get(self.language.lower())
 
+    def _get_exclude_paths(self) -> list[str]:
+        """Get directory paths to exclude from config."""
+        return self.config.get('exclude_paths', [])
+
     def _get_exclude_patterns(self) -> list[str]:
-        """Get exclude patterns from config or defaults for current language."""
+        """Get file patterns to exclude from config or defaults for current language."""
         if 'exclude_patterns' in self.config:
             exclude_config = self.config['exclude_patterns']
             if isinstance(exclude_config, dict):
@@ -118,11 +126,18 @@ class PMDDuplicatesRule(BaseRule):
             return None
 
     def _run_pmd_cpd(self, pmd_path: str, language: str, directory: Path, minimum_tokens: int,
-                      exclude_patterns: list[str], output_format: str, output_file: Path | None) -> list[Violation]:
+                      exclude_paths: list[str], exclude_patterns: list[str], output_format: str, output_file: Path | None) -> list[Violation]:
         """Execute PMD CPD and return parsed violations."""
         exclude_file_list = self._generate_exclude_file_list(exclude_patterns)
         cmd = [pmd_path, 'cpd', '-l', language, '-d', str(directory), '-f', output_format,
                '--minimum-tokens', str(minimum_tokens), '--encoding', 'utf-8']
+
+        # Add directory exclusions using --exclude flag
+        for path in exclude_paths:
+            exclude_dir = directory / path
+            if exclude_dir.exists():
+                cmd.extend(['--exclude', str(exclude_dir)])
+
         if exclude_file_list:
             cmd.extend(['--exclude-file-list', str(exclude_file_list)])
 
