@@ -22,9 +22,7 @@ Help me setup the cli-code-analyzer for a new PHP project. Ask me for the local 
   "pmd_duplicates": {
     "enabled": true,
     "minimum_tokens": 100,
-    "exclude_patterns": {
-      "php": ["vendor/**", ".git/**"]
-    }
+    "exclude_paths": ["vendor", ".git"]
   },
   "phpstan_analyze": {
     "enabled": true,
