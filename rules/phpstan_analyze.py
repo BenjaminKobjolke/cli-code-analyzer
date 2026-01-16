@@ -88,7 +88,8 @@ class PHPStanAnalyzeRule(BaseRule):
 
             if self.output_folder and violations:
                 output_file = self.output_folder / 'phpstan_analyze.csv'
-                self._write_csv_output(output_file, output)
+                if self._write_csv_output(output_file, output):
+                    print(f"PHPStan report saved to: {output_file}")
 
             return violations
 
@@ -177,14 +178,18 @@ class PHPStanAnalyzeRule(BaseRule):
 
         return violations
 
-    def _write_csv_output(self, output_file: Path, json_content: str):
-        """Write PHPStan results to CSV file."""
+    def _write_csv_output(self, output_file: Path, json_content: str) -> bool:
+        """Write PHPStan results to CSV file.
+
+        Returns:
+            True if CSV was written successfully, False otherwise.
+        """
         try:
             data = json.loads(json_content)
             files = data.get('files', {})
 
             if not files and not data.get('errors', []):
-                return
+                return False
 
             all_violations = []
 
@@ -209,7 +214,7 @@ class PHPStanAnalyzeRule(BaseRule):
                 all_violations = all_violations[:self.max_errors]
 
             if not all_violations:
-                return
+                return False
 
             with open(output_file, 'w', encoding='utf-8', newline='') as f:
                 writer = csv.writer(f)
@@ -218,9 +223,11 @@ class PHPStanAnalyzeRule(BaseRule):
                 for v in all_violations:
                     writer.writerow([v['file'], v['line'], v['severity'], v['identifier'], v['message'], v['ignorable']])
 
-            print(f"PHPStan report saved to: {output_file}")
+            return True
 
         except json.JSONDecodeError as e:
             print(f"Error parsing JSON for CSV output: {e}")
+            return False
         except Exception as e:
             print(f"Error writing PHPStan CSV file: {e}")
+            return False
