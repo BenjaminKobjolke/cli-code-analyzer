@@ -209,6 +209,17 @@ class PHPStanAnalyzeRule(BaseRule):
                         'ignorable': msg.get('ignorable', True)
                     })
 
+            # Also process general errors (not file-specific)
+            for error in data.get('errors', []):
+                all_violations.append({
+                    'file': '<project>',
+                    'line': 0,
+                    'severity': 'error',
+                    'identifier': '',
+                    'message': str(error),
+                    'ignorable': False
+                })
+
             # Apply max_errors limit
             if self.max_errors and len(all_violations) > self.max_errors:
                 all_violations = all_violations[:self.max_errors]
