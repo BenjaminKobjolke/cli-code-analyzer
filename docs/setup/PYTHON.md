@@ -74,9 +74,11 @@ Common patterns to exclude from analysis:
 
 ## Example Batch Files (Windows)
 
+Create a `tools` subfolder in your project and place the batch files there.
+
 ### Analyze Code
 
-Create `analyze_code.bat` in your project root:
+Create `tools/analyze_code.bat`:
 
 ```batch
 @echo off
@@ -91,7 +93,7 @@ pause
 
 ### Auto-Fix Ruff Issues
 
-Create `fix_ruff_issues.bat` in your project root to auto-fix Python issues:
+Create `tools/fix_ruff_issues.bat` to auto-fix Python issues:
 
 ```batch
 @echo off
@@ -106,7 +108,7 @@ pause
 
 ### Dry Run (Preview Fixes)
 
-Create `fix_ruff_issues_dry_run.bat` to preview what would be fixed:
+Create `tools/fix_ruff_issues_dry_run.bat` to preview what would be fixed:
 
 ```batch
 @echo off
