@@ -130,6 +130,8 @@ Override thresholds for specific files:
 
 ## Example Batch File (Windows)
 
+> **Note:** Do not add `pause` at the end of batch files. These scripts are designed to be called by other tools and `pause` would block execution.
+
 Create `analyze_code.bat` in your project root:
 
 ```batch
@@ -140,7 +142,6 @@ cd "d:\path\to\cli-code-analyzer"
 call venv\Scripts\python.exe main.py --language flutter --path "D:\path\to\your\project\lib" --verbosity minimal --output "D:\path\to\your\project\code_analysis_results" --maxamountoferrors 50 --rules "D:\path\to\your\project\code_analysis_rules.json"
 
 cd %~dp0
-pause
 ```
 
 ## CLI Options

@@ -117,6 +117,8 @@ Common patterns to exclude from analysis:
 
 ## Example Batch Files (Windows)
 
+> **Note:** Do not add `pause` at the end of batch files. These scripts are designed to be called by other tools and `pause` would block execution.
+
 ### Analyze Code
 
 Create `analyze_code.bat` in your project root:
@@ -129,7 +131,6 @@ cd "d:\path\to\cli-code-analyzer"
 call venv\Scripts\python.exe main.py --language php --path "D:\path\to\your\project" --verbosity minimal --output "D:\path\to\your\project\code_analysis_results" --maxamountoferrors 50 --rules "D:\path\to\your\project\code_analysis_rules.json"
 
 cd %~dp0
-pause
 ```
 
 ### Auto-Fix Code Style
@@ -144,7 +145,6 @@ cd "d:\path\to\cli-code-analyzer"
 call venv\Scripts\python.exe php_fixer.py --path "D:\path\to\your\project" --rules "D:\path\to\your\project\code_analysis_rules.json"
 
 cd %~dp0
-pause
 ```
 
 ### Dry Run (Preview Fixes)
@@ -159,7 +159,6 @@ cd "d:\path\to\cli-code-analyzer"
 call venv\Scripts\python.exe php_fixer.py --path "D:\path\to\your\project" --rules "D:\path\to\your\project\code_analysis_rules.json" --dry-run
 
 cd %~dp0
-pause
 ```
 
 ## CLI Options

@@ -76,6 +76,8 @@ Common patterns to exclude from analysis:
 
 Create a `tools` subfolder in your project and place the batch files there.
 
+> **Note:** Do not add `pause` at the end of batch files. These scripts are designed to be called by other tools and `pause` would block execution.
+
 ### Analyze Code
 
 Create `tools/analyze_code.bat`:
@@ -88,7 +90,6 @@ cd "d:\path\to\cli-code-analyzer"
 call venv\Scripts\python.exe main.py --language python --path "D:\path\to\your\project" --verbosity minimal --output "D:\path\to\your\project\code_analysis_results" --maxamountoferrors 50 --rules "D:\path\to\your\project\code_analysis_rules.json"
 
 cd %~dp0
-pause
 ```
 
 ### Auto-Fix Ruff Issues
@@ -103,7 +104,6 @@ cd "d:\path\to\cli-code-analyzer"
 call venv\Scripts\python.exe ruff_fixer.py --path "D:\path\to\your\project" --rules "D:\path\to\your\project\code_analysis_rules.json"
 
 cd %~dp0
-pause
 ```
 
 ### Dry Run (Preview Fixes)
@@ -118,7 +118,6 @@ cd "d:\path\to\cli-code-analyzer"
 call venv\Scripts\python.exe ruff_fixer.py --path "D:\path\to\your\project" --rules "D:\path\to\your\project\code_analysis_rules.json" --dry-run
 
 cd %~dp0
-pause
 ```
 
 ## CLI Options
