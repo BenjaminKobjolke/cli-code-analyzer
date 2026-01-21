@@ -7,10 +7,6 @@ import argparse
 import sys
 from pathlib import Path
 
-from analyzer import CodeAnalyzer
-from models import LogLevel, OutputLevel
-from reporter import Reporter
-
 
 def main():
     """Main entry point"""
@@ -28,14 +24,22 @@ Examples:
     )
 
     parser.add_argument(
+        '--list-analyzers',
+        metavar='LANGUAGE',
+        nargs='?',
+        const='all',
+        help='List available analyzers for a language (or all languages if not specified)'
+    )
+
+    parser.add_argument(
         '--language',
-        required=True,
+        required=False,
         help='Programming language to analyze. Line counting: flutter, python, php, csharp. Duplicate detection (PMD): dart, python, java, javascript, typescript, php, csharp. Static analysis: php (PHPStan, PHP-CS-Fixer), python (Ruff), csharp (dotnet build)'
     )
 
     parser.add_argument(
         '--path',
-        required=True,
+        required=False,
         help='Path to the code directory (analyzes recursively) or single file to analyze'
     )
 
@@ -74,10 +78,27 @@ Examples:
 
     args = parser.parse_args()
 
+    # Handle --list-analyzers before other validation
+    if args.list_analyzers:
+        from analyzer_registry import list_analyzers
+        list_analyzers(args.list_analyzers)
+        sys.exit(0)
+
+    # Validate required arguments for analysis mode
+    if not args.language:
+        parser.error("--language is required for analysis")
+    if not args.path:
+        parser.error("--path is required for analysis")
+
     # Validate path exists
     if not Path(args.path).exists():
         print(f"Error: Path '{args.path}' does not exist")
         sys.exit(1)
+
+    # Import analysis modules (deferred to avoid loading when using --list-analyzers)
+    from analyzer import CodeAnalyzer
+    from models import LogLevel, OutputLevel
+    from reporter import Reporter
 
     # Convert verbosity string to enum
     output_level = OutputLevel(args.verbosity)
