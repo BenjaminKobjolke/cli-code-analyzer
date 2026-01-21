@@ -31,6 +31,7 @@ This guide explains how to set up cli-code-analyzer for PHP projects.
 | `pmd_duplicates` | Detects duplicate code blocks (requires PMD) |
 | `phpstan_analyze` | Static analysis using PHPStan |
 | `php_cs_fixer` | Code style checking using PHP-CS-Fixer |
+| `intelephense_analyze` | LSP-based diagnostics using Intelephense |
 
 ## Example Configuration
 
@@ -60,6 +61,13 @@ Create a `code_analysis_rules.json` file in your project:
     "enabled": true,
     "rules": "@PSR12",
     "exclude_patterns": ["vendor/**", "node_modules/**", ".git/**"]
+  },
+  "intelephense_analyze": {
+    "enabled": true,
+    "min_severity": "warning",
+    "timeout": 5,
+    "exclude_patterns": ["vendor/**", "node_modules/**", ".git/**"],
+    "ignore_unused_underscore": true
   }
 }
 ```
@@ -86,6 +94,34 @@ Create a `code_analysis_rules.json` file in your project:
 | 7 | Report partially wrong union types |
 | 8 | Report nullable issues |
 | 9 | Be strict about mixed type |
+
+## Intelephense Configuration
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `min_severity` | Minimum severity to report ("error", "warning", "info", "hint") | `warning` |
+| `timeout` | Seconds to wait for diagnostics after indexing | `5` |
+| `exclude_patterns` | Glob patterns to exclude from analysis | `[]` |
+| `ignore_unused_underscore` | Filter out unused `$_xxx` variable hints | `true` |
+
+### Severity Levels
+
+| Level | Description |
+|-------|-------------|
+| `error` | Critical issues that prevent code from working |
+| `warning` | Potential problems that should be addressed |
+| `info` | Informational messages |
+| `hint` | Suggestions for improvement |
+
+### Prerequisites
+
+Intelephense must be installed globally:
+
+```bash
+npm install -g intelephense
+```
+
+The `intelephense-mpc-windows` project must be present as a sibling directory to `cli-code-analyzer`.
 
 ## PHP-CS-Fixer Configuration
 
@@ -204,6 +240,13 @@ If you get a PHP-CS-Fixer path error:
 If you get a PMD path error:
 1. Run the analyzer once - it will prompt to download/configure PMD
 2. Or manually edit `settings.ini` in the cli-code-analyzer directory
+
+### Intelephense not found
+
+If you get an Intelephense import error:
+1. Install Intelephense globally: `npm install -g intelephense`
+2. Ensure the `intelephense-mpc-windows` project is present as a sibling directory
+3. For large projects, increase the `timeout` value in your configuration
 
 ### Exclusions not working
 
