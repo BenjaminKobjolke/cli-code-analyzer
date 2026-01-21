@@ -12,6 +12,7 @@ from rules import (
     DartCodeLinterRule,
     DotnetAnalyzeRule,
     FlutterAnalyzeRule,
+    IntelephenseAnalyzeRule,
     MaxLinesRule,
     PHPCSFixerAnalyzeRule,
     PHPStanAnalyzeRule,
@@ -169,6 +170,23 @@ class CodeAnalyzer:
             # PHP-CS-Fixer analyzes the entire project, so we just call it once with any file
             if self.files:
                 violations = fixer_rule.check(self.files[0])
+                self.violations.extend(violations)
+
+        # Run Intelephense analyze check (once per analysis, not per file)
+        if self.config.is_rule_enabled('intelephense_analyze'):
+            rule_config = self.config.get_rule('intelephense_analyze')
+            intelephense_log_level = self._resolve_log_level('intelephense_analyze')
+            intelephense_rule = IntelephenseAnalyzeRule(
+                rule_config,
+                self.base_path,
+                self.output_folder,
+                intelephense_log_level,
+                self.max_errors,
+                self.rules_file
+            )
+            # Intelephense analyzes the entire project, so we just call it once with any file
+            if self.files:
+                violations = intelephense_rule.check(self.files[0])
                 self.violations.extend(violations)
 
         # Run dotnet analyze check (once per analysis, not per file)

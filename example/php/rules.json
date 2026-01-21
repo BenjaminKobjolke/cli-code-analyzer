@@ -21,5 +21,12 @@
     "enabled": true,
     "rules": "@PSR12",
     "exclude_patterns": ["vendor/**", "node_modules/**", ".git/**"]
+  },
+  "intelephense_analyze": {
+    "enabled": true,
+    "min_severity": "warning",
+    "timeout": 5,
+    "exclude_patterns": ["vendor/**", "node_modules/**", ".git/**"],
+    "ignore_unused_underscore": true
   }
 }

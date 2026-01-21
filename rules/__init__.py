@@ -7,6 +7,7 @@ from rules.dart_analyze import DartAnalyzeRule
 from rules.dart_code_linter import DartCodeLinterRule
 from rules.dotnet_analyze import DotnetAnalyzeRule
 from rules.flutter_analyze import FlutterAnalyzeRule
+from rules.intelephense_analyze import IntelephenseAnalyzeRule
 from rules.max_lines import MaxLinesRule
 from rules.php_cs_fixer_analyze import PHPCSFixerAnalyzeRule
 from rules.phpstan_analyze import PHPStanAnalyzeRule
@@ -19,6 +20,7 @@ __all__ = [
     'DartCodeLinterRule',
     'DotnetAnalyzeRule',
     'FlutterAnalyzeRule',
+    'IntelephenseAnalyzeRule',
     'MaxLinesRule',
     'PHPCSFixerAnalyzeRule',
     'PHPStanAnalyzeRule',
