@@ -192,7 +192,7 @@ return (new PhpCsFixer\\Config())
             analyze_path = str(self.base_path / analyze_path)
 
         # Build command
-        cmd = [fixer_path, 'fix', '--dry-run', '--format=json', '--verbose', '--show-progress=dots']
+        cmd = [fixer_path, 'fix', '--dry-run', '--format=json', '--verbose', '--show-progress=none', '--no-interaction']
 
         # Use config file if available, otherwise use --rules
         if config_path:

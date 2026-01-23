@@ -94,6 +94,7 @@ def run_php_cs_fixer(path: str, fixer_config: dict, dry_run: bool = False) -> in
 
     # Add verbose flag for more output
     cmd.append('--verbose')
+    cmd.append('--no-interaction')
 
     # Add rules configuration if specified
     if isinstance(fixer_config, str):

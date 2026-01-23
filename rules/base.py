@@ -3,7 +3,6 @@ Base rule class for all code analysis rules
 """
 
 import csv
-import platform
 import shutil
 import subprocess
 from abc import ABC, abstractmethod
@@ -135,12 +134,12 @@ class BaseRule(ABC):
 
         return filtered
 
-    def _run_subprocess(self, cmd: list[str], cwd: Path | None = None) -> subprocess.CompletedProcess:
-        """Run subprocess with platform-appropriate shell settings."""
-        use_shell = platform.system() == 'Windows'
+    def _run_subprocess(self, cmd: list[str], cwd: Path | None = None, timeout: int = 300) -> subprocess.CompletedProcess:
+        """Run subprocess with timeout and no stdin to prevent interactive prompts."""
         return subprocess.run(
             cmd, cwd=cwd, capture_output=True,
-            encoding='utf-8', errors='replace', check=False, shell=use_shell
+            encoding='utf-8', errors='replace', check=False,
+            stdin=subprocess.DEVNULL, timeout=timeout
         )
 
     def _get_tool_path(self, tool_name: str, get_method: Callable, prompt_method: Callable) -> str | None:

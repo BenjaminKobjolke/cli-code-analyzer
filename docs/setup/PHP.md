@@ -237,6 +237,18 @@ If you get a PHP-CS-Fixer path error:
 2. Or run the analyzer once - it will prompt to configure the path
 3. Or manually edit `settings.ini` in the cli-code-analyzer directory
 
+### PHP-CS-Fixer hangs with no output
+
+If PHP-CS-Fixer hangs indefinitely, this is usually caused by an interactive prompt asking to create a config file. The analyzer uses `--no-interaction` to prevent this, but if running manually:
+
+```bash
+php-cs-fixer fix --dry-run --no-interaction --show-progress=none /path/to/project
+```
+
+Key flags to prevent hanging:
+- `--no-interaction` - Prevents interactive prompts (config file creation, etc.)
+- `--show-progress=none` - Disables progress dots that can cause buffer issues on Windows
+
 ### PMD not found
 
 If you get a PMD path error:
