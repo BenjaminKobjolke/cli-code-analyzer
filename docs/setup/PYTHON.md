@@ -89,7 +89,7 @@ cd "d:\path\to\cli-code-analyzer"
 
 call venv\Scripts\python.exe main.py --language python --path "D:\path\to\your\project" --verbosity minimal --output "D:\path\to\your\project\code_analysis_results" --maxamountoferrors 50 --rules "D:\path\to\your\project\code_analysis_rules.json"
 
-cd %~dp0
+cd %~dp0..
 ```
 
 ### Auto-Fix Ruff Issues
@@ -103,7 +103,7 @@ cd "d:\path\to\cli-code-analyzer"
 
 call venv\Scripts\python.exe ruff_fixer.py --path "D:\path\to\your\project" --rules "D:\path\to\your\project\code_analysis_rules.json"
 
-cd %~dp0
+cd %~dp0..
 ```
 
 ### Dry Run (Preview Fixes)
@@ -117,7 +117,7 @@ cd "d:\path\to\cli-code-analyzer"
 
 call venv\Scripts\python.exe ruff_fixer.py --path "D:\path\to\your\project" --rules "D:\path\to\your\project\code_analysis_rules.json" --dry-run
 
-cd %~dp0
+cd %~dp0..
 ```
 
 ## CLI Options

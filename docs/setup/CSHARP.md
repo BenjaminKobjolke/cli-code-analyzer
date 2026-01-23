@@ -112,11 +112,13 @@ Common patterns to exclude from analysis:
 
 ## Example Batch Files (Windows)
 
+Create a `tools` subfolder in your project and place the batch files there.
+
 > **Note:** Do not add `pause` at the end of batch files. These scripts are designed to be called by other tools and `pause` would block execution.
 
 ### Analyze Code
 
-Create `analyze_code.bat` in your project root:
+Create `tools/analyze_code.bat`:
 
 ```batch
 @echo off
@@ -125,16 +127,16 @@ cd "d:\path\to\cli-code-analyzer"
 
 call venv\Scripts\python.exe main.py --language csharp --path "D:\path\to\your\project" --verbosity minimal --output "D:\path\to\your\project\code_analysis_results" --maxamountoferrors 50 --rules "D:\path\to\your\project\code_analysis_rules.json"
 
-cd %~dp0
+cd %~dp0..
 ```
 
 ### Quick Build Check
 
-Create `check_build.bat` for a quick build verification:
+Create `tools/check_build.bat` for a quick build verification:
 
 ```batch
 @echo off
-cd %~dp0
+cd %~dp0..
 dotnet build --no-incremental -c Debug
 ```
 
