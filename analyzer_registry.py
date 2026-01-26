@@ -33,6 +33,11 @@ ANALYZER_REGISTRY = {
         ('pmd_duplicates', 'Duplicate code detection', 'PMD'),
         ('dotnet_analyze', '.NET analysis', '.NET SDK'),
     ],
+    'javascript': [
+        ('max_lines_per_file', 'File length checks', None),
+        ('pmd_duplicates', 'Duplicate code detection', 'PMD'),
+        ('eslint_analyze', 'Linting and style', 'ESLint (npm)'),
+    ],
 }
 
 

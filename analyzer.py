@@ -11,6 +11,7 @@ from rules import (
     DartAnalyzeRule,
     DartCodeLinterRule,
     DotnetAnalyzeRule,
+    ESLintAnalyzeRule,
     FlutterAnalyzeRule,
     IntelephenseAnalyzeRule,
     MaxLinesRule,
@@ -136,6 +137,23 @@ class CodeAnalyzer:
             # Ruff analyzes the entire project, so we just call it once with any file
             if self.files:
                 violations = ruff_rule.check(self.files[0])
+                self.violations.extend(violations)
+
+        # Run ESLint analyze check (once per analysis, not per file)
+        if self.config.is_rule_enabled('eslint_analyze'):
+            rule_config = self.config.get_rule('eslint_analyze')
+            eslint_log_level = self._resolve_log_level('eslint_analyze')
+            eslint_rule = ESLintAnalyzeRule(
+                rule_config,
+                self.base_path,
+                self.output_folder,
+                eslint_log_level,
+                self.max_errors,
+                self.rules_file
+            )
+            # ESLint analyzes the entire project, so we just call it once with any file
+            if self.files:
+                violations = eslint_rule.check(self.files[0])
                 self.violations.extend(violations)
 
         # Run PHPStan analyze check (once per analysis, not per file)

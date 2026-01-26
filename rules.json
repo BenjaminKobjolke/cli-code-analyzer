@@ -73,5 +73,19 @@
   "flutter_analyze": {
     "enabled": false,
     "exclude_patterns": ["*.g.dart", "*.freezed.dart"]
+  },
+  "eslint_analyze": {
+    "enabled": true,
+    "config_mode": "auto",
+    "env": {
+      "browser": true,
+      "es2021": true,
+      "node": true
+    },
+    "rules": {
+      "no-unused-vars": "warn",
+      "no-undef": "error"
+    },
+    "exclude_patterns": ["node_modules/**", "dist/**", "build/**", "coverage/**"]
   }
 }

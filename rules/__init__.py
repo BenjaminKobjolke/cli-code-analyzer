@@ -6,6 +6,7 @@ from rules.base import BaseRule
 from rules.dart_analyze import DartAnalyzeRule
 from rules.dart_code_linter import DartCodeLinterRule
 from rules.dotnet_analyze import DotnetAnalyzeRule
+from rules.eslint_analyze import ESLintAnalyzeRule
 from rules.flutter_analyze import FlutterAnalyzeRule
 from rules.intelephense_analyze import IntelephenseAnalyzeRule
 from rules.max_lines import MaxLinesRule
@@ -19,6 +20,7 @@ __all__ = [
     'DartAnalyzeRule',
     'DartCodeLinterRule',
     'DotnetAnalyzeRule',
+    'ESLintAnalyzeRule',
     'FlutterAnalyzeRule',
     'IntelephenseAnalyzeRule',
     'MaxLinesRule',

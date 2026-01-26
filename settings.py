@@ -335,3 +335,53 @@ class Settings:
         self.set_dotnet_path(str(dotnet_path))
         print(f"dotnet path saved to {self.settings_file}")
         return str(dotnet_path)
+
+    def get_eslint_path(self) -> str | None:
+        """Get the ESLint executable path from settings.
+
+        Returns:
+            Path to ESLint executable or None if not set
+        """
+        if 'eslint' in self.config and 'eslint_path' in self.config['eslint']:
+            return self.config['eslint']['eslint_path']
+        return None
+
+    def set_eslint_path(self, path: str):
+        """Set the ESLint executable path and save to settings.
+
+        Args:
+            path: Path to ESLint executable
+        """
+        if 'eslint' not in self.config:
+            self.config['eslint'] = {}
+        self.config['eslint']['eslint_path'] = path
+        self._save()
+
+    def prompt_and_save_eslint_path(self) -> str | None:
+        """Prompt user for ESLint path, validate it, and save to settings.
+
+        Returns:
+            Validated ESLint path, or None if validation failed
+        """
+        print("\nESLint executable not found in PATH.")
+        print("ESLint is a JavaScript/TypeScript linter.")
+        print("Install with: npm install -g eslint")
+        print("Or locally: npm install --save-dev eslint")
+        prompt_msg = "\nEnter path to eslint executable (or press Enter to skip): "
+        user_input = input(prompt_msg).strip()
+
+        # If user pressed enter (empty input), skip
+        if not user_input:
+            print("Skipping eslint analyze rule. Install ESLint and configure later.")
+            return None
+
+        # Validate user-provided path exists
+        eslint_path = Path(user_input)
+        if not eslint_path.exists():
+            print(f"Error: ESLint executable not found at: {user_input}")
+            return None
+
+        # Save and return
+        self.set_eslint_path(str(eslint_path))
+        print(f"ESLint path saved to {self.settings_file}")
+        return str(eslint_path)

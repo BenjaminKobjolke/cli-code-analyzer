@@ -12,6 +12,7 @@ DEFAULT_EXCLUDE_PATTERNS = {
     'python': ['venv/**', '.venv/**', '__pycache__/**', '*.pyc', 'env/**', '.git/**'],
     'php': ['vendor/**', 'node_modules/**', '.git/**'],
     'csharp': ['bin/**', 'obj/**', '.vs/**', 'packages/**', 'node_modules/**', '.git/**'],
+    'javascript': ['node_modules/**', 'dist/**', 'build/**', 'coverage/**', '.git/**'],
 }
 
 
@@ -23,6 +24,7 @@ class FileDiscovery:
         'python': ['.py'],
         'php': ['.php'],
         'csharp': ['.cs'],
+        'javascript': ['.js', '.mjs', '.cjs', '.ts', '.tsx', '.jsx'],
     }
 
     def __init__(self, language: str, path: str, exclude_patterns: list[str] | None = None):

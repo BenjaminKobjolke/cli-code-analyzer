@@ -34,7 +34,7 @@ Examples:
     parser.add_argument(
         '--language',
         required=False,
-        help='Programming language to analyze. Line counting: flutter, python, php, csharp. Duplicate detection (PMD): dart, python, java, javascript, typescript, php, csharp. Static analysis: php (PHPStan, PHP-CS-Fixer), python (Ruff), csharp (dotnet build)'
+        help='Programming language to analyze. Line counting: flutter, python, php, csharp, javascript. Duplicate detection (PMD): dart, python, java, javascript, typescript, php, csharp. Static analysis: php (PHPStan, PHP-CS-Fixer), python (Ruff), javascript/typescript (ESLint), csharp (dotnet build)'
     )
 
     parser.add_argument(
@@ -122,6 +122,7 @@ Examples:
         (output_folder / 'dart_analyze.csv').unlink(missing_ok=True)
         (output_folder / 'dart_code_linter.csv').unlink(missing_ok=True)
         (output_folder / 'dotnet_analyze.csv').unlink(missing_ok=True)
+        (output_folder / 'eslint_analyze.csv').unlink(missing_ok=True)
 
     # Run analysis
     try:
