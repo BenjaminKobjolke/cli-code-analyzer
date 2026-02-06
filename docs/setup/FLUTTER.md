@@ -24,6 +24,12 @@ python main.py --language flutter --path /path/to/your/project/lib
 | `dart_analyze` | Runs `dart analyze` for static analysis |
 | `dart_code_linter` | Advanced code metrics (complexity, maintainability, etc.) |
 | `flutter_analyze` | Runs `flutter analyze` for Flutter-specific issues |
+| `dart_unused_files` | Finds .dart files never imported by any other file |
+| `dart_unused_dependencies` | Finds packages in pubspec.yaml never imported in code |
+| `dart_import_rules` | Enforces architecture layer boundaries |
+| `dart_unused_code` | Finds unused classes, functions, enums (requires dart-lsp-mcp) |
+| `dart_missing_dispose` | Detects controllers/subscriptions never disposed (requires dart-lsp-mcp) |
+| `dart_test_coverage` | Checks test coverage against thresholds (disabled by default) |
 
 ## Example Configuration
 
@@ -81,6 +87,79 @@ Create a `code_analysis_rules.json` file in your project:
   },
   "flutter_analyze": {
     "enabled": false,
+    "exclude_patterns": ["*.g.dart", "*.freezed.dart"]
+  },
+  "dart_unused_files": {
+    "enabled": true,
+    "analyze_path": "lib",
+    "entry_points": ["lib/main.dart"],
+    "exclude_patterns": ["*.g.dart", "*.freezed.dart"],
+    "include_test_imports": false
+  },
+  "dart_unused_dependencies": {
+    "enabled": true,
+    "check_dev_dependencies": true,
+    "severity": "warning",
+    "ignore_packages": ["flutter", "flutter_localizations", "flutter_test", "flutter_lints", "dart_code_linter", "build_runner", "json_serializable", "freezed", "freezed_annotation"]
+  },
+  "dart_import_rules": {
+    "enabled": true,
+    "analyze_path": "lib",
+    "exclude_patterns": ["*.g.dart", "*.freezed.dart"],
+    "forbidden_imports": [
+      {
+        "from": "domain/**",
+        "cannot_import": ["presentation/**", "data/**", "package:flutter/**"],
+        "severity": "error",
+        "message": "Domain layer must not depend on presentation or data layers"
+      },
+      {
+        "from": "data/**",
+        "cannot_import": ["presentation/**"],
+        "severity": "warning",
+        "message": "Data layer should not depend on presentation layer"
+      }
+    ]
+  },
+  "dart_unused_code": {
+    "enabled": true,
+    "analyze_path": "lib",
+    "exclude_patterns": ["*.g.dart", "*.freezed.dart"],
+    "ignore_names": ["main", "build"],
+    "scan_test_references": true,
+    "severity": "warning"
+  },
+  "dart_missing_dispose": {
+    "enabled": true,
+    "analyze_path": "lib",
+    "exclude_patterns": ["*.g.dart", "*.freezed.dart"],
+    "severity": "warning",
+    "disposable_types": {
+      "AnimationController": "dispose",
+      "TextEditingController": "dispose",
+      "ScrollController": "dispose",
+      "TabController": "dispose",
+      "PageController": "dispose",
+      "FocusNode": "dispose",
+      "StreamSubscription": "cancel",
+      "StreamController": "close",
+      "Timer": "cancel"
+    },
+    "custom_disposable_types": {}
+  },
+  "dart_test_coverage": {
+    "enabled": false,
+    "run_tests": true,
+    "lcov_path": "coverage/lcov.info",
+    "test_timeout": 600,
+    "overall_coverage": {
+      "warning": 60,
+      "error": 40
+    },
+    "per_file_coverage": {
+      "warning": 50,
+      "error": 20
+    },
     "exclude_patterns": ["*.g.dart", "*.freezed.dart"]
   }
 }
@@ -169,6 +248,31 @@ When using `--output`, these files are generated:
 | `dart_analyze.csv` | Dart analyzer results |
 | `dart_code_linter.csv` | Code metrics violations |
 | `flutter_analyze.csv` | Flutter analyzer results |
+| `dart_unused_files.csv` | Unused file detection results |
+| `dart_unused_dependencies.csv` | Unused dependency detection results |
+| `dart_import_rules.csv` | Architecture violation results |
+| `dart_unused_code.csv` | Unused code detection results |
+| `dart_missing_dispose.csv` | Missing dispose detection results |
+| `dart_test_coverage.csv` | Test coverage results |
+
+## Architecture & Maintainability Analyzers
+
+In addition to the core syntax and metrics analyzers, cli-code-analyzer provides analyzers focused on structural quality:
+
+| Analyzer | Category | External Tool |
+|----------|----------|--------------|
+| `dart_unused_files` | Dead code | None |
+| `dart_unused_dependencies` | Dependency hygiene | None |
+| `dart_import_rules` | Architecture enforcement | None |
+| `dart_unused_code` | Dead code (symbol-level) | dart-lsp-mcp |
+| `dart_missing_dispose` | Resource management | dart-lsp-mcp |
+| `dart_test_coverage` | Test coverage | Flutter SDK |
+
+**Pure Python analyzers** (`dart_unused_files`, `dart_unused_dependencies`, `dart_import_rules`) require no external tools and run quickly. Enable these for every analysis run.
+
+**LSP-based analyzers** (`dart_unused_code`, `dart_missing_dispose`) require [dart-lsp-mcp](https://github.com/BenjaminKobjolke/dart-lsp-mcp) and use the Dart Language Server for accurate cross-file analysis. These are more thorough but slower (5-15 minutes for large projects). Best used for periodic deep scans.
+
+**Test coverage** (`dart_test_coverage`) is disabled by default since it runs your test suite. Enable it when you want to enforce coverage thresholds.
 
 ## Troubleshooting
 
