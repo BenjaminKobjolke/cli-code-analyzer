@@ -123,6 +123,12 @@ Examples:
         (output_folder / 'dart_code_linter.csv').unlink(missing_ok=True)
         (output_folder / 'dotnet_analyze.csv').unlink(missing_ok=True)
         (output_folder / 'eslint_analyze.csv').unlink(missing_ok=True)
+        (output_folder / 'dart_unused_files.csv').unlink(missing_ok=True)
+        (output_folder / 'dart_unused_dependencies.csv').unlink(missing_ok=True)
+        (output_folder / 'dart_import_rules.csv').unlink(missing_ok=True)
+        (output_folder / 'dart_unused_code.csv').unlink(missing_ok=True)
+        (output_folder / 'dart_missing_dispose.csv').unlink(missing_ok=True)
+        (output_folder / 'dart_test_coverage.csv').unlink(missing_ok=True)
 
     # Run analysis
     try:

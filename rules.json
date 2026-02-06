@@ -87,5 +87,82 @@
       "no-undef": "error"
     },
     "exclude_patterns": ["node_modules/**", "dist/**", "build/**", "coverage/**"]
+  },
+  "dart_unused_files": {
+    "enabled": true,
+    "analyze_path": "lib",
+    "entry_points": ["lib/main.dart"],
+    "exclude_patterns": ["*.g.dart", "*.freezed.dart"],
+    "include_test_imports": false
+  },
+  "dart_unused_dependencies": {
+    "enabled": true,
+    "check_dev_dependencies": true,
+    "severity": "warning",
+    "ignore_packages": ["flutter", "flutter_localizations", "flutter_test", "flutter_lints", "dart_code_linter", "build_runner", "json_serializable", "freezed", "freezed_annotation"],
+    "scan_paths": {
+      "dependencies": ["lib"],
+      "dev_dependencies": ["test", "integration_test"]
+    }
+  },
+  "dart_import_rules": {
+    "enabled": true,
+    "analyze_path": "lib",
+    "exclude_patterns": ["*.g.dart", "*.freezed.dart"],
+    "forbidden_imports": [
+      {
+        "from": "domain/**",
+        "cannot_import": ["presentation/**", "data/**", "package:flutter/**"],
+        "severity": "error",
+        "message": "Domain layer must not depend on presentation or data layers"
+      },
+      {
+        "from": "data/**",
+        "cannot_import": ["presentation/**"],
+        "severity": "warning",
+        "message": "Data layer should not depend on presentation layer"
+      }
+    ]
+  },
+  "dart_unused_code": {
+    "enabled": true,
+    "analyze_path": "lib",
+    "exclude_patterns": ["*.g.dart", "*.freezed.dart"],
+    "ignore_names": ["main", "build"],
+    "scan_test_references": true,
+    "severity": "warning"
+  },
+  "dart_missing_dispose": {
+    "enabled": true,
+    "analyze_path": "lib",
+    "exclude_patterns": ["*.g.dart", "*.freezed.dart"],
+    "severity": "warning",
+    "disposable_types": {
+      "AnimationController": "dispose",
+      "TextEditingController": "dispose",
+      "ScrollController": "dispose",
+      "TabController": "dispose",
+      "PageController": "dispose",
+      "FocusNode": "dispose",
+      "StreamSubscription": "cancel",
+      "StreamController": "close",
+      "Timer": "cancel"
+    },
+    "custom_disposable_types": {}
+  },
+  "dart_test_coverage": {
+    "enabled": false,
+    "run_tests": true,
+    "lcov_path": "coverage/lcov.info",
+    "test_timeout": 600,
+    "overall_coverage": {
+      "warning": 60,
+      "error": 40
+    },
+    "per_file_coverage": {
+      "warning": 50,
+      "error": 20
+    },
+    "exclude_patterns": ["*.g.dart", "*.freezed.dart"]
   }
 }

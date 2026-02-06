@@ -10,6 +10,12 @@ from models import LogLevel, Violation
 from rules import (
     DartAnalyzeRule,
     DartCodeLinterRule,
+    DartImportRulesRule,
+    DartMissingDisposeRule,
+    DartTestCoverageRule,
+    DartUnusedCodeRule,
+    DartUnusedDependenciesRule,
+    DartUnusedFilesRule,
     DotnetAnalyzeRule,
     ESLintAnalyzeRule,
     FlutterAnalyzeRule,
@@ -222,6 +228,102 @@ class CodeAnalyzer:
             # Dotnet analyzes the entire project, so we just call it once with any file
             if self.files:
                 violations = dotnet_rule.check(self.files[0])
+                self.violations.extend(violations)
+
+        # Run dart unused files check (once per analysis, not per file)
+        if self.config.is_rule_enabled('dart_unused_files'):
+            rule_config = self.config.get_rule('dart_unused_files')
+            rule_log_level = self._resolve_log_level('dart_unused_files')
+            rule = DartUnusedFilesRule(
+                rule_config,
+                self.base_path,
+                self.output_folder,
+                rule_log_level,
+                self.max_errors,
+                self.rules_file
+            )
+            if self.files:
+                violations = rule.check(self.files[0])
+                self.violations.extend(violations)
+
+        # Run dart unused dependencies check (once per analysis, not per file)
+        if self.config.is_rule_enabled('dart_unused_dependencies'):
+            rule_config = self.config.get_rule('dart_unused_dependencies')
+            rule_log_level = self._resolve_log_level('dart_unused_dependencies')
+            rule = DartUnusedDependenciesRule(
+                rule_config,
+                self.base_path,
+                self.output_folder,
+                rule_log_level,
+                self.max_errors,
+                self.rules_file
+            )
+            if self.files:
+                violations = rule.check(self.files[0])
+                self.violations.extend(violations)
+
+        # Run dart import rules check (once per analysis, not per file)
+        if self.config.is_rule_enabled('dart_import_rules'):
+            rule_config = self.config.get_rule('dart_import_rules')
+            rule_log_level = self._resolve_log_level('dart_import_rules')
+            rule = DartImportRulesRule(
+                rule_config,
+                self.base_path,
+                self.output_folder,
+                rule_log_level,
+                self.max_errors,
+                self.rules_file
+            )
+            if self.files:
+                violations = rule.check(self.files[0])
+                self.violations.extend(violations)
+
+        # Run dart unused code check (once per analysis, not per file)
+        if self.config.is_rule_enabled('dart_unused_code'):
+            rule_config = self.config.get_rule('dart_unused_code')
+            rule_log_level = self._resolve_log_level('dart_unused_code')
+            rule = DartUnusedCodeRule(
+                rule_config,
+                self.base_path,
+                self.output_folder,
+                rule_log_level,
+                self.max_errors,
+                self.rules_file
+            )
+            if self.files:
+                violations = rule.check(self.files[0])
+                self.violations.extend(violations)
+
+        # Run dart missing dispose check (once per analysis, not per file)
+        if self.config.is_rule_enabled('dart_missing_dispose'):
+            rule_config = self.config.get_rule('dart_missing_dispose')
+            rule_log_level = self._resolve_log_level('dart_missing_dispose')
+            rule = DartMissingDisposeRule(
+                rule_config,
+                self.base_path,
+                self.output_folder,
+                rule_log_level,
+                self.max_errors,
+                self.rules_file
+            )
+            if self.files:
+                violations = rule.check(self.files[0])
+                self.violations.extend(violations)
+
+        # Run dart test coverage check (once per analysis, not per file)
+        if self.config.is_rule_enabled('dart_test_coverage'):
+            rule_config = self.config.get_rule('dart_test_coverage')
+            rule_log_level = self._resolve_log_level('dart_test_coverage')
+            rule = DartTestCoverageRule(
+                rule_config,
+                self.base_path,
+                self.output_folder,
+                rule_log_level,
+                self.max_errors,
+                self.rules_file
+            )
+            if self.files:
+                violations = rule.check(self.files[0])
                 self.violations.extend(violations)
 
         # Run per-file rules on each file

@@ -27,6 +27,12 @@ ANALYZER_REGISTRY = {
         ('dart_analyze', 'Dart static analysis', 'Dart SDK'),
         ('flutter_analyze', 'Flutter analysis', 'Flutter SDK'),
         ('dart_code_linter', 'Code metrics', 'DCM'),
+        ('dart_unused_files', 'Unused file detection', None),
+        ('dart_unused_dependencies', 'Unused dependency detection', None),
+        ('dart_import_rules', 'Architecture layer enforcement', None),
+        ('dart_unused_code', 'Unused code detection', 'dart-lsp-mcp'),
+        ('dart_missing_dispose', 'Missing dispose detection', 'dart-lsp-mcp'),
+        ('dart_test_coverage', 'Test coverage checking', 'Flutter SDK'),
     ],
     'csharp': [
         ('max_lines_per_file', 'File length checks', None),

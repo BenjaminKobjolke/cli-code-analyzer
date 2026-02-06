@@ -385,3 +385,37 @@ class Settings:
         self.set_eslint_path(str(eslint_path))
         print(f"ESLint path saved to {self.settings_file}")
         return str(eslint_path)
+
+    def get_dart_lsp_mcp_path(self) -> str | None:
+        """Get the dart-lsp-mcp path from settings."""
+        if 'dart_lsp_mcp' in self.config and 'dart_lsp_mcp_path' in self.config['dart_lsp_mcp']:
+            return self.config['dart_lsp_mcp']['dart_lsp_mcp_path']
+        return None
+
+    def set_dart_lsp_mcp_path(self, path: str):
+        """Set the dart-lsp-mcp path and save to settings."""
+        if 'dart_lsp_mcp' not in self.config:
+            self.config['dart_lsp_mcp'] = {}
+        self.config['dart_lsp_mcp']['dart_lsp_mcp_path'] = path
+        self._save()
+
+    def prompt_and_save_dart_lsp_mcp_path(self) -> str | None:
+        """Prompt user for dart-lsp-mcp path, validate it, and save to settings."""
+        print("\ndart-lsp-mcp not found.")
+        print("Required for dart_unused_code and dart_missing_dispose analyzers.")
+        print("Install from: https://github.com/BenjaminKobjolke/dart-lsp-mcp")
+        prompt_msg = "\nEnter path to dart-lsp-mcp directory (or press Enter to skip): "
+        user_input = input(prompt_msg).strip()
+
+        if not user_input:
+            print("Skipping dart-lsp-mcp dependent analyzers.")
+            return None
+
+        lsp_path = Path(user_input)
+        if not lsp_path.exists():
+            print(f"Error: dart-lsp-mcp not found at: {user_input}")
+            return None
+
+        self.set_dart_lsp_mcp_path(str(lsp_path))
+        print(f"dart-lsp-mcp path saved to {self.settings_file}")
+        return str(lsp_path)

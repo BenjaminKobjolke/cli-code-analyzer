@@ -20,5 +20,33 @@
   },
   "flutter_analyze": {
     "enabled": false
+  },
+  "dart_unused_files": {
+    "enabled": true,
+    "analyze_path": "lib",
+    "entry_points": ["lib/main.dart"],
+    "exclude_patterns": ["*.g.dart", "*.freezed.dart"],
+    "include_test_imports": false
+  },
+  "dart_unused_dependencies": {
+    "enabled": true,
+    "check_dev_dependencies": true,
+    "severity": "warning",
+    "ignore_packages": ["flutter", "flutter_localizations", "flutter_test", "flutter_lints", "dart_code_linter", "build_runner", "json_serializable", "freezed", "freezed_annotation"]
+  },
+  "dart_import_rules": {
+    "enabled": false,
+    "analyze_path": "lib",
+    "exclude_patterns": ["*.g.dart", "*.freezed.dart"],
+    "forbidden_imports": []
+  },
+  "dart_unused_code": {
+    "enabled": false
+  },
+  "dart_missing_dispose": {
+    "enabled": false
+  },
+  "dart_test_coverage": {
+    "enabled": false
   }
 }
