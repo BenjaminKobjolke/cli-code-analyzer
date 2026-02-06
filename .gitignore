@@ -215,3 +215,4 @@ PLAN.md
 code_analysis_results
 php/vendor/
 .php-cs-fixer.cache
+/nul
