@@ -204,7 +204,6 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
-.claude
 bin
 settings.ini
 
@@ -215,4 +214,5 @@ PLAN.md
 code_analysis_results
 php/vendor/
 .php-cs-fixer.cache
+.claude/settings.local.json
 /nul
