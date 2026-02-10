@@ -1,10 +1,13 @@
 ---
 description: Check if a project has all available analyzers configured and suggest missing ones
+
+argument-hint: project path
 ---
 
-Ask the user for:
-1. The language/system of their project (Flutter, PHP, Python, CSharp, JavaScript)
-2. The path to their example project
+The user's project path argument is: $ARGUMENTS
+
+If $ARGUMENTS is empty or not provided, ask the user for the path to their project.
+Always ask the user for the language/system of their project (Flutter, PHP, Python, CSharp, JavaScript).
 
 Then:
 1. Read @analyzer_registry.py to see all available analyzers for that language
