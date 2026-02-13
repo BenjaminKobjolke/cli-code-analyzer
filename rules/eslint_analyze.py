@@ -51,8 +51,18 @@ class ESLintAnalyzeRule(BaseRule):
 
         print("\nRunning ESLint check...")
 
-        # Get eslint path using base utility
-        eslint_path = self._get_tool_path('eslint', self.settings.get_eslint_path, self.settings.prompt_and_save_eslint_path)
+        # Check for local node_modules eslint first
+        eslint_path = self._find_local_eslint()
+        if not eslint_path:
+            # If this looks like a Node.js project, suggest local install
+            if (self.base_path / 'package.json').exists():
+                print("\nESLint is not installed in this project.")
+                print("Install with:")
+                print("  npm install --save-dev eslint @typescript-eslint/parser @typescript-eslint/eslint-plugin")
+                print("\nSkipping ESLint analysis.")
+                return []
+            # Not a Node.js project — try global/settings path
+            eslint_path = self._get_tool_path('eslint', self.settings.get_eslint_path, self.settings.prompt_and_save_eslint_path)
         if not eslint_path:
             return []
 
@@ -60,6 +70,21 @@ class ESLintAnalyzeRule(BaseRule):
         violations = self._run_eslint_check(eslint_path)
 
         return violations
+
+    def _find_local_eslint(self) -> str | None:
+        """Check for ESLint installed locally in the project's node_modules.
+
+        Returns:
+            Path to local eslint executable, or None if not found
+        """
+        import platform
+        if platform.system() == 'Windows':
+            local_eslint = self.base_path / 'node_modules' / '.bin' / 'eslint.cmd'
+        else:
+            local_eslint = self.base_path / 'node_modules' / '.bin' / 'eslint'
+        if local_eslint.exists():
+            return str(local_eslint)
+        return None
 
     def _run_eslint_check(self, eslint_path: str) -> list[Violation]:
         """Execute eslint check and parse results.
