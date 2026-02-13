@@ -6,10 +6,54 @@ This guide explains how to set up cli-code-analyzer for JavaScript and TypeScrip
 
 - Node.js 14+
 - npm or yarn
-- ESLint (optional, for linting)
 - PMD (optional, for duplicate code detection)
 
 ## Quick Start
+
+### 1. Install ESLint in your project
+
+```bash
+npm install --save-dev eslint @typescript-eslint/parser @typescript-eslint/eslint-plugin
+```
+
+The analyzer automatically detects ESLint from `node_modules/.bin/` in your project directory.
+
+### 2. Create ESLint config
+
+ESLint v9+ requires a flat config file. Create `eslint.config.js` in your project root:
+
+```js
+import tseslint from '@typescript-eslint/eslint-plugin';
+import tsparser from '@typescript-eslint/parser';
+
+export default [
+    {
+        files: ['**/*.ts', '**/*.js', '**/*.mjs', '**/*.cjs'],
+        languageOptions: {
+            parser: tsparser,
+            parserOptions: {
+                ecmaVersion: 'latest',
+                sourceType: 'module'
+            }
+        },
+        plugins: {
+            '@typescript-eslint': tseslint
+        },
+        rules: {
+            'no-unused-vars': 'off',
+            '@typescript-eslint/no-unused-vars': 'warn',
+            'no-undef': 'off'
+        }
+    },
+    {
+        ignores: ['node_modules/**', 'dist/**', 'build/**', '.svelte-kit/**', 'coverage/**']
+    }
+];
+```
+
+Adjust the `ignores` list to match your project's build output directories (e.g. add `android/**`, `ios/**` for Capacitor projects).
+
+### 3. Run the analyzer
 
 ```bash
 python main.py --language javascript --path /path/to/your/project
@@ -123,24 +167,7 @@ Use `project` mode when you want to enforce that projects must have their own ES
 
 ## TypeScript-Specific Notes
 
-For TypeScript projects, ESLint works out of the box for basic linting. For advanced TypeScript-specific rules, your project should have:
-
-1. **typescript-eslint** installed:
-   ```bash
-   npm install --save-dev @typescript-eslint/parser @typescript-eslint/eslint-plugin
-   ```
-
-2. **ESLint config** with TypeScript support (example `.eslintrc.json`):
-   ```json
-   {
-     "parser": "@typescript-eslint/parser",
-     "plugins": ["@typescript-eslint"],
-     "extends": [
-       "eslint:recommended",
-       "plugin:@typescript-eslint/recommended"
-     ]
-   }
-   ```
+TypeScript support is included when you follow the Quick Start steps above (`@typescript-eslint/parser` and `@typescript-eslint/eslint-plugin` are installed together with ESLint).
 
 When using `config_mode: "auto"` or `config_mode: "project"`, the analyzer will use your project's TypeScript-aware ESLint configuration.
 
@@ -164,18 +191,36 @@ Create a `tools` subfolder in your project and place the batch files there.
 
 > **Note:** Do not add `pause` at the end of batch files. These scripts are designed to be called by other tools and `pause` would block execution.
 
+### Config File
+
+Create `tools/analyze_code_config.example.bat` (commit this to version control):
+
+```batch
+@echo off
+REM Copy this file to analyze_code_config.bat and set your local paths
+set CLI_ANALYZER_PATH=D:\GIT\BenjaminKobjolke\cli-code-analyzer
+set LANGUAGE=javascript
+```
+
+Then copy it to `tools/analyze_code_config.bat` and set your actual `CLI_ANALYZER_PATH`. Add `tools/analyze_code_config.bat` to `.gitignore` since it contains machine-specific paths.
+
 ### Analyze Code
 
 Create `tools/analyze_code.bat`:
 
 ```batch
 @echo off
-d:
-cd "d:\path\to\cli-code-analyzer"
+if not exist "%~dp0analyze_code_config.bat" (
+    echo ERROR: analyze_code_config.bat not found.
+    echo Copy analyze_code_config.example.bat to analyze_code_config.bat and set your CLI_ANALYZER_PATH and LANGUAGE.
+    exit /b 1
+)
+call "%~dp0analyze_code_config.bat"
+cd /d "%~dp0.."
 
-call venv\Scripts\python.exe main.py --language javascript --path "D:\path\to\your\project" --verbosity minimal --output "D:\path\to\your\project\code_analysis_results" --maxamountoferrors 50 --rules "D:\path\to\your\project\code_analysis_rules.json"
+"%CLI_ANALYZER_PATH%\venv\Scripts\python.exe" "%CLI_ANALYZER_PATH%\main.py" --language %LANGUAGE% --path "." --verbosity minimal --output "code_analysis_results" --maxamountoferrors 50 --rules "code_analysis_rules.json"
 
-cd %~dp0..
+cd /d "%~dp0"
 ```
 
 ## CLI Options
@@ -194,10 +239,16 @@ cd %~dp0..
 
 ### ESLint not found
 
-If you get an ESLint path error:
-1. Install ESLint globally: `npm install -g eslint`
-2. Or run the analyzer once - it will prompt to configure the ESLint path
-3. Or manually edit `settings.ini` in the cli-code-analyzer directory
+The analyzer checks for ESLint in this order:
+1. Local install: `node_modules/.bin/eslint` in your project directory
+2. Global PATH: `eslint` available system-wide
+3. Settings: previously saved path in `settings.ini`
+4. Prompt: asks you to enter the path manually
+
+If ESLint is not found, install it locally in your project (recommended):
+```bash
+npm install --save-dev eslint @typescript-eslint/parser @typescript-eslint/eslint-plugin
+```
 
 ### PMD not found
 

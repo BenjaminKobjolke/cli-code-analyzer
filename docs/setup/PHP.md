@@ -157,18 +157,36 @@ Create a `tools` subfolder in your project and place the batch files there.
 
 > **Note:** Do not add `pause` at the end of batch files. These scripts are designed to be called by other tools and `pause` would block execution.
 
+### Config File
+
+Create `tools/analyze_code_config.example.bat` (commit this to version control):
+
+```batch
+@echo off
+REM Copy this file to analyze_code_config.bat and set your local paths
+set CLI_ANALYZER_PATH=D:\GIT\BenjaminKobjolke\cli-code-analyzer
+set LANGUAGE=php
+```
+
+Then copy it to `tools/analyze_code_config.bat` and set your actual `CLI_ANALYZER_PATH`. Add `tools/analyze_code_config.bat` to `.gitignore` since it contains machine-specific paths.
+
 ### Analyze Code
 
 Create `tools/analyze_code.bat`:
 
 ```batch
 @echo off
-d:
-cd "d:\path\to\cli-code-analyzer"
+if not exist "%~dp0analyze_code_config.bat" (
+    echo ERROR: analyze_code_config.bat not found.
+    echo Copy analyze_code_config.example.bat to analyze_code_config.bat and set your CLI_ANALYZER_PATH and LANGUAGE.
+    exit /b 1
+)
+call "%~dp0analyze_code_config.bat"
+cd /d "%~dp0.."
 
-call venv\Scripts\python.exe main.py --language php --path "D:\path\to\your\project" --verbosity minimal --output "D:\path\to\your\project\code_analysis_results" --maxamountoferrors 50 --rules "D:\path\to\your\project\code_analysis_rules.json"
+"%CLI_ANALYZER_PATH%\venv\Scripts\python.exe" "%CLI_ANALYZER_PATH%\main.py" --language %LANGUAGE% --path "." --verbosity minimal --output "code_analysis_results" --maxamountoferrors 50 --rules "code_analysis_rules.json"
 
-cd %~dp0..
+cd /d "%~dp0"
 ```
 
 ### Auto-Fix Code Style
@@ -177,12 +195,17 @@ Create `tools/fix_php_issues.bat`:
 
 ```batch
 @echo off
-d:
-cd "d:\path\to\cli-code-analyzer"
+if not exist "%~dp0analyze_code_config.bat" (
+    echo ERROR: analyze_code_config.bat not found.
+    echo Copy analyze_code_config.example.bat to analyze_code_config.bat and set your CLI_ANALYZER_PATH and LANGUAGE.
+    exit /b 1
+)
+call "%~dp0analyze_code_config.bat"
+cd /d "%~dp0.."
 
-call venv\Scripts\python.exe php_fixer.py --path "D:\path\to\your\project" --rules "D:\path\to\your\project\code_analysis_rules.json"
+"%CLI_ANALYZER_PATH%\venv\Scripts\python.exe" "%CLI_ANALYZER_PATH%\php_fixer.py" --path "." --rules "code_analysis_rules.json"
 
-cd %~dp0..
+cd /d "%~dp0"
 ```
 
 ### Dry Run (Preview Fixes)
@@ -191,12 +214,17 @@ Create `tools/fix_php_issues_dry_run.bat` to preview what would be fixed:
 
 ```batch
 @echo off
-d:
-cd "d:\path\to\cli-code-analyzer"
+if not exist "%~dp0analyze_code_config.bat" (
+    echo ERROR: analyze_code_config.bat not found.
+    echo Copy analyze_code_config.example.bat to analyze_code_config.bat and set your CLI_ANALYZER_PATH and LANGUAGE.
+    exit /b 1
+)
+call "%~dp0analyze_code_config.bat"
+cd /d "%~dp0.."
 
-call venv\Scripts\python.exe php_fixer.py --path "D:\path\to\your\project" --rules "D:\path\to\your\project\code_analysis_rules.json" --dry-run
+"%CLI_ANALYZER_PATH%\venv\Scripts\python.exe" "%CLI_ANALYZER_PATH%\php_fixer.py" --path "." --rules "code_analysis_rules.json" --dry-run
 
-cd %~dp0..
+cd /d "%~dp0"
 ```
 
 ## CLI Options
