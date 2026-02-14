@@ -73,15 +73,17 @@ python main.py --language <language> --path <path> [options]
 
 ### Command Line Arguments
 
-| Argument | Required | Default | Description |
-|----------|----------|---------|-------------|
-| `--language` | Yes | - | Programming language to analyze. **Line counting:** `flutter`, `python`. **Duplicate detection (PMD):** `dart`, `python`, `java`, `javascript`, `typescript` |
-| `--path` | Yes | - | Path to the code directory (analyzes recursively) or single file to analyze |
-| `--rules` | No | `rules.json` | Path to the rules JSON configuration file |
-| `--verbosity` | No | `normal` | Output verbosity level: `minimal`, `normal`, or `verbose` |
-| `--output` | No | - | Path to output folder for reports. If set, saves reports to files (`line_count_report.txt`, `duplicate_code.csv`) instead of console output |
-| `--loglevel` | No | `all` | Filter violations by severity: `error`, `warning`, or `all` |
-| `--maxamountoferrors` | No | unlimited | Maximum number of violations to include in reports. When exceeded, keeps the largest violations (e.g., duplicates with most lines) |
+| Argument | Short | Required | Default | Description |
+|----------|-------|----------|---------|-------------|
+| `--language` | `-l` | Yes | - | Programming language to analyze. **Line counting:** `flutter`, `python`. **Duplicate detection (PMD):** `dart`, `python`, `java`, `javascript`, `typescript` |
+| `--path` | `-p` | Yes | - | Path to the code directory (analyzes recursively) or single file to analyze |
+| `--rules` | `-r` | No | `rules.json` | Path to the rules JSON configuration file |
+| `--verbosity` | `-v` | No | `normal` | Output verbosity level: `minimal`, `normal`, or `verbose` |
+| `--output` | `-o` | No | - | Path to output folder for reports. If set, saves reports to files (`line_count_report.txt`, `duplicate_code.csv`) instead of console output |
+| `--loglevel` | `-L` | No | `all` | Filter violations by severity: `error`, `warning`, or `all` |
+| `--maxamountoferrors` | `-m` | No | unlimited | Maximum number of violations to include in reports. When exceeded, keeps the largest violations (e.g., duplicates with most lines) |
+| `--list-files` | `-f` | No | off | List all analyzed file paths after analysis |
+| `--list-analyzers` | `-a` | No | - | List available analyzers for a language (or all) |
 
 ## Examples
 

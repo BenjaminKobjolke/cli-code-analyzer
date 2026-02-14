@@ -26,7 +26,7 @@ python main.py --language javascript --path ./src --loglevel error
 python main.py --language python --path ./src --list-files
 ```
 
-**Arguments:** `--language` (flutter|python|php|csharp|javascript), `--path`, `--rules` (default: rules.json), `--verbosity` (minimal|normal|verbose), `--output` (folder for CSV), `--loglevel` (error|warning|all), `--maxamountoferrors`, `--list-files` (show analyzed file paths)
+**Arguments:** `-l`/`--language` (flutter|python|php|csharp|javascript), `-p`/`--path`, `-r`/`--rules` (default: rules.json), `-v`/`--verbosity` (minimal|normal|verbose), `-o`/`--output` (folder for CSV), `-L`/`--loglevel` (error|warning|all), `-m`/`--maxamountoferrors`, `-f`/`--list-files` (show analyzed file paths), `-a`/`--list-analyzers`
 
 **Exit codes:** 0 = no errors, 1 = errors found or failure.
 

@@ -24,7 +24,7 @@ Examples:
     )
 
     parser.add_argument(
-        '--list-analyzers',
+        '-a', '--list-analyzers',
         metavar='LANGUAGE',
         nargs='?',
         const='all',
@@ -32,52 +32,52 @@ Examples:
     )
 
     parser.add_argument(
-        '--language',
+        '-l', '--language',
         required=False,
         help='Programming language to analyze. Line counting: flutter, python, php, csharp, javascript. Duplicate detection (PMD): dart, python, java, javascript, typescript, php, csharp. Static analysis: php (PHPStan, PHP-CS-Fixer), python (Ruff), javascript/typescript (ESLint), csharp (dotnet build)'
     )
 
     parser.add_argument(
-        '--path',
+        '-p', '--path',
         required=False,
         help='Path to the code directory (analyzes recursively) or single file to analyze'
     )
 
     parser.add_argument(
-        '--rules',
+        '-r', '--rules',
         default='rules.json',
         help='Path to the rules JSON file (default: rules.json)'
     )
 
     parser.add_argument(
-        '--verbosity',
+        '-v', '--verbosity',
         default='normal',
         choices=['minimal', 'normal', 'verbose'],
         help='Output verbosity level (default: normal)'
     )
 
     parser.add_argument(
-        '--output',
+        '-o', '--output',
         default=None,
         help='Path to output folder for reports (if set, saves reports to files instead of console)'
     )
 
     parser.add_argument(
-        '--loglevel',
+        '-L', '--loglevel',
         default='all',
         choices=['error', 'warning', 'all'],
         help='Filter violations by severity level (default: all)'
     )
 
     parser.add_argument(
-        '--maxamountoferrors',
+        '-m', '--maxamountoferrors',
         type=int,
         default=None,
         help='Maximum number of violations to include in CSV reports (default: unlimited)'
     )
 
     parser.add_argument(
-        '--list-files',
+        '-f', '--list-files',
         action='store_true',
         default=False,
         help='List all analyzed file paths after analysis completes'
@@ -113,7 +113,7 @@ Examples:
     # Determine if --loglevel was explicitly provided by user
     # If not provided, pass None to let CodeAnalyzer use config values
     cli_log_level = None
-    if '--loglevel' in sys.argv:
+    if '--loglevel' in sys.argv or '-L' in sys.argv:
         cli_log_level = LogLevel(args.loglevel)
 
     # Validate and create output folder if specified
