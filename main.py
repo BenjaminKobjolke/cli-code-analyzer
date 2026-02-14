@@ -132,6 +132,11 @@ Examples:
 
     # Run analysis
     try:
+        print(f"\n{'=' * 60}")
+        print(f"  CLI Code Analyzer")
+        print(f"  Language: {args.language} | Path: {args.path}")
+        print(f"{'=' * 60}")
+
         analyzer = CodeAnalyzer(args.language, args.path, args.rules, output_folder, cli_log_level, args.maxamountoferrors)
         analyzer.analyze()
 

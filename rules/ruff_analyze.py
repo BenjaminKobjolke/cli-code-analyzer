@@ -108,9 +108,9 @@ class RuffAnalyzeRule(BaseRule):
 
             # Print summary
             if violations:
-                print(f"\nRuff found {len(violations)} issue(s)")
+                print(f"Ruff found {len(violations)} issue(s)")
             else:
-                print("\nRuff: No issues found")
+                print("Ruff: No issues found")
 
             # Write to CSV file if output folder is specified and violations found
             if self.output_folder and violations:

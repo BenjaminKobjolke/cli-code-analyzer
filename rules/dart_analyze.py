@@ -88,9 +88,9 @@ class DartAnalyzeRule(BaseRule):
 
             # Print summary
             if violations:
-                print(f"\nDart analyze found {len(violations)} issue(s)")
+                print(f"Dart analyze found {len(violations)} issue(s)")
             else:
-                print("\nDart analyze: No issues found")
+                print("Dart analyze: No issues found")
 
             # Write to CSV file if output folder is specified and violations found
             if self.output_folder and violations:

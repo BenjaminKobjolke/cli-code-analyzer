@@ -127,9 +127,9 @@ class ESLintAnalyzeRule(BaseRule):
 
             # Print summary
             if violations:
-                print(f"\nESLint found {len(violations)} issue(s)")
+                print(f"ESLint found {len(violations)} issue(s)")
             else:
-                print("\nESLint: No issues found")
+                print("ESLint: No issues found")
 
             # Write to CSV file if output folder is specified and violations found
             if self.output_folder and violations:

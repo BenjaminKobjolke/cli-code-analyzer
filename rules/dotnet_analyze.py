@@ -85,9 +85,9 @@ class DotnetAnalyzeRule(BaseRule):
                 violations = violations[:self.max_errors]
 
             if violations:
-                print(f"\nDotnet build found {len(violations)} issue(s)")
+                print(f"Dotnet build found {len(violations)} issue(s)")
             else:
-                print("\nDotnet build: No issues found")
+                print("Dotnet build: No issues found")
 
             if self.output_folder and violations:
                 output_file = self.output_folder / 'dotnet_analyze.csv'

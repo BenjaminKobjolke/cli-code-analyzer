@@ -169,7 +169,7 @@ class PMDDuplicatesRule(BaseRule):
                         f.write(result.stdout)
                     print(f"Duplicate code report saved to: {output_file}")
                     return self._parse_csv_output(output_file)
-                print("\nNo duplicate code found.")
+                print("No duplicate code found.")
                 return []
 
             if result.stdout:
