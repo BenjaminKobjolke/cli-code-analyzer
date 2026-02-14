@@ -162,27 +162,28 @@ Examples:
     try:
         from file_discovery import FileDiscovery
 
-        all_violations = []
-        total_file_count = 0
-        all_file_paths = []
+        # Collect all extensions for the requested languages
+        all_extensions = []
+        for lang in languages:
+            for ext in FileDiscovery.LANGUAGE_EXTENSIONS.get(lang.lower(), []):
+                if ext not in all_extensions:
+                    all_extensions.append(ext)
+        ext_str = ", ".join(all_extensions) if all_extensions else "unknown"
+        lang_str = ", ".join(languages)
 
-        for language in languages:
-            extensions = FileDiscovery.LANGUAGE_EXTENSIONS.get(language.lower(), [])
-            ext_str = ", ".join(extensions) if extensions else "unknown"
+        print(f"\n{'=' * 60}")
+        print(f"  CLI Code Analyzer")
+        print(f"  Path: {args.path}")
+        print(f"  Language: {lang_str}")
+        print(f"  Extensions: {ext_str}")
+        print(f"{'=' * 60}")
 
-            print(f"\n{'=' * 60}")
-            print(f"  CLI Code Analyzer")
-            print(f"  Path: {args.path}")
-            print(f"  Language: {language}")
-            print(f"  Extensions: {ext_str}")
-            print(f"{'=' * 60}")
+        analyzer = CodeAnalyzer(languages, args.path, args.rules, output_folder, cli_log_level, args.maxamountoferrors)
+        analyzer.analyze()
 
-            analyzer = CodeAnalyzer(language, args.path, args.rules, output_folder, cli_log_level, args.maxamountoferrors)
-            analyzer.analyze()
-
-            all_violations.extend(analyzer.get_violations())
-            total_file_count += analyzer.get_file_count()
-            all_file_paths.extend(analyzer.get_analyzed_file_paths())
+        all_violations = analyzer.get_violations()
+        total_file_count = analyzer.get_file_count()
+        all_file_paths = analyzer.get_analyzed_file_paths()
 
         # Generate report
         # For reporter, use CLI log level if provided, otherwise use 'all' as default

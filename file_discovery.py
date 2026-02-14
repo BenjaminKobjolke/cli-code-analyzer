@@ -27,25 +27,37 @@ class FileDiscovery:
         'javascript': ['.js', '.mjs', '.cjs', '.ts', '.tsx', '.jsx'],
     }
 
-    def __init__(self, language: str, path: str, exclude_patterns: list[str] | None = None):
-        self.language = language.lower()
+    def __init__(self, languages: str | list[str], path: str, exclude_patterns: list[str] | None = None):
+        if isinstance(languages, str):
+            languages = [languages]
+        self.languages = [lang.lower() for lang in languages]
         self.path = Path(path)
-        # Use provided patterns or fall back to defaults for the language
+        # Use provided patterns or fall back to merged defaults for all languages
         if exclude_patterns is not None:
             self.exclude_patterns = exclude_patterns
         else:
-            self.exclude_patterns = DEFAULT_EXCLUDE_PATTERNS.get(self.language, [])
+            merged = []
+            for lang in self.languages:
+                for pattern in DEFAULT_EXCLUDE_PATTERNS.get(lang, []):
+                    if pattern not in merged:
+                        merged.append(pattern)
+            self.exclude_patterns = merged
 
     def _get_extensions(self) -> list[str]:
-        """Get file extensions for the specified language"""
-        return self.LANGUAGE_EXTENSIONS.get(self.language, [])
+        """Get file extensions for all requested languages"""
+        extensions = []
+        for lang in self.languages:
+            for ext in self.LANGUAGE_EXTENSIONS.get(lang, []):
+                if ext not in extensions:
+                    extensions.append(ext)
+        return extensions
 
     def discover(self) -> list[Path]:
         """Discover all files to analyze"""
         extensions = self._get_extensions()
 
         if not extensions:
-            raise ValueError(f"Unsupported language: {self.language}")
+            raise ValueError(f"Unsupported language(s): {', '.join(self.languages)}")
 
         files = []
 
