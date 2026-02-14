@@ -35,7 +35,7 @@ Examples:
         '-l', '--language',
         required=False,
         nargs='+',
-        help='Programming language(s) to analyze (space-separated or comma-separated). Line counting: flutter, python, php, csharp, javascript. Duplicate detection (PMD): dart, python, java, javascript, typescript, php, csharp. Static analysis: php (PHPStan, PHP-CS-Fixer), python (Ruff), javascript/typescript (ESLint), csharp (dotnet build)'
+        help='Programming language(s) to analyze (space-separated or comma-separated). Supported: flutter, python, php, csharp, javascript. Aliases: typescript/ts/js -> javascript, dart -> flutter, cs -> csharp, py -> python'
     )
 
     parser.add_argument(
@@ -86,10 +86,21 @@ Examples:
 
     args = parser.parse_args()
 
+    # Language aliases: shorthand and alternative names
+    LANGUAGE_ALIASES = {
+        'typescript': 'javascript',
+        'ts': 'javascript',
+        'js': 'javascript',
+        'dart': 'flutter',
+        'cs': 'csharp',
+        'py': 'python',
+    }
+
     # Handle --list-analyzers before other validation
     if args.list_analyzers:
         from analyzer_registry import list_analyzers
-        list_analyzers(args.list_analyzers)
+        lang_arg = LANGUAGE_ALIASES.get(args.list_analyzers.lower(), args.list_analyzers)
+        list_analyzers(lang_arg)
         sys.exit(0)
 
     # Validate required arguments for analysis mode
@@ -102,6 +113,9 @@ Examples:
     languages = []
     for lang in args.language:
         languages.extend(part.strip() for part in lang.split(',') if part.strip())
+
+    # Resolve language aliases
+    languages = [LANGUAGE_ALIASES.get(l.lower(), l) for l in languages]
     languages = list(dict.fromkeys(languages))  # deduplicate, preserve order
 
     # Validate path exists
