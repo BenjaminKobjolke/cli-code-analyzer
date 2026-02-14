@@ -102,7 +102,7 @@ class ESLintAnalyzeRule(BaseRule):
                 cmd.extend(['--ignore-pattern', pattern])
 
         # Add extensions to analyze
-        extensions = ['.js', '.mjs', '.cjs', '.ts', '.tsx', '.jsx']
+        extensions = ['.js', '.mjs', '.cjs', '.ts', '.tsx', '.jsx', '.svelte']
         cmd.extend(['--ext', ','.join(extensions)])
 
         # Add base path to analyze

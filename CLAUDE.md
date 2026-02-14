@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-CLI Code Analyzer is a multi-language command-line tool that analyzes code quality using configurable rules. It supports Flutter/Dart, Python, JavaScript/TypeScript, PHP, and C#. Optimized for ensuring quality of AI-generated code.
+CLI Code Analyzer is a multi-language command-line tool that analyzes code quality using configurable rules. It supports Flutter/Dart, Python, JavaScript/TypeScript, Svelte, PHP, and C#. Optimized for ensuring quality of AI-generated code.
 
 ## Running the Tool
 
@@ -30,7 +30,7 @@ python main.py --language javascript --path ./src --loglevel error
 python main.py --language python --path ./src --list-files
 ```
 
-**Arguments:** `-l`/`--language` (flutter|python|php|csharp|javascript; supports multiple), `-p`/`--path`, `-r`/`--rules` (default: rules.json), `-v`/`--verbosity` (minimal|normal|verbose), `-o`/`--output` (folder for CSV), `-L`/`--loglevel` (error|warning|all), `-m`/`--maxamountoferrors`, `-f`/`--list-files` (show analyzed file paths), `-a`/`--list-analyzers`
+**Arguments:** `-l`/`--language` (flutter|python|php|csharp|javascript|svelte; supports multiple), `-p`/`--path`, `-r`/`--rules` (default: rules.json), `-v`/`--verbosity` (minimal|normal|verbose), `-o`/`--output` (folder for CSV), `-L`/`--loglevel` (error|warning|all), `-m`/`--maxamountoferrors`, `-f`/`--list-files` (show analyzed file paths), `-a`/`--list-analyzers`
 
 **Exit codes:** 0 = no errors, 1 = errors found or failure.
 
@@ -100,5 +100,5 @@ External tools are optional per-analyzer: PMD (duplicate detection), Dart/Flutte
 ## Documentation
 
 - `docs/analyzers/` - Per-analyzer documentation (configuration, output format, examples)
-- `docs/setup/` - Per-language setup guides (FLUTTER.md, PYTHON.md, PHP.md, CSHARP.md, JAVASCRIPT_TYPESCRIPT.md)
+- `docs/setup/` - Per-language setup guides (FLUTTER.md, PYTHON.md, PHP.md, CSHARP.md, JAVASCRIPT_TYPESCRIPT.md, SVELTE.md)
 - `CREATING_NEW_ANALYZER.md` - Step-by-step guide for adding new analyzers

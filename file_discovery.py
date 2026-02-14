@@ -13,6 +13,7 @@ DEFAULT_EXCLUDE_PATTERNS = {
     'php': ['vendor/**', 'node_modules/**', '.git/**'],
     'csharp': ['bin/**', 'obj/**', '.vs/**', 'packages/**', 'node_modules/**', '.git/**'],
     'javascript': ['node_modules/**', 'dist/**', 'build/**', 'coverage/**', '.git/**'],
+    'svelte': ['node_modules/**', 'dist/**', 'build/**', '.svelte-kit/**', '.git/**'],
 }
 
 
@@ -25,6 +26,7 @@ class FileDiscovery:
         'php': ['.php'],
         'csharp': ['.cs'],
         'javascript': ['.js', '.mjs', '.cjs', '.ts', '.tsx', '.jsx'],
+        'svelte': ['.svelte'],
     }
 
     def __init__(self, languages: str | list[str], path: str, exclude_patterns: list[str] | None = None):

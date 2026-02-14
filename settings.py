@@ -386,6 +386,40 @@ class Settings:
         print(f"ESLint path saved to {self.settings_file}")
         return str(eslint_path)
 
+    def get_svelte_check_path(self) -> str | None:
+        """Get the svelte-check executable path from settings."""
+        if 'svelte_check' in self.config and 'svelte_check_path' in self.config['svelte_check']:
+            return self.config['svelte_check']['svelte_check_path']
+        return None
+
+    def set_svelte_check_path(self, path: str):
+        """Set the svelte-check executable path and save to settings."""
+        if 'svelte_check' not in self.config:
+            self.config['svelte_check'] = {}
+        self.config['svelte_check']['svelte_check_path'] = path
+        self._save()
+
+    def prompt_and_save_svelte_check_path(self) -> str | None:
+        """Prompt user for svelte-check path, validate it, and save to settings."""
+        print("\nsvelte-check executable not found in PATH.")
+        print("svelte-check is a type checker for Svelte projects.")
+        print("Install with: npm install --save-dev svelte-check")
+        prompt_msg = "\nEnter path to svelte-check executable (or press Enter to skip): "
+        user_input = input(prompt_msg).strip()
+
+        if not user_input:
+            print("Skipping svelte_check rule. Install svelte-check and configure later.")
+            return None
+
+        svelte_check_path = Path(user_input)
+        if not svelte_check_path.exists():
+            print(f"Error: svelte-check executable not found at: {user_input}")
+            return None
+
+        self.set_svelte_check_path(str(svelte_check_path))
+        print(f"svelte-check path saved to {self.settings_file}")
+        return str(svelte_check_path)
+
     def get_dart_lsp_mcp_path(self) -> str | None:
         """Get the dart-lsp-mcp path from settings."""
         if 'dart_lsp_mcp' in self.config and 'dart_lsp_mcp_path' in self.config['dart_lsp_mcp']:

@@ -33,6 +33,7 @@ LANGUAGE_TO_PMD = {
     'ts': 'typescript',
     'php': 'php',
     'csharp': 'cs',
+    'svelte': 'ecmascript',
     'cs': 'cs',
 }
 

@@ -44,6 +44,12 @@ ANALYZER_REGISTRY = {
         ('pmd_duplicates', 'Duplicate code detection', 'PMD'),
         ('eslint_analyze', 'Linting and style', 'ESLint (npm)'),
     ],
+    'svelte': [
+        ('max_lines_per_file', 'File length checks', None),
+        ('pmd_duplicates', 'Duplicate code detection', 'PMD'),
+        ('eslint_analyze', 'Linting and style', 'ESLint (npm) + eslint-plugin-svelte'),
+        ('svelte_check', 'TypeScript/Svelte type checking', 'svelte-check (npm)'),
+    ],
 }
 
 

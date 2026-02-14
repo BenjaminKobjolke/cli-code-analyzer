@@ -26,6 +26,7 @@ from rules import (
     PHPStanAnalyzeRule,
     PMDDuplicatesRule,
     RuffAnalyzeRule,
+    SvelteCheckRule,
 )
 
 
@@ -202,6 +203,22 @@ class CodeAnalyzer:
                 self.rules_file
             )
             violations = eslint_rule.check(self.files[0])
+            self.violations.extend(violations)
+
+        # Run svelte-check (once per analysis, not per file)
+        if self._should_run('svelte_check'):
+            self._print_language_header('svelte_check')
+            rule_config = self.config.get_rule('svelte_check')
+            svelte_check_log_level = self._resolve_log_level('svelte_check')
+            svelte_check_rule = SvelteCheckRule(
+                rule_config,
+                self.base_path,
+                self.output_folder,
+                svelte_check_log_level,
+                self.max_errors,
+                self.rules_file
+            )
+            violations = svelte_check_rule.check(self.files[0])
             self.violations.extend(violations)
 
         # Run PHPStan analyze check (once per analysis, not per file)

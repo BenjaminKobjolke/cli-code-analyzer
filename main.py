@@ -35,7 +35,7 @@ Examples:
         '-l', '--language',
         required=False,
         nargs='+',
-        help='Programming language(s) to analyze (space-separated or comma-separated). Supported: flutter, python, php, csharp, javascript. Aliases: typescript/ts/js -> javascript, dart -> flutter, cs -> csharp, py -> python'
+        help='Programming language(s) to analyze (space-separated or comma-separated). Supported: flutter, python, php, csharp, javascript, svelte. Aliases: typescript/ts/js -> javascript, dart -> flutter, cs -> csharp, py -> python'
     )
 
     parser.add_argument(
@@ -151,6 +151,7 @@ Examples:
         (output_folder / 'dart_code_linter.csv').unlink(missing_ok=True)
         (output_folder / 'dotnet_analyze.csv').unlink(missing_ok=True)
         (output_folder / 'eslint_analyze.csv').unlink(missing_ok=True)
+        (output_folder / 'svelte_check.csv').unlink(missing_ok=True)
         (output_folder / 'dart_unused_files.csv').unlink(missing_ok=True)
         (output_folder / 'dart_unused_dependencies.csv').unlink(missing_ok=True)
         (output_folder / 'dart_import_rules.csv').unlink(missing_ok=True)
