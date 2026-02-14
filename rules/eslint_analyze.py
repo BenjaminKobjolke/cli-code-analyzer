@@ -102,7 +102,17 @@ class ESLintAnalyzeRule(BaseRule):
                 cmd.extend(['--ignore-pattern', pattern])
 
         # Add extensions to analyze
-        extensions = ['.js', '.mjs', '.cjs', '.ts', '.tsx', '.jsx', '.svelte']
+        # If explicitly configured, use that; otherwise auto-detect
+        if 'extensions' in self.config:
+            extensions = self.config['extensions']
+        else:
+            extensions = ['.js', '.mjs', '.cjs', '.ts', '.tsx', '.jsx']
+            # Auto-include .svelte if eslint-plugin-svelte is available
+            if self._has_svelte_eslint_plugin():
+                extensions.append('.svelte')
+            elif self._has_svelte_files():
+                print("Warning: .svelte files found but eslint-plugin-svelte is not installed — skipping ESLint for .svelte files")
+                print("  Install it with: npm install --save-dev eslint-plugin-svelte")
         cmd.extend(['--ext', ','.join(extensions)])
 
         # Add base path to analyze
@@ -179,6 +189,24 @@ class ESLintAnalyzeRule(BaseRule):
                 pass
 
         return False
+
+    def _has_svelte_eslint_plugin(self) -> bool:
+        """Check if the project has eslint-plugin-svelte available.
+
+        Checks for the package in node_modules.
+
+        Returns:
+            True if eslint-plugin-svelte is installed
+        """
+        return (self.base_path / 'node_modules' / 'eslint-plugin-svelte').is_dir()
+
+    def _has_svelte_files(self) -> bool:
+        """Check if the project contains any .svelte files (non-recursively expensive, uses quick check).
+
+        Returns:
+            True if at least one .svelte file exists under base_path
+        """
+        return any(self.base_path.rglob('*.svelte'))
 
     def _map_eslint_severity(self, severity: int) -> Severity:
         """Map ESLint severity to internal Severity.

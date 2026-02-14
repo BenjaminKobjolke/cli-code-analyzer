@@ -105,6 +105,7 @@ Create a `code_analysis_rules.json` file in your project:
   "eslint_analyze": {
     "enabled": true,
     "config_mode": "auto",
+    "extensions": [".js", ".mjs", ".cjs", ".ts", ".tsx", ".jsx", ".svelte"],
     "exclude_patterns": ["node_modules/**", "dist/**", "build/**", ".svelte-kit/**"]
   },
   "svelte_check": {
@@ -161,9 +162,15 @@ cd %~dp0..
 
 ## Troubleshooting
 
+### ESLint "Parsing error: Unexpected token <" on .svelte files
+
+This means ESLint is trying to parse `.svelte` files without the Svelte parser. Either:
+1. Install and configure `eslint-plugin-svelte` in your ESLint config, then add `".svelte"` to the `extensions` array in your `eslint_analyze` rules config
+2. Or remove `".svelte"` from `extensions` (it's not included by default) — Svelte-specific checks are better handled by `svelte_check`
+
 ### ESLint not finding svelte files
 
-Ensure `eslint-plugin-svelte` is installed in your project and your ESLint config extends the Svelte plugin. Without the plugin, ESLint cannot parse `.svelte` files.
+Ensure `eslint-plugin-svelte` is installed in your project and your ESLint config extends the Svelte plugin. You must also add `".svelte"` to the `extensions` array in your `eslint_analyze` rules config. Without both the plugin and the extension configured, ESLint will not process `.svelte` files.
 
 ### ESLint not found
 
