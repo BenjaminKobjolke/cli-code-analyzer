@@ -36,6 +36,9 @@ LANGUAGE_TO_PMD = {
     'cs': 'cs',
 }
 
+# Windows reserved device names that cause errors when PMD tries to scan them
+WINDOWS_RESERVED_NAMES = {'nul', 'con', 'prn', 'aux'}
+
 
 class PMDDuplicatesRule(BaseRule):
     """Rule to detect duplicate code using PMD CPD"""
@@ -127,6 +130,16 @@ class PMDDuplicatesRule(BaseRule):
             print(f"Warning: Could not create exclude file list: {e}")
             return None
 
+    def _filter_pmd_stderr(self, stderr: str) -> str:
+        """Filter out stderr lines about Windows reserved device names (nul, con, etc.)."""
+        if not stderr:
+            return stderr
+        lines = stderr.strip().splitlines()
+        filtered = [line for line in lines
+                     if not any(name in line.lower() for name in WINDOWS_RESERVED_NAMES
+                                if f'\\{name}' in line.lower() or line.lower().endswith(name))]
+        return '\n'.join(filtered)
+
     def _run_pmd_cpd(self, pmd_path: str, language: str, directory: Path, minimum_tokens: int,
                       exclude_paths: list[str], exclude_patterns: list[str], output_format: str, output_file: Path | None) -> list[Violation]:
         """Execute PMD CPD and return parsed violations."""
@@ -146,7 +159,9 @@ class PMDDuplicatesRule(BaseRule):
         try:
             result = self._run_subprocess(cmd)
             if result.returncode != 0 and result.stderr:
-                print(f"PMD CPD warning: {result.stderr}")
+                filtered_stderr = self._filter_pmd_stderr(result.stderr)
+                if filtered_stderr:
+                    print(f"PMD CPD warning: {filtered_stderr}")
 
             if output_file:
                 if self._has_duplicates_in_csv(result.stdout):
