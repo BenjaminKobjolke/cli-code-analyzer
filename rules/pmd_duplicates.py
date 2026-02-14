@@ -27,8 +27,8 @@ LANGUAGE_TO_PMD = {
     'dart': 'dart',
     'python': 'python',
     'java': 'java',
-    'javascript': 'javascript',
-    'js': 'javascript',
+    'javascript': 'ecmascript',
+    'js': 'ecmascript',
     'typescript': 'typescript',
     'ts': 'typescript',
     'php': 'php',
@@ -88,13 +88,15 @@ class PMDDuplicatesRule(BaseRule):
 
     def _get_exclude_patterns(self) -> list[str]:
         """Get file patterns to exclude from config or defaults for current language."""
+        lang = self.language.lower() if self.language else None
+        pmd_lang = self._get_pmd_language()
         if 'exclude_patterns' in self.config:
             exclude_config = self.config['exclude_patterns']
             if isinstance(exclude_config, dict):
-                return exclude_config.get(self._get_pmd_language(), [])
+                return exclude_config.get(lang, exclude_config.get(pmd_lang, []))
             if isinstance(exclude_config, list):
                 return exclude_config
-        return DEFAULT_EXCLUDE_PATTERNS.get(self._get_pmd_language(), [])
+        return DEFAULT_EXCLUDE_PATTERNS.get(lang, DEFAULT_EXCLUDE_PATTERNS.get(pmd_lang, []))
 
     def _generate_exclude_file_list(self, exclude_patterns: list[str]) -> Path | None:
         """Generate temp file with paths matching exclude patterns."""
