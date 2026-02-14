@@ -47,6 +47,7 @@ class CodeAnalyzer:
         self.max_errors = max_errors
         self._enabled_analyzers = self._get_enabled_analyzers()
         self._multi_language = len(self.languages) > 1
+        self._last_language_header = None
 
     def _get_enabled_analyzers(self) -> set[str]:
         """Get the set of analyzer names valid for the requested languages."""
@@ -71,12 +72,17 @@ class CodeAnalyzer:
         return langs
 
     def _print_language_header(self, analyzer_name: str) -> None:
-        """Print a language context header when running multiple languages."""
+        """Print a language context header when running multiple languages.
+
+        Only prints when the language differs from the last printed header.
+        """
         if not self._multi_language:
             return
         langs = self._get_languages_for_analyzer(analyzer_name)
-        if langs:
-            print(f"\n--- {', '.join(langs)} ---")
+        lang_key = ', '.join(langs)
+        if langs and lang_key != self._last_language_header:
+            self._last_language_header = lang_key
+            print(f"\n--- {lang_key} ---")
 
     def analyze(self):
         """Run the analysis"""
@@ -104,6 +110,7 @@ class CodeAnalyzer:
             pmd_languages = self._get_languages_for_analyzer('pmd_duplicates')
             for pmd_lang in pmd_languages:
                 if self._multi_language:
+                    self._last_language_header = pmd_lang
                     print(f"\n--- {pmd_lang} ---")
                 pmd_rule = PMDDuplicatesRule(
                     rule_config,
