@@ -420,6 +420,41 @@ class Settings:
         print(f"svelte-check path saved to {self.settings_file}")
         return str(svelte_check_path)
 
+    def get_tsc_path(self) -> str | None:
+        """Get the tsc executable path from settings."""
+        if 'tsc' in self.config and 'tsc_path' in self.config['tsc']:
+            return self.config['tsc']['tsc_path']
+        return None
+
+    def set_tsc_path(self, path: str):
+        """Set the tsc executable path and save to settings."""
+        if 'tsc' not in self.config:
+            self.config['tsc'] = {}
+        self.config['tsc']['tsc_path'] = path
+        self._save()
+
+    def prompt_and_save_tsc_path(self) -> str | None:
+        """Prompt user for tsc path, validate it, and save to settings."""
+        print("\ntsc executable not found in PATH.")
+        print("TypeScript compiler is required for type checking.")
+        print("Install with: npm install --save-dev typescript")
+        print("Or globally: npm install -g typescript")
+        prompt_msg = "\nEnter path to tsc executable (or press Enter to skip): "
+        user_input = input(prompt_msg).strip()
+
+        if not user_input:
+            print("Skipping tsc_analyze rule. Install TypeScript and configure later.")
+            return None
+
+        tsc_path = Path(user_input)
+        if not tsc_path.exists():
+            print(f"Error: tsc executable not found at: {user_input}")
+            return None
+
+        self.set_tsc_path(str(tsc_path))
+        print(f"tsc path saved to {self.settings_file}")
+        return str(tsc_path)
+
     def get_dart_lsp_mcp_path(self) -> str | None:
         """Get the dart-lsp-mcp path from settings."""
         if 'dart_lsp_mcp' in self.config and 'dart_lsp_mcp_path' in self.config['dart_lsp_mcp']:

@@ -79,6 +79,10 @@
     "enabled": true,
     "tsconfig": "./tsconfig.json"
   },
+  "tsc_analyze": {
+    "enabled": false,
+    "tsconfig": "./tsconfig.json"
+  },
   "eslint_analyze": {
     "enabled": true,
     "config_mode": "auto",

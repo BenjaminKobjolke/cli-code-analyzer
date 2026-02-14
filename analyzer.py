@@ -27,6 +27,7 @@ from rules import (
     PMDDuplicatesRule,
     RuffAnalyzeRule,
     SvelteCheckRule,
+    TscAnalyzeRule,
 )
 
 
@@ -219,6 +220,22 @@ class CodeAnalyzer:
                 self.rules_file
             )
             violations = svelte_check_rule.check(self.files[0])
+            self.violations.extend(violations)
+
+        # Run tsc type checking (once per analysis, not per file)
+        if self._should_run('tsc_analyze'):
+            self._print_language_header('tsc_analyze')
+            rule_config = self.config.get_rule('tsc_analyze')
+            tsc_log_level = self._resolve_log_level('tsc_analyze')
+            tsc_rule = TscAnalyzeRule(
+                rule_config,
+                self.base_path,
+                self.output_folder,
+                tsc_log_level,
+                self.max_errors,
+                self.rules_file
+            )
+            violations = tsc_rule.check(self.files[0])
             self.violations.extend(violations)
 
         # Run PHPStan analyze check (once per analysis, not per file)

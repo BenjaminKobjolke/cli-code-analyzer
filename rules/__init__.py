@@ -21,6 +21,7 @@ from rules.phpstan_analyze import PHPStanAnalyzeRule
 from rules.pmd_duplicates import PMDDuplicatesRule
 from rules.ruff_analyze import RuffAnalyzeRule
 from rules.svelte_check import SvelteCheckRule
+from rules.tsc_analyze import TscAnalyzeRule
 
 __all__ = [
     'BaseRule',
@@ -42,4 +43,5 @@ __all__ = [
     'PMDDuplicatesRule',
     'RuffAnalyzeRule',
     'SvelteCheckRule',
+    'TscAnalyzeRule',
 ]

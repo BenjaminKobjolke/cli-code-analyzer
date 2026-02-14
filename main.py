@@ -151,6 +151,7 @@ Examples:
         (output_folder / 'dart_code_linter.csv').unlink(missing_ok=True)
         (output_folder / 'dotnet_analyze.csv').unlink(missing_ok=True)
         (output_folder / 'eslint_analyze.csv').unlink(missing_ok=True)
+        (output_folder / 'tsc_analyze.csv').unlink(missing_ok=True)
         (output_folder / 'svelte_check.csv').unlink(missing_ok=True)
         (output_folder / 'dart_unused_files.csv').unlink(missing_ok=True)
         (output_folder / 'dart_unused_dependencies.csv').unlink(missing_ok=True)

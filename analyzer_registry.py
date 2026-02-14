@@ -43,6 +43,7 @@ ANALYZER_REGISTRY = {
         ('max_lines_per_file', 'File length checks', None),
         ('pmd_duplicates', 'Duplicate code detection', 'PMD'),
         ('eslint_analyze', 'Linting and style', 'ESLint (npm)'),
+        ('tsc_analyze', 'TypeScript type checking', 'TypeScript (npm)'),
     ],
     'svelte': [
         ('max_lines_per_file', 'File length checks', None),

@@ -7,6 +7,7 @@ This guide explains how to set up cli-code-analyzer for JavaScript and TypeScrip
 - Node.js 14+
 - npm or yarn
 - ESLint (optional, for linting)
+- TypeScript (optional, for type checking)
 - PMD (optional, for duplicate code detection)
 
 ## Quick Start
@@ -22,6 +23,7 @@ python main.py --language javascript --path /path/to/your/project
 | `max_lines_per_file` | Checks file length against warning/error thresholds | JS, TS, JSX, TSX |
 | `pmd_duplicates` | Detects duplicate code blocks (requires PMD) | JS, TS |
 | `eslint_analyze` | Linting with ESLint (800+ rules available) | JS, TS, JSX, TSX |
+| `tsc_analyze` | TypeScript type checking via `tsc --noEmit` (requires TypeScript) | TS, TSX |
 
 ## Supported File Extensions
 
@@ -121,7 +123,34 @@ Use `project` mode when you want to enforce that projects must have their own ES
 }
 ```
 
-## TypeScript-Specific Notes
+## TypeScript Type Checking (tsc_analyze)
+
+The `tsc_analyze` rule runs `tsc --noEmit` to catch type errors that ESLint misses — wrong types passed to functions, null safety issues, missing properties, and cross-file type inconsistencies. ESLint is a linter (style/patterns); `tsc` is a type checker (correctness). They are complementary.
+
+**Disabled by default** since not all JavaScript projects use TypeScript. Enable it in your rules JSON:
+
+```json
+{
+  "tsc_analyze": {
+    "enabled": true,
+    "tsconfig": "./tsconfig.json"
+  }
+}
+```
+
+### Requirements
+
+- TypeScript installed in your project: `npm install --save-dev typescript`
+- A `tsconfig.json` in your project root
+
+### Configuration
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `enabled` | Enable/disable the rule | `false` |
+| `tsconfig` | Path to tsconfig.json (relative to project) | `./tsconfig.json` |
+
+## TypeScript-Specific Notes (ESLint)
 
 For TypeScript projects, ESLint works out of the box for basic linting. For advanced TypeScript-specific rules, your project should have:
 
@@ -213,6 +242,14 @@ If ESLint reports parsing errors on TypeScript files:
 1. Ensure your project has `@typescript-eslint/parser` installed
 2. Configure your project's ESLint to use the TypeScript parser
 3. Or use `config_mode: "builtin"` for basic JavaScript-only linting
+
+### tsc not found
+
+If you get a tsc path error:
+1. Install TypeScript in your project: `npm install --save-dev typescript` (auto-discovered from `node_modules/.bin/`)
+2. Or install TypeScript globally: `npm install -g typescript`
+3. Or run the analyzer once - it will prompt to configure the tsc path
+4. Or manually edit `settings.ini` in the cli-code-analyzer directory
 
 ### Exclusions not working
 
