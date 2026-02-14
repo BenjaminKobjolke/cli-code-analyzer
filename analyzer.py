@@ -46,6 +46,7 @@ class CodeAnalyzer:
         self.cli_log_level = cli_log_level  # CLI-provided log level (highest priority)
         self.max_errors = max_errors
         self._enabled_analyzers = self._get_enabled_analyzers()
+        self._multi_language = len(self.languages) > 1
 
     def _get_enabled_analyzers(self) -> set[str]:
         """Get the set of analyzer names valid for the requested languages."""
@@ -68,6 +69,14 @@ class CodeAnalyzer:
                     langs.append(lang)
                     break
         return langs
+
+    def _print_language_header(self, analyzer_name: str) -> None:
+        """Print a language context header when running multiple languages."""
+        if not self._multi_language:
+            return
+        langs = self._get_languages_for_analyzer(analyzer_name)
+        if langs:
+            print(f"\n--- {', '.join(langs)} ---")
 
     def analyze(self):
         """Run the analysis"""
@@ -94,6 +103,8 @@ class CodeAnalyzer:
             # PMD needs a language parameter, so run once per language that has it
             pmd_languages = self._get_languages_for_analyzer('pmd_duplicates')
             for pmd_lang in pmd_languages:
+                if self._multi_language:
+                    print(f"\n--- {pmd_lang} ---")
                 pmd_rule = PMDDuplicatesRule(
                     rule_config,
                     self.base_path,
@@ -108,6 +119,7 @@ class CodeAnalyzer:
 
         # Run dart analyze check (once per analysis, not per file)
         if self._should_run('dart_analyze'):
+            self._print_language_header('dart_analyze')
             rule_config = self.config.get_rule('dart_analyze')
             dart_log_level = self._resolve_log_level('dart_analyze')
             dart_rule = DartAnalyzeRule(
@@ -123,6 +135,7 @@ class CodeAnalyzer:
 
         # Run dart_code_linter check (once per analysis, not per file)
         if self._should_run('dart_code_linter'):
+            self._print_language_header('dart_code_linter')
             rule_config = self.config.get_rule('dart_code_linter')
             dcm_log_level = self._resolve_log_level('dart_code_linter')
             dcm_rule = DartCodeLinterRule(
@@ -138,6 +151,7 @@ class CodeAnalyzer:
 
         # Run flutter analyze check (once per analysis, not per file)
         if self._should_run('flutter_analyze'):
+            self._print_language_header('flutter_analyze')
             rule_config = self.config.get_rule('flutter_analyze')
             flutter_log_level = self._resolve_log_level('flutter_analyze')
             flutter_rule = FlutterAnalyzeRule(
@@ -153,6 +167,7 @@ class CodeAnalyzer:
 
         # Run ruff analyze check (once per analysis, not per file)
         if self._should_run('ruff_analyze'):
+            self._print_language_header('ruff_analyze')
             rule_config = self.config.get_rule('ruff_analyze')
             ruff_log_level = self._resolve_log_level('ruff_analyze')
             ruff_rule = RuffAnalyzeRule(
@@ -168,6 +183,7 @@ class CodeAnalyzer:
 
         # Run ESLint analyze check (once per analysis, not per file)
         if self._should_run('eslint_analyze'):
+            self._print_language_header('eslint_analyze')
             rule_config = self.config.get_rule('eslint_analyze')
             eslint_log_level = self._resolve_log_level('eslint_analyze')
             eslint_rule = ESLintAnalyzeRule(
@@ -183,6 +199,7 @@ class CodeAnalyzer:
 
         # Run PHPStan analyze check (once per analysis, not per file)
         if self._should_run('phpstan_analyze'):
+            self._print_language_header('phpstan_analyze')
             rule_config = self.config.get_rule('phpstan_analyze')
             phpstan_log_level = self._resolve_log_level('phpstan_analyze')
             phpstan_rule = PHPStanAnalyzeRule(
@@ -198,6 +215,7 @@ class CodeAnalyzer:
 
         # Run PHP-CS-Fixer check (once per analysis, not per file)
         if self._should_run('php_cs_fixer'):
+            self._print_language_header('php_cs_fixer')
             rule_config = self.config.get_rule('php_cs_fixer')
             fixer_log_level = self._resolve_log_level('php_cs_fixer')
             fixer_rule = PHPCSFixerAnalyzeRule(
@@ -213,6 +231,7 @@ class CodeAnalyzer:
 
         # Run Intelephense analyze check (once per analysis, not per file)
         if self._should_run('intelephense_analyze'):
+            self._print_language_header('intelephense_analyze')
             rule_config = self.config.get_rule('intelephense_analyze')
             intelephense_log_level = self._resolve_log_level('intelephense_analyze')
             intelephense_rule = IntelephenseAnalyzeRule(
@@ -228,6 +247,7 @@ class CodeAnalyzer:
 
         # Run dotnet analyze check (once per analysis, not per file)
         if self._should_run('dotnet_analyze'):
+            self._print_language_header('dotnet_analyze')
             rule_config = self.config.get_rule('dotnet_analyze')
             dotnet_log_level = self._resolve_log_level('dotnet_analyze')
             dotnet_rule = DotnetAnalyzeRule(
@@ -243,6 +263,7 @@ class CodeAnalyzer:
 
         # Run dart unused files check (once per analysis, not per file)
         if self._should_run('dart_unused_files'):
+            self._print_language_header('dart_unused_files')
             rule_config = self.config.get_rule('dart_unused_files')
             rule_log_level = self._resolve_log_level('dart_unused_files')
             rule = DartUnusedFilesRule(
@@ -258,6 +279,7 @@ class CodeAnalyzer:
 
         # Run dart unused dependencies check (once per analysis, not per file)
         if self._should_run('dart_unused_dependencies'):
+            self._print_language_header('dart_unused_dependencies')
             rule_config = self.config.get_rule('dart_unused_dependencies')
             rule_log_level = self._resolve_log_level('dart_unused_dependencies')
             rule = DartUnusedDependenciesRule(
@@ -273,6 +295,7 @@ class CodeAnalyzer:
 
         # Run dart import rules check (once per analysis, not per file)
         if self._should_run('dart_import_rules'):
+            self._print_language_header('dart_import_rules')
             rule_config = self.config.get_rule('dart_import_rules')
             rule_log_level = self._resolve_log_level('dart_import_rules')
             rule = DartImportRulesRule(
@@ -288,6 +311,7 @@ class CodeAnalyzer:
 
         # Run dart unused code check (once per analysis, not per file)
         if self._should_run('dart_unused_code'):
+            self._print_language_header('dart_unused_code')
             rule_config = self.config.get_rule('dart_unused_code')
             rule_log_level = self._resolve_log_level('dart_unused_code')
             rule = DartUnusedCodeRule(
@@ -303,6 +327,7 @@ class CodeAnalyzer:
 
         # Run dart missing dispose check (once per analysis, not per file)
         if self._should_run('dart_missing_dispose'):
+            self._print_language_header('dart_missing_dispose')
             rule_config = self.config.get_rule('dart_missing_dispose')
             rule_log_level = self._resolve_log_level('dart_missing_dispose')
             rule = DartMissingDisposeRule(
@@ -318,6 +343,7 @@ class CodeAnalyzer:
 
         # Run dart test coverage check (once per analysis, not per file)
         if self._should_run('dart_test_coverage'):
+            self._print_language_header('dart_test_coverage')
             rule_config = self.config.get_rule('dart_test_coverage')
             rule_log_level = self._resolve_log_level('dart_test_coverage')
             rule = DartTestCoverageRule(
