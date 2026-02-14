@@ -330,6 +330,14 @@ class CodeAnalyzer:
         for file_path in self.files:
             self._check_file(file_path)
 
+    def get_analyzed_file_paths(self) -> list[str]:
+        """Get relative paths of all analyzed files."""
+        paths = []
+        for file_path in self.files:
+            relative = file_path.relative_to(self.base_path) if file_path.is_relative_to(self.base_path) else file_path
+            paths.append(str(relative))
+        return paths
+
     def _check_file(self, file_path: Path):
         """Check a single file against all enabled rules"""
         # Check max lines rule

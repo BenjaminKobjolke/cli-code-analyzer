@@ -76,6 +76,13 @@ Examples:
         help='Maximum number of violations to include in CSV reports (default: unlimited)'
     )
 
+    parser.add_argument(
+        '--list-files',
+        action='store_true',
+        default=False,
+        help='List all analyzed file paths after analysis completes'
+    )
+
     args = parser.parse_args()
 
     # Handle --list-analyzers before other validation
@@ -132,9 +139,15 @@ Examples:
 
     # Run analysis
     try:
+        from file_discovery import FileDiscovery
+        extensions = FileDiscovery.LANGUAGE_EXTENSIONS.get(args.language.lower(), [])
+        ext_str = ", ".join(extensions) if extensions else "unknown"
+
         print(f"\n{'=' * 60}")
         print(f"  CLI Code Analyzer")
-        print(f"  Language: {args.language} | Path: {args.path}")
+        print(f"  Path: {args.path}")
+        print(f"  Language: {args.language}")
+        print(f"  Extensions: {ext_str}")
         print(f"{'=' * 60}")
 
         analyzer = CodeAnalyzer(args.language, args.path, args.rules, output_folder, cli_log_level, args.maxamountoferrors)
@@ -153,6 +166,15 @@ Examples:
             args.maxamountoferrors
         )
         has_errors = reporter.report()
+
+        # Show analyzed files summary (always) and list (if requested)
+        file_paths = analyzer.get_analyzed_file_paths()
+        extensions = sorted(set(Path(fp).suffix for fp in file_paths if Path(fp).suffix))
+        ext_str = ", ".join(extensions)
+        print(f"\nAnalyzed files ({len(file_paths)}) [{ext_str}]")
+        if args.list_files:
+            for fp in file_paths:
+                print(f"- {fp}")
 
         # Exit with error code if violations found
         sys.exit(1 if has_errors else 0)
