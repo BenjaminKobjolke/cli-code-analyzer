@@ -52,8 +52,10 @@ class CodeAnalyzer:
             exclude_patterns = rule_config.get('exclude_patterns')
 
         # Discover files
+        print(f"\nDiscovering files...")
         discovery = FileDiscovery(self.language, self.path, exclude_patterns)
         self.files = discovery.discover()
+        print(f"Found {len(self.files)} file(s)")
 
         if not self.files:
             print(f"No files found to analyze in '{self.path}'")
