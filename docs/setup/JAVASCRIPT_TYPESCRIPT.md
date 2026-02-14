@@ -189,15 +189,17 @@ cd %~dp0..
 | `--output` | Folder for CSV/TXT reports | None (console) |
 | `--loglevel` | Filter: `error`, `warning`, `all` | `all` |
 | `--maxamountoferrors` | Limit violations in CSV | Unlimited |
+| `--list-files` | List all analyzed file paths after analysis | Off |
 
 ## Troubleshooting
 
 ### ESLint not found
 
 If you get an ESLint path error:
-1. Install ESLint globally: `npm install -g eslint`
-2. Or run the analyzer once - it will prompt to configure the ESLint path
-3. Or manually edit `settings.ini` in the cli-code-analyzer directory
+1. Install ESLint in your project: `npm install --save-dev eslint` (auto-discovered from `node_modules/.bin/`)
+2. Or install ESLint globally: `npm install -g eslint`
+3. Or run the analyzer once - it will prompt to configure the ESLint path
+4. Or manually edit `settings.ini` in the cli-code-analyzer directory
 
 ### PMD not found
 

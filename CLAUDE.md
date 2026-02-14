@@ -21,9 +21,12 @@ python main.py --list-analyzers all
 
 # Filter by severity
 python main.py --language javascript --path ./src --loglevel error
+
+# List all analyzed file paths
+python main.py --language python --path ./src --list-files
 ```
 
-**Arguments:** `--language` (flutter|python|php|csharp|javascript), `--path`, `--rules` (default: rules.json), `--verbosity` (minimal|normal|verbose), `--output` (folder for CSV), `--loglevel` (error|warning|all), `--maxamountoferrors`
+**Arguments:** `--language` (flutter|python|php|csharp|javascript), `--path`, `--rules` (default: rules.json), `--verbosity` (minimal|normal|verbose), `--output` (folder for CSV), `--loglevel` (error|warning|all), `--maxamountoferrors`, `--list-files` (show analyzed file paths)
 
 **Exit codes:** 0 = no errors, 1 = errors found or failure.
 
@@ -52,7 +55,7 @@ All rules inherit `BaseRule`. Important methods:
 - `_get_threshold_for_file(file_path, config)` - Resolves thresholds respecting file-specific exceptions
 - `_match_file_path(file_path, pattern)` - Matches paths via exact, glob, or ends-with strategies
 - `_get_relative_path(file_path)` - Converts absolute to relative paths for output
-- `_get_tool_path(tool_name, getter, prompter)` - Resolves external tool paths via settings
+- `_get_tool_path(tool_name, getter, prompter)` - Resolves external tool paths via PATH, project-local `node_modules/.bin/`, settings, or user prompt
 - `_filter_violations_by_log_level(violations)` - Filters violations by configured severity
 - `_run_command(cmd)` - Subprocess execution helper
 
@@ -80,7 +83,7 @@ Full guide in `CREATING_NEW_ANALYZER.md`. Summary:
 - Rules always return `Violation` objects with severity `ERROR`, `WARNING`, or `INFO`
 - Use `_get_threshold_for_file()` instead of reading thresholds directly (supports exceptions)
 - Project-wide rules use an `_executed` flag pattern to run only once despite being called per-file
-- External tools are resolved lazily through `settings.py` which prompts on first use
+- External tools are resolved lazily: PATH -> project-local `node_modules/.bin/` -> `settings.py` -> user prompt
 - File paths in violations should always be relative (use `_get_relative_path()`)
 - File exclusion patterns use forward slashes even on Windows
 

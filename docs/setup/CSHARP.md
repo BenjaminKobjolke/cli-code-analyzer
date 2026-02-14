@@ -153,6 +153,7 @@ dotnet build --no-incremental -c Debug
 | `--output` | Folder for CSV/TXT reports | None (console) |
 | `--loglevel` | Filter: `error`, `warning`, `all` | `all` |
 | `--maxamountoferrors` | Limit violations in CSV | Unlimited |
+| `--list-files` | List all analyzed file paths after analysis | Off |
 
 ## Troubleshooting
 
