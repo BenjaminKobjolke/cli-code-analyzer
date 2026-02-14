@@ -12,6 +12,10 @@ CLI Code Analyzer is a multi-language command-line tool that analyzes code quali
 # Basic analysis
 python main.py --language flutter --path ./lib --rules rules.json
 
+# Multiple languages (space-separated or comma-separated)
+python main.py --language python javascript --path ./src
+python main.py --language python,javascript --path ./src
+
 # With output to CSV files
 python main.py --language python --path ./src --output ./reports --verbosity verbose
 
@@ -26,7 +30,7 @@ python main.py --language javascript --path ./src --loglevel error
 python main.py --language python --path ./src --list-files
 ```
 
-**Arguments:** `-l`/`--language` (flutter|python|php|csharp|javascript), `-p`/`--path`, `-r`/`--rules` (default: rules.json), `-v`/`--verbosity` (minimal|normal|verbose), `-o`/`--output` (folder for CSV), `-L`/`--loglevel` (error|warning|all), `-m`/`--maxamountoferrors`, `-f`/`--list-files` (show analyzed file paths), `-a`/`--list-analyzers`
+**Arguments:** `-l`/`--language` (flutter|python|php|csharp|javascript; supports multiple), `-p`/`--path`, `-r`/`--rules` (default: rules.json), `-v`/`--verbosity` (minimal|normal|verbose), `-o`/`--output` (folder for CSV), `-L`/`--loglevel` (error|warning|all), `-m`/`--maxamountoferrors`, `-f`/`--list-files` (show analyzed file paths), `-a`/`--list-analyzers`
 
 **Exit codes:** 0 = no errors, 1 = errors found or failure.
 

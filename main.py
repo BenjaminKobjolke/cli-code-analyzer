@@ -17,8 +17,8 @@ def main():
 Examples:
   python main.py --language flutter --path src/ --rules rules.json
   python main.py --language flutter --path . --rules rules.json --verbosity minimal
-  python main.py --language flutter --path lib/ --verbosity verbose
-  python main.py --language flutter --path src/ --loglevel error
+  python main.py --language python javascript --path ./src --verbosity verbose
+  python main.py --language python,javascript --path ./src --loglevel error
   python main.py --language flutter --path lib/ --output reports/
         """
     )
@@ -34,7 +34,8 @@ Examples:
     parser.add_argument(
         '-l', '--language',
         required=False,
-        help='Programming language to analyze. Line counting: flutter, python, php, csharp, javascript. Duplicate detection (PMD): dart, python, java, javascript, typescript, php, csharp. Static analysis: php (PHPStan, PHP-CS-Fixer), python (Ruff), javascript/typescript (ESLint), csharp (dotnet build)'
+        nargs='+',
+        help='Programming language(s) to analyze (space-separated or comma-separated). Line counting: flutter, python, php, csharp, javascript. Duplicate detection (PMD): dart, python, java, javascript, typescript, php, csharp. Static analysis: php (PHPStan, PHP-CS-Fixer), python (Ruff), javascript/typescript (ESLint), csharp (dotnet build)'
     )
 
     parser.add_argument(
@@ -97,6 +98,12 @@ Examples:
     if not args.path:
         parser.error("--path is required for analysis")
 
+    # Normalize languages: support both space-separated and comma-separated
+    languages = []
+    for lang in args.language:
+        languages.extend(part.strip() for part in lang.split(',') if part.strip())
+    languages = list(dict.fromkeys(languages))  # deduplicate, preserve order
+
     # Validate path exists
     if not Path(args.path).exists():
         print(f"Error: Path '{args.path}' does not exist")
@@ -140,26 +147,36 @@ Examples:
     # Run analysis
     try:
         from file_discovery import FileDiscovery
-        extensions = FileDiscovery.LANGUAGE_EXTENSIONS.get(args.language.lower(), [])
-        ext_str = ", ".join(extensions) if extensions else "unknown"
 
-        print(f"\n{'=' * 60}")
-        print(f"  CLI Code Analyzer")
-        print(f"  Path: {args.path}")
-        print(f"  Language: {args.language}")
-        print(f"  Extensions: {ext_str}")
-        print(f"{'=' * 60}")
+        all_violations = []
+        total_file_count = 0
+        all_file_paths = []
 
-        analyzer = CodeAnalyzer(args.language, args.path, args.rules, output_folder, cli_log_level, args.maxamountoferrors)
-        analyzer.analyze()
+        for language in languages:
+            extensions = FileDiscovery.LANGUAGE_EXTENSIONS.get(language.lower(), [])
+            ext_str = ", ".join(extensions) if extensions else "unknown"
+
+            print(f"\n{'=' * 60}")
+            print(f"  CLI Code Analyzer")
+            print(f"  Path: {args.path}")
+            print(f"  Language: {language}")
+            print(f"  Extensions: {ext_str}")
+            print(f"{'=' * 60}")
+
+            analyzer = CodeAnalyzer(language, args.path, args.rules, output_folder, cli_log_level, args.maxamountoferrors)
+            analyzer.analyze()
+
+            all_violations.extend(analyzer.get_violations())
+            total_file_count += analyzer.get_file_count()
+            all_file_paths.extend(analyzer.get_analyzed_file_paths())
 
         # Generate report
         # For reporter, use CLI log level if provided, otherwise use 'all' as default
         # (violations are already filtered by rules, reporter filtering is redundant but kept for backward compatibility)
         reporter_log_level = cli_log_level if cli_log_level else LogLevel.ALL
         reporter = Reporter(
-            analyzer.get_violations(),
-            analyzer.get_file_count(),
+            all_violations,
+            total_file_count,
             output_level,
             reporter_log_level,
             output_folder,
@@ -168,12 +185,11 @@ Examples:
         has_errors = reporter.report()
 
         # Show analyzed files summary (always) and list (if requested)
-        file_paths = analyzer.get_analyzed_file_paths()
-        extensions = sorted(set(Path(fp).suffix for fp in file_paths if Path(fp).suffix))
+        extensions = sorted(set(Path(fp).suffix for fp in all_file_paths if Path(fp).suffix))
         ext_str = ", ".join(extensions)
-        print(f"\nAnalyzed files ({len(file_paths)}) [{ext_str}]")
+        print(f"\nAnalyzed files ({len(all_file_paths)}) [{ext_str}]")
         if args.list_files:
-            for fp in file_paths:
+            for fp in all_file_paths:
                 print(f"- {fp}")
 
         # Exit with error code if violations found
