@@ -4,7 +4,9 @@ A flexible command-line tool for analyzing code files based on configurable rule
 
 ## Features
 
-- **Multi-language support**: Currently supports Flutter/Dart, Python, Java, JavaScript, TypeScript (extensible to other languages)
+- **Multi-language support**: Supports Flutter/Dart, Python, PHP, C#, JavaScript/TypeScript, and Svelte
+- **Multi-language analysis**: Analyze multiple languages in a single run via space-separated or comma-separated arguments
+- **Language aliases**: Shorthand aliases for convenience (`dart` for flutter, `ts`/`js` for javascript, `py` for python, `cs` for csharp)
 - **Configurable rules**: Define custom rules via JSON configuration
 - **Multiple output formats**: Minimal, normal, and verbose output modes
 - **File export capability**: Save analysis reports to files for CI/CD integration
@@ -15,6 +17,9 @@ A flexible command-line tool for analyzing code files based on configurable rule
 - **Flutter analyze**: Integrated `flutter analyze` for Flutter-specific code analysis with text output parsing
 - **Dart code metrics**: Integrated [dart_code_linter](https://pub.dev/packages/dart_code_linter) for advanced metrics (cyclomatic complexity, maintainability index, technical debt, etc.)
 - **Python linting**: Integrated [Ruff](https://docs.astral.sh/ruff/) for fast Python linting with 800+ rules
+- **ESLint integration**: Integrated [ESLint](https://eslint.org/) for JavaScript/TypeScript linting with auto-detection of Svelte projects
+- **Svelte type checking**: Integrated [svelte-check](https://github.com/sveltejs/language-tools/tree/master/packages/svelte-check) for Svelte/TypeScript type checking with configurable compiler warning suppression
+- **TypeScript type checking**: Integrated `tsc --noEmit` for project-wide TypeScript type checking with error code filtering
 - **Auto-fix support**: Automatically fix Python issues using Ruff with `ruff_fixer.py`
 - **Language-specific exclusions**: Automatically exclude generated files (e.g., `**.g.dart`, `**.freezed.dart`)
 - **Relative path display**: Clean, readable output with relative file paths
@@ -73,17 +78,34 @@ python main.py --language <language> --path <path> [options]
 
 ### Command Line Arguments
 
-| Argument | Required | Default | Description |
-|----------|----------|---------|-------------|
-| `--language` | Yes | - | Programming language to analyze. **Line counting:** `flutter`, `python`. **Duplicate detection (PMD):** `dart`, `python`, `java`, `javascript`, `typescript` |
-| `--path` | Yes | - | Path to the code directory (analyzes recursively) or single file to analyze |
-| `--rules` | No | `rules.json` | Path to the rules JSON configuration file |
-| `--verbosity` | No | `normal` | Output verbosity level: `minimal`, `normal`, or `verbose` |
-| `--output` | No | - | Path to output folder for reports. If set, saves reports to files (`line_count_report.txt`, `duplicate_code.csv`) instead of console output |
-| `--loglevel` | No | `all` | Filter violations by severity: `error`, `warning`, or `all` |
-| `--maxamountoferrors` | No | unlimited | Maximum number of violations to include in reports. When exceeded, keeps the largest violations (e.g., duplicates with most lines) |
+| Argument | Short | Required | Default | Description |
+|----------|-------|----------|---------|-------------|
+| `--language` | `-l` | Yes | - | Language(s) to analyze: `flutter`, `python`, `php`, `csharp`, `javascript`, `svelte`. Supports multiple languages (space-separated or comma-separated). Aliases: `dart`, `ts`, `js`, `py`, `cs` |
+| `--path` | `-p` | Yes | - | Path to the code directory (analyzes recursively) or single file to analyze |
+| `--rules` | `-r` | No | `rules.json` | Path to the rules JSON configuration file |
+| `--verbosity` | `-v` | No | `normal` | Output verbosity level: `minimal`, `normal`, or `verbose` |
+| `--output` | `-o` | No | - | Path to output folder for reports. If set, saves reports to files (`line_count_report.txt`, `duplicate_code.csv`) instead of console output |
+| `--loglevel` | `-L` | No | `all` | Filter violations by severity: `error`, `warning`, or `all` |
+| `--maxamountoferrors` | `-m` | No | unlimited | Maximum number of violations to include in reports. When exceeded, keeps the largest violations (e.g., duplicates with most lines) |
+| `--list-files` | `-f` | No | off | List all analyzed file paths after analysis |
+| `--list-analyzers` | `-a` | No | - | List available analyzers for a language (or all) |
 
 ## Examples
+
+### Multi-Language Analysis
+
+Analyze multiple languages in a single run:
+
+```bash
+# Comma-separated
+python main.py -l python,javascript -p ./src
+
+# Space-separated
+python main.py -l python javascript -p ./src
+
+# Using aliases
+python main.py -l py,ts -p ./src
+```
 
 ### Quick Start
 
@@ -1053,6 +1075,200 @@ python ruff_fixer.py --path . --rules code_analysis_rules.json
 python main.py --language python --path . --rules code_analysis_rules.json
 ```
 
+### ESLint Analysis (JavaScript/TypeScript/Svelte)
+
+The analyzer integrates with [ESLint](https://eslint.org/) for JavaScript and TypeScript linting. It auto-detects Svelte projects and conditionally includes `.svelte` files.
+
+#### Enabling ESLint Analysis
+
+Enable the rule in `rules.json`:
+
+```json
+{
+  "eslint_analyze": {
+    "enabled": true,
+    "config_mode": "auto",
+    "exclude_patterns": ["node_modules/**", "dist/**", "build/**", "coverage/**"]
+  }
+}
+```
+
+**Configuration Options:**
+
+- `enabled`: Enable/disable ESLint analysis
+- `config_mode`: How to resolve ESLint config — `"auto"` (detect project config), `"project"` (require project config), or `"builtin"` (use rules from `rules.json` only)
+- `exclude_patterns`: Glob patterns for files/directories to exclude
+- `extensions`: Explicitly set file extensions to lint (e.g., `[".js", ".ts", ".svelte"]`). If omitted, extensions are auto-detected
+
+#### Svelte Support
+
+The analyzer auto-detects Svelte projects. The behavior depends on whether `eslint-plugin-svelte` is installed in the target project:
+
+| Condition | Behavior |
+|---|---|
+| Plugin installed (`node_modules/eslint-plugin-svelte` exists) | `.svelte` files are automatically included for ESLint |
+| Plugin not installed, `.svelte` files exist | Warning printed, `.svelte` files skipped |
+| No `.svelte` files in project | Standard JS/TS extensions only |
+
+**Important:** Installing `eslint-plugin-svelte` alone is not enough. The target project's ESLint config must also be set up to use the Svelte parser. Without this, ESLint will try to parse `.svelte` files as plain JavaScript, resulting in `Parsing error: Unexpected token <` on every `.svelte` file.
+
+#### Setting Up ESLint for Svelte Projects
+
+1. Install the plugin and parser in your project:
+
+```bash
+npm install --save-dev eslint-plugin-svelte svelte-eslint-parser
+```
+
+2. Add a Svelte config block to your `eslint.config.js` (ESLint 9 flat config):
+
+```javascript
+import sveltePlugin from 'eslint-plugin-svelte';
+import svelteParser from 'svelte-eslint-parser';
+import tsparser from '@typescript-eslint/parser';
+
+export default [
+    // ... your existing JS/TS config ...
+    {
+        files: ['**/*.svelte'],
+        languageOptions: {
+            parser: svelteParser,
+            parserOptions: {
+                parser: tsparser,  // for TypeScript in <script lang="ts">
+                ecmaVersion: 'latest',
+                sourceType: 'module'
+            }
+        },
+        plugins: {
+            svelte: sveltePlugin
+        },
+        rules: {
+            ...sveltePlugin.configs.recommended.rules
+        }
+    },
+    // ... ignores, etc. ...
+];
+```
+
+Without this configuration, the analyzer will correctly detect the plugin and include `.svelte` files, but ESLint will fail to parse them.
+
+#### Using ESLint Analysis
+
+**Console Output:**
+```bash
+python main.py --language javascript --path src/
+```
+
+**File Output:**
+```bash
+python main.py --language javascript --path src/ --output reports/
+```
+
+This creates `reports/eslint_analyze.csv` with all ESLint violations.
+
+### Svelte Check (Svelte/TypeScript Type Checking)
+
+The analyzer integrates with [svelte-check](https://github.com/sveltejs/language-tools/tree/master/packages/svelte-check) for type checking Svelte and TypeScript code in SvelteKit projects.
+
+#### Enabling Svelte Check
+
+Enable the rule in your project's rules JSON file (passed via `--rules`, default: `rules.json`):
+
+```json
+{
+  "svelte_check": {
+    "enabled": true,
+    "tsconfig": "./tsconfig.json"
+  }
+}
+```
+
+**Configuration Options:**
+
+- `enabled`: Enable/disable svelte-check analysis
+- `tsconfig`: Path to `tsconfig.json` (default: `./tsconfig.json`)
+- `compiler_warnings`: Map of Svelte compiler warning codes to their level. Each key is a warning code, each value is `"ignore"` or `"error"`. Passed as the `--compiler-warnings` flag to svelte-check
+
+#### Suppressing Compiler Warnings
+
+Use the `compiler_warnings` option to suppress known false positives. For example, SvelteKit passes `params` to every page component, which triggers `unused-export-let` warnings on every route file. To suppress these:
+
+```json
+{
+  "svelte_check": {
+    "enabled": true,
+    "tsconfig": "./tsconfig.json",
+    "compiler_warnings": {
+      "unused-export-let": "ignore"
+    }
+  }
+}
+```
+
+This passes `--compiler-warnings unused-export-let:ignore` to svelte-check. Multiple warnings can be suppressed by adding more entries to the map.
+
+#### Using Svelte Check
+
+**Console Output:**
+```bash
+python main.py --language javascript --path src/
+```
+
+**File Output:**
+```bash
+python main.py --language javascript --path src/ --output reports/
+```
+
+This creates `reports/svelte_check.csv` with all svelte-check violations.
+
+#### First-Time Setup
+
+If `svelte-check` is not found, you'll be prompted to enter the path to the executable (e.g., `node_modules/.bin/svelte-check`). The path will be saved to `settings.ini` for future use.
+
+### TypeScript Type Checking (tsc)
+
+The analyzer integrates with TypeScript's `tsc --noEmit` for project-wide type checking.
+
+#### Enabling TypeScript Type Checking
+
+Enable the rule in `rules.json`:
+
+```json
+{
+  "tsc_analyze": {
+    "enabled": true,
+    "tsconfig": "./tsconfig.json",
+    "skip_svelte_resolve_errors": true,
+    "ignore_codes": ["TS2614"]
+  }
+}
+```
+
+**Configuration Options:**
+
+- `enabled`: Enable/disable tsc type checking
+- `tsconfig`: Path to `tsconfig.json` (default: `./tsconfig.json`)
+- `skip_svelte_resolve_errors`: Filter out `TS2614` errors referencing `*.svelte` files (common false positives in Svelte projects)
+- `ignore_codes`: List of TypeScript error codes to ignore (e.g., `["TS2614", "TS6133"]`)
+
+#### Using TypeScript Type Checking
+
+**Console Output:**
+```bash
+python main.py --language javascript --path src/
+```
+
+**File Output:**
+```bash
+python main.py --language javascript --path src/ --output reports/
+```
+
+This creates `reports/tsc_analyze.csv` with all TypeScript violations.
+
+#### First-Time Setup
+
+If `tsc` is not found in your PATH, you'll be prompted to enter the path to the executable (e.g., `node_modules/.bin/tsc`). The path will be saved to `settings.ini` for future use.
+
 ## Project Structure
 
 ```
@@ -1073,7 +1289,10 @@ cli-code-analyzer/
 │   ├── dart_analyze.py        # Dart static analysis rule
 │   ├── flutter_analyze.py     # Flutter static analysis rule
 │   ├── dart_code_linter.py    # Dart code metrics analysis rule
-│   └── ruff_analyze.py        # Ruff Python linter rule
+│   ├── ruff_analyze.py        # Ruff Python linter rule
+│   ├── eslint_analyze.py      # ESLint JavaScript/TypeScript/Svelte rule
+│   ├── svelte_check.py        # Svelte type checking rule
+│   └── tsc_analyze.py         # TypeScript type checking rule (tsc --noEmit)
 ├── rules.json                  # Default rules configuration
 ├── settings.ini                # User settings (PMD path, Dart path, etc.)
 ├── fix_python_ruff_issues.bat  # Batch file to auto-fix Python issues
