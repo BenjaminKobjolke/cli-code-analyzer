@@ -11,6 +11,13 @@ from analyzer_registry import LANGUAGE_ALIASES, list_analyzers
 from file_discovery import FileDiscovery
 
 
+def _clean_report_files(output_folder: Path) -> None:
+    """Remove all CSV and TXT report files from the output folder."""
+    for f in output_folder.iterdir():
+        if f.is_file() and f.suffix in ('.csv', '.txt'):
+            f.unlink()
+
+
 def main():
     """Main entry point"""
     parser = argparse.ArgumentParser(
@@ -134,23 +141,7 @@ Examples:
     if args.output:
         output_folder = Path(args.output)
         output_folder.mkdir(parents=True, exist_ok=True)
-
-        # Clean up old report files
-        (output_folder / 'line_count_report.csv').unlink(missing_ok=True)
-        (output_folder / 'line_count_report.txt').unlink(missing_ok=True)  # Legacy format
-        (output_folder / 'duplicate_code.csv').unlink(missing_ok=True)
-        (output_folder / 'dart_analyze.csv').unlink(missing_ok=True)
-        (output_folder / 'dart_code_linter.csv').unlink(missing_ok=True)
-        (output_folder / 'dotnet_analyze.csv').unlink(missing_ok=True)
-        (output_folder / 'eslint_analyze.csv').unlink(missing_ok=True)
-        (output_folder / 'tsc_analyze.csv').unlink(missing_ok=True)
-        (output_folder / 'svelte_check.csv').unlink(missing_ok=True)
-        (output_folder / 'dart_unused_files.csv').unlink(missing_ok=True)
-        (output_folder / 'dart_unused_dependencies.csv').unlink(missing_ok=True)
-        (output_folder / 'dart_import_rules.csv').unlink(missing_ok=True)
-        (output_folder / 'dart_unused_code.csv').unlink(missing_ok=True)
-        (output_folder / 'dart_missing_dispose.csv').unlink(missing_ok=True)
-        (output_folder / 'dart_test_coverage.csv').unlink(missing_ok=True)
+        _clean_report_files(output_folder)
 
     # Run analysis
     try:
