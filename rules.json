@@ -81,7 +81,8 @@
   },
   "tsc_analyze": {
     "enabled": false,
-    "tsconfig": "./tsconfig.json"
+    "tsconfig": "./tsconfig.json",
+    "skip_svelte_resolve_errors": true
   },
   "eslint_analyze": {
     "enabled": true,

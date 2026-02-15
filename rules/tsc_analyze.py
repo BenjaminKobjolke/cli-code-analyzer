@@ -67,6 +67,17 @@ class TscAnalyzeRule(BaseRule):
 
             violations = self._parse_tsc_output(output)
 
+            # Filter Svelte resolve false positives (TS2614 referencing *.svelte)
+            if self.config.get('skip_svelte_resolve_errors', False):
+                violations = [v for v in violations if not (
+                    'TS2614' in v.message and '*.svelte' in v.message
+                )]
+
+            # Filter by ignore_codes config
+            ignore_codes = self.config.get('ignore_codes', [])
+            if ignore_codes:
+                violations = [v for v in violations if not any(code in v.message for code in ignore_codes)]
+
             violations = self._filter_violations_by_log_level(violations)
 
             if self.max_errors and len(violations) > self.max_errors:
