@@ -15,6 +15,7 @@ A flexible command-line tool for analyzing code files based on configurable rule
 - **Flutter analyze**: Integrated `flutter analyze` for Flutter-specific code analysis with text output parsing
 - **Dart code metrics**: Integrated [dart_code_linter](https://pub.dev/packages/dart_code_linter) for advanced metrics (cyclomatic complexity, maintainability index, technical debt, etc.)
 - **Python linting**: Integrated [Ruff](https://docs.astral.sh/ruff/) for fast Python linting with 800+ rules
+- **ESLint integration**: Integrated [ESLint](https://eslint.org/) for JavaScript/TypeScript linting with auto-detection of Svelte projects
 - **Auto-fix support**: Automatically fix Python issues using Ruff with `ruff_fixer.py`
 - **Language-specific exclusions**: Automatically exclude generated files (e.g., `**.g.dart`, `**.freezed.dart`)
 - **Relative path display**: Clean, readable output with relative file paths
@@ -1055,6 +1056,97 @@ python ruff_fixer.py --path . --rules code_analysis_rules.json
 python main.py --language python --path . --rules code_analysis_rules.json
 ```
 
+### ESLint Analysis (JavaScript/TypeScript/Svelte)
+
+The analyzer integrates with [ESLint](https://eslint.org/) for JavaScript and TypeScript linting. It auto-detects Svelte projects and conditionally includes `.svelte` files.
+
+#### Enabling ESLint Analysis
+
+Enable the rule in `rules.json`:
+
+```json
+{
+  "eslint_analyze": {
+    "enabled": true,
+    "config_mode": "auto",
+    "exclude_patterns": ["node_modules/**", "dist/**", "build/**", "coverage/**"]
+  }
+}
+```
+
+**Configuration Options:**
+
+- `enabled`: Enable/disable ESLint analysis
+- `config_mode`: How to resolve ESLint config — `"auto"` (detect project config), `"project"` (require project config), or `"builtin"` (use rules from `rules.json` only)
+- `exclude_patterns`: Glob patterns for files/directories to exclude
+- `extensions`: Explicitly set file extensions to lint (e.g., `[".js", ".ts", ".svelte"]`). If omitted, extensions are auto-detected
+
+#### Svelte Support
+
+The analyzer auto-detects Svelte projects. The behavior depends on whether `eslint-plugin-svelte` is installed in the target project:
+
+| Condition | Behavior |
+|---|---|
+| Plugin installed (`node_modules/eslint-plugin-svelte` exists) | `.svelte` files are automatically included for ESLint |
+| Plugin not installed, `.svelte` files exist | Warning printed, `.svelte` files skipped |
+| No `.svelte` files in project | Standard JS/TS extensions only |
+
+**Important:** Installing `eslint-plugin-svelte` alone is not enough. The target project's ESLint config must also be set up to use the Svelte parser. Without this, ESLint will try to parse `.svelte` files as plain JavaScript, resulting in `Parsing error: Unexpected token <` on every `.svelte` file.
+
+#### Setting Up ESLint for Svelte Projects
+
+1. Install the plugin and parser in your project:
+
+```bash
+npm install --save-dev eslint-plugin-svelte svelte-eslint-parser
+```
+
+2. Add a Svelte config block to your `eslint.config.js` (ESLint 9 flat config):
+
+```javascript
+import sveltePlugin from 'eslint-plugin-svelte';
+import svelteParser from 'svelte-eslint-parser';
+import tsparser from '@typescript-eslint/parser';
+
+export default [
+    // ... your existing JS/TS config ...
+    {
+        files: ['**/*.svelte'],
+        languageOptions: {
+            parser: svelteParser,
+            parserOptions: {
+                parser: tsparser,  // for TypeScript in <script lang="ts">
+                ecmaVersion: 'latest',
+                sourceType: 'module'
+            }
+        },
+        plugins: {
+            svelte: sveltePlugin
+        },
+        rules: {
+            ...sveltePlugin.configs.recommended.rules
+        }
+    },
+    // ... ignores, etc. ...
+];
+```
+
+Without this configuration, the analyzer will correctly detect the plugin and include `.svelte` files, but ESLint will fail to parse them.
+
+#### Using ESLint Analysis
+
+**Console Output:**
+```bash
+python main.py --language javascript --path src/
+```
+
+**File Output:**
+```bash
+python main.py --language javascript --path src/ --output reports/
+```
+
+This creates `reports/eslint_analyze.csv` with all ESLint violations.
+
 ## Project Structure
 
 ```
@@ -1075,7 +1167,9 @@ cli-code-analyzer/
 │   ├── dart_analyze.py        # Dart static analysis rule
 │   ├── flutter_analyze.py     # Flutter static analysis rule
 │   ├── dart_code_linter.py    # Dart code metrics analysis rule
-│   └── ruff_analyze.py        # Ruff Python linter rule
+│   ├── ruff_analyze.py        # Ruff Python linter rule
+│   ├── eslint_analyze.py      # ESLint JavaScript/TypeScript/Svelte rule
+│   └── svelte_check.py        # Svelte type checking rule
 ├── rules.json                  # Default rules configuration
 ├── settings.ini                # User settings (PMD path, Dart path, etc.)
 ├── fix_python_ruff_issues.bat  # Batch file to auto-fix Python issues
