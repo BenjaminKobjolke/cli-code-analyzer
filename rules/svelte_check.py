@@ -58,6 +58,12 @@ class SvelteCheckRule(BaseRule):
 
         cmd = [svelte_check_path, '--output', 'machine', '--tsconfig', tsconfig]
 
+        compiler_warnings = self.config.get('compiler_warnings', {})
+        if compiler_warnings:
+            # Format: --compiler-warnings code1:ignore,code2:ignore
+            pairs = [f"{code}:{level}" for code, level in compiler_warnings.items()]
+            cmd.extend(['--compiler-warnings', ','.join(pairs)])
+
         try:
             result = self._run_subprocess(cmd, self.base_path)
 
