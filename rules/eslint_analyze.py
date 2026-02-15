@@ -113,7 +113,8 @@ class ESLintAnalyzeRule(BaseRule):
                 extensions.append('.svelte')
             elif self._has_svelte_files():
                 print("Warning: .svelte files found but eslint-plugin-svelte is not installed — skipping ESLint for .svelte files")
-                print("  Install it with: npm install --save-dev eslint-plugin-svelte")
+                print("  Install it with: npm install --save-dev eslint-plugin-svelte svelte-eslint-parser")
+                print("  Then configure your eslint.config.js to use the Svelte parser (see CLI Code Analyzer README)")
         cmd.extend(['--ext', ','.join(extensions)])
 
         # Add base path to analyze
