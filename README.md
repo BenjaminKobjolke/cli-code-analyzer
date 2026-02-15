@@ -16,6 +16,8 @@ A flexible command-line tool for analyzing code files based on configurable rule
 - **Dart code metrics**: Integrated [dart_code_linter](https://pub.dev/packages/dart_code_linter) for advanced metrics (cyclomatic complexity, maintainability index, technical debt, etc.)
 - **Python linting**: Integrated [Ruff](https://docs.astral.sh/ruff/) for fast Python linting with 800+ rules
 - **ESLint integration**: Integrated [ESLint](https://eslint.org/) for JavaScript/TypeScript linting with auto-detection of Svelte projects
+- **Svelte type checking**: Integrated [svelte-check](https://github.com/sveltejs/language-tools/tree/master/packages/svelte-check) for Svelte/TypeScript type checking with configurable compiler warning suppression
+- **TypeScript type checking**: Integrated `tsc --noEmit` for project-wide TypeScript type checking with error code filtering
 - **Auto-fix support**: Automatically fix Python issues using Ruff with `ruff_fixer.py`
 - **Language-specific exclusions**: Automatically exclude generated files (e.g., `**.g.dart`, `**.freezed.dart`)
 - **Relative path display**: Clean, readable output with relative file paths
@@ -1147,6 +1149,109 @@ python main.py --language javascript --path src/ --output reports/
 
 This creates `reports/eslint_analyze.csv` with all ESLint violations.
 
+### Svelte Check (Svelte/TypeScript Type Checking)
+
+The analyzer integrates with [svelte-check](https://github.com/sveltejs/language-tools/tree/master/packages/svelte-check) for type checking Svelte and TypeScript code in SvelteKit projects.
+
+#### Enabling Svelte Check
+
+Enable the rule in your project's rules JSON file (passed via `--rules`, default: `rules.json`):
+
+```json
+{
+  "svelte_check": {
+    "enabled": true,
+    "tsconfig": "./tsconfig.json"
+  }
+}
+```
+
+**Configuration Options:**
+
+- `enabled`: Enable/disable svelte-check analysis
+- `tsconfig`: Path to `tsconfig.json` (default: `./tsconfig.json`)
+- `compiler_warnings`: Map of Svelte compiler warning codes to their level. Each key is a warning code, each value is `"ignore"` or `"error"`. Passed as the `--compiler-warnings` flag to svelte-check
+
+#### Suppressing Compiler Warnings
+
+Use the `compiler_warnings` option to suppress known false positives. For example, SvelteKit passes `params` to every page component, which triggers `unused-export-let` warnings on every route file. To suppress these:
+
+```json
+{
+  "svelte_check": {
+    "enabled": true,
+    "tsconfig": "./tsconfig.json",
+    "compiler_warnings": {
+      "unused-export-let": "ignore"
+    }
+  }
+}
+```
+
+This passes `--compiler-warnings unused-export-let:ignore` to svelte-check. Multiple warnings can be suppressed by adding more entries to the map.
+
+#### Using Svelte Check
+
+**Console Output:**
+```bash
+python main.py --language javascript --path src/
+```
+
+**File Output:**
+```bash
+python main.py --language javascript --path src/ --output reports/
+```
+
+This creates `reports/svelte_check.csv` with all svelte-check violations.
+
+#### First-Time Setup
+
+If `svelte-check` is not found, you'll be prompted to enter the path to the executable (e.g., `node_modules/.bin/svelte-check`). The path will be saved to `settings.ini` for future use.
+
+### TypeScript Type Checking (tsc)
+
+The analyzer integrates with TypeScript's `tsc --noEmit` for project-wide type checking.
+
+#### Enabling TypeScript Type Checking
+
+Enable the rule in `rules.json`:
+
+```json
+{
+  "tsc_analyze": {
+    "enabled": true,
+    "tsconfig": "./tsconfig.json",
+    "skip_svelte_resolve_errors": true,
+    "ignore_codes": ["TS2614"]
+  }
+}
+```
+
+**Configuration Options:**
+
+- `enabled`: Enable/disable tsc type checking
+- `tsconfig`: Path to `tsconfig.json` (default: `./tsconfig.json`)
+- `skip_svelte_resolve_errors`: Filter out `TS2614` errors referencing `*.svelte` files (common false positives in Svelte projects)
+- `ignore_codes`: List of TypeScript error codes to ignore (e.g., `["TS2614", "TS6133"]`)
+
+#### Using TypeScript Type Checking
+
+**Console Output:**
+```bash
+python main.py --language javascript --path src/
+```
+
+**File Output:**
+```bash
+python main.py --language javascript --path src/ --output reports/
+```
+
+This creates `reports/tsc_analyze.csv` with all TypeScript violations.
+
+#### First-Time Setup
+
+If `tsc` is not found in your PATH, you'll be prompted to enter the path to the executable (e.g., `node_modules/.bin/tsc`). The path will be saved to `settings.ini` for future use.
+
 ## Project Structure
 
 ```
@@ -1169,7 +1274,8 @@ cli-code-analyzer/
 │   ├── dart_code_linter.py    # Dart code metrics analysis rule
 │   ├── ruff_analyze.py        # Ruff Python linter rule
 │   ├── eslint_analyze.py      # ESLint JavaScript/TypeScript/Svelte rule
-│   └── svelte_check.py        # Svelte type checking rule
+│   ├── svelte_check.py        # Svelte type checking rule
+│   └── tsc_analyze.py         # TypeScript type checking rule (tsc --noEmit)
 ├── rules.json                  # Default rules configuration
 ├── settings.ini                # User settings (PMD path, Dart path, etc.)
 ├── fix_python_ruff_issues.bat  # Batch file to auto-fix Python issues
