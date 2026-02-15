@@ -7,6 +7,9 @@ import argparse
 import sys
 from pathlib import Path
 
+from analyzer_registry import LANGUAGE_ALIASES, list_analyzers
+from file_discovery import FileDiscovery
+
 
 def main():
     """Main entry point"""
@@ -86,12 +89,8 @@ Examples:
 
     args = parser.parse_args()
 
-    # Language aliases: shorthand and alternative names
-    from analyzer_registry import LANGUAGE_ALIASES
-
     # Handle --list-analyzers before other validation
     if args.list_analyzers:
-        from analyzer_registry import list_analyzers
         lang_arg = LANGUAGE_ALIASES.get(args.list_analyzers.lower(), args.list_analyzers)
         list_analyzers(lang_arg)
         sys.exit(0)
@@ -155,8 +154,6 @@ Examples:
 
     # Run analysis
     try:
-        from file_discovery import FileDiscovery
-
         # Collect all extensions for the requested languages
         all_extensions = []
         for lang in languages:
@@ -195,9 +192,9 @@ Examples:
         has_errors = reporter.report()
 
         # Show analyzed files summary (always) and list (if requested)
-        extensions = sorted(set(Path(fp).suffix for fp in all_file_paths if Path(fp).suffix))
-        ext_str = ", ".join(extensions)
-        print(f"\nAnalyzed files ({len(all_file_paths)}) [{ext_str}]")
+        found_extensions = sorted(set(Path(fp).suffix for fp in all_file_paths if Path(fp).suffix))
+        found_ext_str = ", ".join(found_extensions)
+        print(f"\nAnalyzed files ({len(all_file_paths)}) [{found_ext_str}]")
         if args.list_files:
             for fp in all_file_paths:
                 print(f"- {fp}")

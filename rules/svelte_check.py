@@ -35,7 +35,7 @@ class SvelteCheckRule(BaseRule):
 
         self._svelte_check_executed = True
 
-        print("\nRunning svelte-check...")
+        print("Running svelte-check...")
 
         svelte_check_path = self._get_tool_path('svelte-check', self.settings.get_svelte_check_path, self.settings.prompt_and_save_svelte_check_path)
         if not svelte_check_path:

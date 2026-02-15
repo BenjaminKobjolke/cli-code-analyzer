@@ -4,7 +4,6 @@ TypeScript type checking rule using tsc --noEmit
 
 import csv
 import re
-from itertools import chain
 from pathlib import Path
 
 from models import LogLevel, Severity, Violation
@@ -36,12 +35,7 @@ class TscAnalyzeRule(BaseRule):
 
         self._tsc_executed = True
 
-        # Skip if no TypeScript files exist in the project
-        if self.base_path and not any(chain(self.base_path.rglob('*.ts'), self.base_path.rglob('*.tsx'))):
-            print("\nSkipping tsc: no .ts/.tsx files found")
-            return []
-
-        print("\nRunning tsc type checking...")
+        print("Running tsc type checking...")
 
         tsc_path = self._get_tool_path('tsc', self.settings.get_tsc_path, self.settings.prompt_and_save_tsc_path)
         if not tsc_path:

@@ -204,11 +204,17 @@ class ESLintAnalyzeRule(BaseRule):
     def _has_svelte_files(self) -> bool:
         """Check if the project contains any .svelte files (cached after first call).
 
+        Skips node_modules to avoid expensive traversal.
+
         Returns:
             True if at least one .svelte file exists under base_path
         """
         if self._svelte_files_cache is None:
-            self._svelte_files_cache = any(self.base_path.rglob('*.svelte'))
+            self._svelte_files_cache = False
+            for path in self.base_path.rglob('*.svelte'):
+                if 'node_modules' not in path.parts:
+                    self._svelte_files_cache = True
+                    break
         return self._svelte_files_cache
 
     def _map_eslint_severity(self, severity: int) -> Severity:
