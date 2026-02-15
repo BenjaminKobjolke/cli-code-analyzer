@@ -70,7 +70,7 @@ class FlutterAnalyzeRule(BaseRule):
             output = result.stdout if result.stdout.strip() else result.stderr
             violations = self._filter_violations_by_log_level(self._parse_flutter_text_output(output))
 
-            print(f"\nFlutter analyze found {len(violations)} issue(s)" if violations else "\nFlutter analyze: No issues found")
+            print(f"Flutter analyze found {len(violations)} issue(s)" if violations else "Flutter analyze: No issues found")
 
             if self.output_folder and violations:
                 self._write_csv_output(self.output_folder / 'flutter_analyze.csv', violations)

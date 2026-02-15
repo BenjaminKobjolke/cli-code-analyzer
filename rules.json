@@ -13,7 +13,8 @@
       "python": ["**/__pycache__/**", "*.pyc"],
       "java": ["**/target/**", "**/build/**"],
       "javascript": ["**/node_modules/**", "**/dist/**", "**/build/**"],
-      "typescript": ["**/node_modules/**", "**/dist/**", "**/build/**"]
+      "typescript": ["**/node_modules/**", "**/dist/**", "**/build/**"],
+      "svelte": ["**/node_modules/**", "**/dist/**", "**/build/**", "**/.svelte-kit/**"]
     }
   },
   "dart_analyze": {
@@ -73,6 +74,15 @@
   "flutter_analyze": {
     "enabled": false,
     "exclude_patterns": ["*.g.dart", "*.freezed.dart"]
+  },
+  "svelte_check": {
+    "enabled": true,
+    "tsconfig": "./tsconfig.json"
+  },
+  "tsc_analyze": {
+    "enabled": false,
+    "tsconfig": "./tsconfig.json",
+    "skip_svelte_resolve_errors": true
   },
   "eslint_analyze": {
     "enabled": true,

@@ -82,9 +82,9 @@ class PHPStanAnalyzeRule(BaseRule):
                 violations = violations[:self.max_errors]
 
             if violations:
-                print(f"\nPHPStan found {len(violations)} issue(s)")
+                print(f"PHPStan found {len(violations)} issue(s)")
             else:
-                print("\nPHPStan: No issues found")
+                print("PHPStan: No issues found")
 
             if self.output_folder and violations:
                 output_file = self.output_folder / 'phpstan_analyze.csv'
