@@ -121,9 +121,9 @@ class DartImportRulesRule(BaseRule):
         violations = self._filter_violations_by_log_level(violations)
 
         if violations:
-            print(f"\nDart import rules found {len(violations)} violation(s)")
+            print(f"Dart import rules found {len(violations)} violation(s)")
         else:
-            print("\nDart import rules: No violations found")
+            print("Dart import rules: No violations found")
 
         if self.output_folder and violations:
             output_file = self.output_folder / 'dart_import_rules.csv'

@@ -128,3 +128,4 @@ python main.py --language java --path ./src --rules rules.json --output ./report
 - Generated code files (like `*.g.dart`) should be excluded
 - The analyzer creates a temporary exclusion file that is cleaned up after analysis
 - Text output is shown in console, CSV is saved if output folder specified
+- On Windows, PMD stderr warnings about reserved device names (`nul`, `con`, `prn`, `aux`) are automatically filtered out

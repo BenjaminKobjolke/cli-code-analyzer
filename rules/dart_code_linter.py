@@ -108,8 +108,8 @@ class DartCodeLinterRule(BaseRule):
 
             print(f"Metrics report saved to: {report_json}")
             violations = self._filter_violations_by_log_level(self._parse_metrics_json(report_json))
-            print(f"\nDart Code Linter found {len(violations)} metric violation(s)" if violations
-                  else "\nDart Code Linter: No metric violations found")
+            print(f"Dart Code Linter found {len(violations)} metric violation(s)" if violations
+                  else "Dart Code Linter: No metric violations found")
 
             if self.output_folder and violations:
                 self._write_csv_output(self.output_folder / 'dart_code_linter.csv', violations, report_json)

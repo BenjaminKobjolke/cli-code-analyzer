@@ -35,3 +35,5 @@ class Violation:
     severity: Severity
     message: str
     line_count: int = None
+    line: int = None      # Source line number (1-based)
+    column: int = None    # Source column number (1-based)

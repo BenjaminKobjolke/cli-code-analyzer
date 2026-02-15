@@ -109,9 +109,9 @@ class DartTestCoverageRule(BaseRule):
         violations = self._filter_violations_by_log_level(violations)
 
         if violations:
-            print(f"\nDart test coverage found {len(violations)} issue(s) (overall: {overall_pct:.1f}%)")
+            print(f"Dart test coverage found {len(violations)} issue(s) (overall: {overall_pct:.1f}%)")
         else:
-            print(f"\nDart test coverage: All thresholds met (overall: {overall_pct:.1f}%)")
+            print(f"Dart test coverage: All thresholds met (overall: {overall_pct:.1f}%)")
 
         if self.output_folder and violations:
             output_file = self.output_folder / 'dart_test_coverage.csv'

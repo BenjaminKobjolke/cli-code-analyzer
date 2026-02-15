@@ -232,9 +232,9 @@ return (new PhpCsFixer\\Config())
                 violations = violations[:self.max_errors]
 
             if violations:
-                print(f"\nPHP-CS-Fixer found {len(violations)} issue(s)")
+                print(f"PHP-CS-Fixer found {len(violations)} issue(s)")
             else:
-                print("\nPHP-CS-Fixer: No issues found")
+                print("PHP-CS-Fixer: No issues found")
 
             if self.output_folder and violations:
                 output_file = self.output_folder / 'php_cs_fixer.csv'

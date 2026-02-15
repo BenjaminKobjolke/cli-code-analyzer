@@ -27,14 +27,18 @@ LANGUAGE_TO_PMD = {
     'dart': 'dart',
     'python': 'python',
     'java': 'java',
-    'javascript': 'javascript',
-    'js': 'javascript',
+    'javascript': 'ecmascript',
+    'js': 'ecmascript',
     'typescript': 'typescript',
     'ts': 'typescript',
     'php': 'php',
     'csharp': 'cs',
+    'svelte': 'ecmascript',
     'cs': 'cs',
 }
+
+# Windows reserved device names that cause errors when PMD tries to scan them
+WINDOWS_RESERVED_NAMES = {'nul', 'con', 'prn', 'aux'}
 
 
 class PMDDuplicatesRule(BaseRule):
@@ -88,13 +92,15 @@ class PMDDuplicatesRule(BaseRule):
 
     def _get_exclude_patterns(self) -> list[str]:
         """Get file patterns to exclude from config or defaults for current language."""
+        lang = self.language.lower() if self.language else None
+        pmd_lang = self._get_pmd_language()
         if 'exclude_patterns' in self.config:
             exclude_config = self.config['exclude_patterns']
             if isinstance(exclude_config, dict):
-                return exclude_config.get(self._get_pmd_language(), [])
+                return exclude_config.get(lang, exclude_config.get(pmd_lang, []))
             if isinstance(exclude_config, list):
                 return exclude_config
-        return DEFAULT_EXCLUDE_PATTERNS.get(self._get_pmd_language(), [])
+        return DEFAULT_EXCLUDE_PATTERNS.get(lang, DEFAULT_EXCLUDE_PATTERNS.get(pmd_lang, []))
 
     def _generate_exclude_file_list(self, exclude_patterns: list[str]) -> Path | None:
         """Generate temp file with paths matching exclude patterns."""
@@ -125,6 +131,27 @@ class PMDDuplicatesRule(BaseRule):
             print(f"Warning: Could not create exclude file list: {e}")
             return None
 
+    def _filter_pmd_stderr(self, stderr: str) -> str:
+        """Filter out stderr lines about Windows reserved device names (nul, con, etc.).
+
+        PMD emits warnings when it encounters files at paths containing Windows
+        reserved names like NUL, CON, PRN, AUX. These are harmless and noisy,
+        so we suppress them.
+        """
+        if not stderr:
+            return stderr
+        filtered = []
+        for line in stderr.strip().splitlines():
+            line_lower = line.lower()
+            should_filter = False
+            for name in WINDOWS_RESERVED_NAMES:
+                if f'\\{name}' in line_lower or line_lower.endswith(name):
+                    should_filter = True
+                    break
+            if not should_filter:
+                filtered.append(line)
+        return '\n'.join(filtered)
+
     def _run_pmd_cpd(self, pmd_path: str, language: str, directory: Path, minimum_tokens: int,
                       exclude_paths: list[str], exclude_patterns: list[str], output_format: str, output_file: Path | None) -> list[Violation]:
         """Execute PMD CPD and return parsed violations."""
@@ -144,7 +171,9 @@ class PMDDuplicatesRule(BaseRule):
         try:
             result = self._run_subprocess(cmd)
             if result.returncode != 0 and result.stderr:
-                print(f"PMD CPD warning: {result.stderr}")
+                filtered_stderr = self._filter_pmd_stderr(result.stderr)
+                if filtered_stderr:
+                    print(f"PMD CPD warning: {filtered_stderr}")
 
             if output_file:
                 if self._has_duplicates_in_csv(result.stdout):
@@ -152,7 +181,7 @@ class PMDDuplicatesRule(BaseRule):
                         f.write(result.stdout)
                     print(f"Duplicate code report saved to: {output_file}")
                     return self._parse_csv_output(output_file)
-                print("\nNo duplicate code found.")
+                print("No duplicate code found.")
                 return []
 
             if result.stdout:

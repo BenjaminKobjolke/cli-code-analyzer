@@ -9,6 +9,7 @@ The ESLint analyzer checks JavaScript and TypeScript code for style violations, 
 - JavaScript (`.js`, `.mjs`, `.cjs`)
 - TypeScript (`.ts`, `.tsx`)
 - JSX (`.jsx`)
+- Svelte (`.svelte`) — requires `eslint-plugin-svelte` and explicit `extensions` config
 
 ## Dependencies
 
@@ -61,6 +62,7 @@ npm install --save-dev @typescript-eslint/parser @typescript-eslint/eslint-plugi
 |--------|------|---------|-------------|
 | `enabled` | boolean | true | Enable/disable this analyzer |
 | `config_mode` | string | "auto" | Config mode: "auto", "builtin", or "project" |
+| `extensions` | array | [".js",".mjs",".cjs",".ts",".tsx",".jsx"] | File extensions to lint. Add ".svelte" only if eslint-plugin-svelte is configured |
 | `env` | object | {} | Environment globals (browser, node, es2021, etc.) |
 | `rules` | object | {} | ESLint rules and their severity |
 | `exclude_patterns` | array | [] | Directories/patterns to exclude |

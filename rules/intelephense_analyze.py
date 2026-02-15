@@ -107,9 +107,9 @@ class IntelephenseAnalyzeRule(BaseRule):
                 violations = violations[: self.max_errors]
 
             if violations:
-                print(f"\nIntelephense found {len(violations)} issue(s)")
+                print(f"Intelephense found {len(violations)} issue(s)")
             else:
-                print("\nIntelephense: No issues found")
+                print("Intelephense: No issues found")
 
             if self.output_folder and violations:
                 output_file = self.output_folder / "intelephense_analyze.csv"

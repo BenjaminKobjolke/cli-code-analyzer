@@ -124,9 +124,9 @@ class DartUnusedCodeRule(BaseRule):
         violations = self._filter_violations_by_log_level(violations)
 
         if violations:
-            print(f"\nDart unused code found {len(violations)} unused declaration(s) (checked {checked_symbols}/{total_symbols} symbols)")
+            print(f"Dart unused code found {len(violations)} unused declaration(s) (checked {checked_symbols}/{total_symbols} symbols)")
         else:
-            print(f"\nDart unused code: No unused declarations found (checked {checked_symbols}/{total_symbols} symbols)")
+            print(f"Dart unused code: No unused declarations found (checked {checked_symbols}/{total_symbols} symbols)")
 
         if self.output_folder and violations:
             output_file = self.output_folder / 'dart_unused_code.csv'

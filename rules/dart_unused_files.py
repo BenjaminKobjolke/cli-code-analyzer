@@ -141,9 +141,9 @@ class DartUnusedFilesRule(BaseRule):
         violations = self._filter_violations_by_log_level(violations)
 
         if violations:
-            print(f"\nDart unused files found {len(violations)} unused file(s)")
+            print(f"Dart unused files found {len(violations)} unused file(s)")
         else:
-            print("\nDart unused files: No unused files found")
+            print("Dart unused files: No unused files found")
 
         if self.output_folder and violations:
             output_file = self.output_folder / 'dart_unused_files.csv'
