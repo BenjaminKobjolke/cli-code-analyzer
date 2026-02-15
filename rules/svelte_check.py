@@ -127,6 +127,9 @@ class SvelteCheckRule(BaseRule):
             return violations
 
         # Pattern: TIMESTAMP SEVERITY "FILE" LINE:COL "MESSAGE"
+        # Note: This pattern assumes single-line diagnostic messages, which matches
+        # svelte-check's --output machine format in practice. Multi-line messages
+        # (containing embedded newlines in quoted strings) would not be captured.
         pattern = re.compile(r'^\d+\s+(ERROR|WARNING|HINT)\s+"([^"]+)"\s+(\d+):(\d+)\s+"(.+)"$')
 
         for line in output.splitlines():
@@ -157,7 +160,9 @@ class SvelteCheckRule(BaseRule):
                 file_path=rel_path,
                 rule_name='svelte_check',
                 severity=severity,
-                message=detailed_message
+                message=detailed_message,
+                line=line_num,
+                column=col_num
             )
             violations.append(violation)
 
@@ -176,11 +181,9 @@ class SvelteCheckRule(BaseRule):
                 writer.writerow(['file', 'line', 'column', 'severity', 'message'])
 
                 for v in violations:
-                    # Extract line and column from message ("... at line X, column Y")
-                    line_match = re.search(r'at line (\d+), column (\d+)$', v.message)
-                    line_num = line_match.group(1) if line_match else '0'
-                    col_num = line_match.group(2) if line_match else '0'
-                    # Get the message without the "at line X, column Y" suffix
+                    line_num = v.line if v.line is not None else 0
+                    col_num = v.column if v.column is not None else 0
+                    # Strip the "at line X, column Y" suffix from the message for CSV
                     msg = re.sub(r' at line \d+, column \d+$', '', v.message)
 
                     writer.writerow([v.file_path, line_num, col_num, v.severity.value, msg])

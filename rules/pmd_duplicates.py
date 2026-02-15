@@ -132,13 +132,24 @@ class PMDDuplicatesRule(BaseRule):
             return None
 
     def _filter_pmd_stderr(self, stderr: str) -> str:
-        """Filter out stderr lines about Windows reserved device names (nul, con, etc.)."""
+        """Filter out stderr lines about Windows reserved device names (nul, con, etc.).
+
+        PMD emits warnings when it encounters files at paths containing Windows
+        reserved names like NUL, CON, PRN, AUX. These are harmless and noisy,
+        so we suppress them.
+        """
         if not stderr:
             return stderr
-        lines = stderr.strip().splitlines()
-        filtered = [line for line in lines
-                     if not any(name in line.lower() for name in WINDOWS_RESERVED_NAMES
-                                if f'\\{name}' in line.lower() or line.lower().endswith(name))]
+        filtered = []
+        for line in stderr.strip().splitlines():
+            line_lower = line.lower()
+            should_filter = False
+            for name in WINDOWS_RESERVED_NAMES:
+                if f'\\{name}' in line_lower or line_lower.endswith(name):
+                    should_filter = True
+                    break
+            if not should_filter:
+                filtered.append(line)
         return '\n'.join(filtered)
 
     def _run_pmd_cpd(self, pmd_path: str, language: str, directory: Path, minimum_tokens: int,

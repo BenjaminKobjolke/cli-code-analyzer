@@ -87,14 +87,7 @@ Examples:
     args = parser.parse_args()
 
     # Language aliases: shorthand and alternative names
-    LANGUAGE_ALIASES = {
-        'typescript': 'javascript',
-        'ts': 'javascript',
-        'js': 'javascript',
-        'dart': 'flutter',
-        'cs': 'csharp',
-        'py': 'python',
-    }
+    from analyzer_registry import LANGUAGE_ALIASES
 
     # Handle --list-analyzers before other validation
     if args.list_analyzers:

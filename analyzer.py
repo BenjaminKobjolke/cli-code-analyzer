@@ -34,6 +34,26 @@ from rules import (
 class CodeAnalyzer:
     """Main analyzer that orchestrates the analysis workflow"""
 
+    _PROJECT_WIDE_ANALYZERS = [
+        ('dart_analyze', DartAnalyzeRule),
+        ('dart_code_linter', DartCodeLinterRule),
+        ('flutter_analyze', FlutterAnalyzeRule),
+        ('ruff_analyze', RuffAnalyzeRule),
+        ('eslint_analyze', ESLintAnalyzeRule),
+        ('svelte_check', SvelteCheckRule),
+        ('tsc_analyze', TscAnalyzeRule),
+        ('phpstan_analyze', PHPStanAnalyzeRule),
+        ('php_cs_fixer', PHPCSFixerAnalyzeRule),
+        ('intelephense_analyze', IntelephenseAnalyzeRule),
+        ('dotnet_analyze', DotnetAnalyzeRule),
+        ('dart_unused_files', DartUnusedFilesRule),
+        ('dart_unused_dependencies', DartUnusedDependenciesRule),
+        ('dart_import_rules', DartImportRulesRule),
+        ('dart_unused_code', DartUnusedCodeRule),
+        ('dart_missing_dispose', DartMissingDisposeRule),
+        ('dart_test_coverage', DartTestCoverageRule),
+    ]
+
     def __init__(self, languages: str | list[str], path: str, rules_file: str, output_folder: Path | None = None, cli_log_level: LogLevel | None = None, max_errors: int | None = None):
         if isinstance(languages, str):
             languages = [languages]
@@ -104,6 +124,10 @@ class CodeAnalyzer:
             print(f"No files found to analyze in '{self.path}'")
             return
 
+        # INVARIANT: self.files is non-empty beyond this point.
+        # Project-wide analyzers receive self.files[0] as a dummy argument
+        # (they ignore it and analyze the entire base_path instead).
+
         # Run PMD duplicates check (once per language that has it registered)
         if self._should_run('pmd_duplicates'):
             rule_config = self.config.get_rule('pmd_duplicates')
@@ -126,277 +150,22 @@ class CodeAnalyzer:
                 violations = pmd_rule.check(self.files[0])
                 self.violations.extend(violations)
 
-        # Run dart analyze check (once per analysis, not per file)
-        if self._should_run('dart_analyze'):
-            self._print_language_header('dart_analyze')
-            rule_config = self.config.get_rule('dart_analyze')
-            dart_log_level = self._resolve_log_level('dart_analyze')
-            dart_rule = DartAnalyzeRule(
-                rule_config,
-                self.base_path,
-                self.output_folder,
-                dart_log_level,
-                self.max_errors,
-                self.rules_file
-            )
-            violations = dart_rule.check(self.files[0])
-            self.violations.extend(violations)
-
-        # Run dart_code_linter check (once per analysis, not per file)
-        if self._should_run('dart_code_linter'):
-            self._print_language_header('dart_code_linter')
-            rule_config = self.config.get_rule('dart_code_linter')
-            dcm_log_level = self._resolve_log_level('dart_code_linter')
-            dcm_rule = DartCodeLinterRule(
-                rule_config,
-                self.base_path,
-                self.output_folder,
-                dcm_log_level,
-                self.max_errors,
-                self.rules_file
-            )
-            violations = dcm_rule.check(self.files[0])
-            self.violations.extend(violations)
-
-        # Run flutter analyze check (once per analysis, not per file)
-        if self._should_run('flutter_analyze'):
-            self._print_language_header('flutter_analyze')
-            rule_config = self.config.get_rule('flutter_analyze')
-            flutter_log_level = self._resolve_log_level('flutter_analyze')
-            flutter_rule = FlutterAnalyzeRule(
-                rule_config,
-                self.base_path,
-                self.output_folder,
-                flutter_log_level,
-                self.max_errors,
-                self.rules_file
-            )
-            violations = flutter_rule.check(self.files[0])
-            self.violations.extend(violations)
-
-        # Run ruff analyze check (once per analysis, not per file)
-        if self._should_run('ruff_analyze'):
-            self._print_language_header('ruff_analyze')
-            rule_config = self.config.get_rule('ruff_analyze')
-            ruff_log_level = self._resolve_log_level('ruff_analyze')
-            ruff_rule = RuffAnalyzeRule(
-                rule_config,
-                self.base_path,
-                self.output_folder,
-                ruff_log_level,
-                self.max_errors,
-                self.rules_file
-            )
-            violations = ruff_rule.check(self.files[0])
-            self.violations.extend(violations)
-
-        # Run ESLint analyze check (once per analysis, not per file)
-        if self._should_run('eslint_analyze'):
-            self._print_language_header('eslint_analyze')
-            rule_config = self.config.get_rule('eslint_analyze')
-            eslint_log_level = self._resolve_log_level('eslint_analyze')
-            eslint_rule = ESLintAnalyzeRule(
-                rule_config,
-                self.base_path,
-                self.output_folder,
-                eslint_log_level,
-                self.max_errors,
-                self.rules_file
-            )
-            violations = eslint_rule.check(self.files[0])
-            self.violations.extend(violations)
-
-        # Run svelte-check (once per analysis, not per file)
-        if self._should_run('svelte_check'):
-            self._print_language_header('svelte_check')
-            rule_config = self.config.get_rule('svelte_check')
-            svelte_check_log_level = self._resolve_log_level('svelte_check')
-            svelte_check_rule = SvelteCheckRule(
-                rule_config,
-                self.base_path,
-                self.output_folder,
-                svelte_check_log_level,
-                self.max_errors,
-                self.rules_file
-            )
-            violations = svelte_check_rule.check(self.files[0])
-            self.violations.extend(violations)
-
-        # Run tsc type checking (once per analysis, not per file)
-        if self._should_run('tsc_analyze'):
-            self._print_language_header('tsc_analyze')
-            rule_config = self.config.get_rule('tsc_analyze')
-            tsc_log_level = self._resolve_log_level('tsc_analyze')
-            tsc_rule = TscAnalyzeRule(
-                rule_config,
-                self.base_path,
-                self.output_folder,
-                tsc_log_level,
-                self.max_errors,
-                self.rules_file
-            )
-            violations = tsc_rule.check(self.files[0])
-            self.violations.extend(violations)
-
-        # Run PHPStan analyze check (once per analysis, not per file)
-        if self._should_run('phpstan_analyze'):
-            self._print_language_header('phpstan_analyze')
-            rule_config = self.config.get_rule('phpstan_analyze')
-            phpstan_log_level = self._resolve_log_level('phpstan_analyze')
-            phpstan_rule = PHPStanAnalyzeRule(
-                rule_config,
-                self.base_path,
-                self.output_folder,
-                phpstan_log_level,
-                self.max_errors,
-                self.rules_file
-            )
-            violations = phpstan_rule.check(self.files[0])
-            self.violations.extend(violations)
-
-        # Run PHP-CS-Fixer check (once per analysis, not per file)
-        if self._should_run('php_cs_fixer'):
-            self._print_language_header('php_cs_fixer')
-            rule_config = self.config.get_rule('php_cs_fixer')
-            fixer_log_level = self._resolve_log_level('php_cs_fixer')
-            fixer_rule = PHPCSFixerAnalyzeRule(
-                rule_config,
-                self.base_path,
-                self.output_folder,
-                fixer_log_level,
-                self.max_errors,
-                self.rules_file
-            )
-            violations = fixer_rule.check(self.files[0])
-            self.violations.extend(violations)
-
-        # Run Intelephense analyze check (once per analysis, not per file)
-        if self._should_run('intelephense_analyze'):
-            self._print_language_header('intelephense_analyze')
-            rule_config = self.config.get_rule('intelephense_analyze')
-            intelephense_log_level = self._resolve_log_level('intelephense_analyze')
-            intelephense_rule = IntelephenseAnalyzeRule(
-                rule_config,
-                self.base_path,
-                self.output_folder,
-                intelephense_log_level,
-                self.max_errors,
-                self.rules_file
-            )
-            violations = intelephense_rule.check(self.files[0])
-            self.violations.extend(violations)
-
-        # Run dotnet analyze check (once per analysis, not per file)
-        if self._should_run('dotnet_analyze'):
-            self._print_language_header('dotnet_analyze')
-            rule_config = self.config.get_rule('dotnet_analyze')
-            dotnet_log_level = self._resolve_log_level('dotnet_analyze')
-            dotnet_rule = DotnetAnalyzeRule(
-                rule_config,
-                self.base_path,
-                self.output_folder,
-                dotnet_log_level,
-                self.max_errors,
-                self.rules_file
-            )
-            violations = dotnet_rule.check(self.files[0])
-            self.violations.extend(violations)
-
-        # Run dart unused files check (once per analysis, not per file)
-        if self._should_run('dart_unused_files'):
-            self._print_language_header('dart_unused_files')
-            rule_config = self.config.get_rule('dart_unused_files')
-            rule_log_level = self._resolve_log_level('dart_unused_files')
-            rule = DartUnusedFilesRule(
-                rule_config,
-                self.base_path,
-                self.output_folder,
-                rule_log_level,
-                self.max_errors,
-                self.rules_file
-            )
-            violations = rule.check(self.files[0])
-            self.violations.extend(violations)
-
-        # Run dart unused dependencies check (once per analysis, not per file)
-        if self._should_run('dart_unused_dependencies'):
-            self._print_language_header('dart_unused_dependencies')
-            rule_config = self.config.get_rule('dart_unused_dependencies')
-            rule_log_level = self._resolve_log_level('dart_unused_dependencies')
-            rule = DartUnusedDependenciesRule(
-                rule_config,
-                self.base_path,
-                self.output_folder,
-                rule_log_level,
-                self.max_errors,
-                self.rules_file
-            )
-            violations = rule.check(self.files[0])
-            self.violations.extend(violations)
-
-        # Run dart import rules check (once per analysis, not per file)
-        if self._should_run('dart_import_rules'):
-            self._print_language_header('dart_import_rules')
-            rule_config = self.config.get_rule('dart_import_rules')
-            rule_log_level = self._resolve_log_level('dart_import_rules')
-            rule = DartImportRulesRule(
-                rule_config,
-                self.base_path,
-                self.output_folder,
-                rule_log_level,
-                self.max_errors,
-                self.rules_file
-            )
-            violations = rule.check(self.files[0])
-            self.violations.extend(violations)
-
-        # Run dart unused code check (once per analysis, not per file)
-        if self._should_run('dart_unused_code'):
-            self._print_language_header('dart_unused_code')
-            rule_config = self.config.get_rule('dart_unused_code')
-            rule_log_level = self._resolve_log_level('dart_unused_code')
-            rule = DartUnusedCodeRule(
-                rule_config,
-                self.base_path,
-                self.output_folder,
-                rule_log_level,
-                self.max_errors,
-                self.rules_file
-            )
-            violations = rule.check(self.files[0])
-            self.violations.extend(violations)
-
-        # Run dart missing dispose check (once per analysis, not per file)
-        if self._should_run('dart_missing_dispose'):
-            self._print_language_header('dart_missing_dispose')
-            rule_config = self.config.get_rule('dart_missing_dispose')
-            rule_log_level = self._resolve_log_level('dart_missing_dispose')
-            rule = DartMissingDisposeRule(
-                rule_config,
-                self.base_path,
-                self.output_folder,
-                rule_log_level,
-                self.max_errors,
-                self.rules_file
-            )
-            violations = rule.check(self.files[0])
-            self.violations.extend(violations)
-
-        # Run dart test coverage check (once per analysis, not per file)
-        if self._should_run('dart_test_coverage'):
-            self._print_language_header('dart_test_coverage')
-            rule_config = self.config.get_rule('dart_test_coverage')
-            rule_log_level = self._resolve_log_level('dart_test_coverage')
-            rule = DartTestCoverageRule(
-                rule_config,
-                self.base_path,
-                self.output_folder,
-                rule_log_level,
-                self.max_errors,
-                self.rules_file
-            )
-            violations = rule.check(self.files[0])
-            self.violations.extend(violations)
+        # Run project-wide analyzers (each runs once, not per file)
+        for analyzer_name, RuleClass in self._PROJECT_WIDE_ANALYZERS:
+            if self._should_run(analyzer_name):
+                self._print_language_header(analyzer_name)
+                rule_config = self.config.get_rule(analyzer_name)
+                log_level = self._resolve_log_level(analyzer_name)
+                rule = RuleClass(
+                    rule_config,
+                    self.base_path,
+                    self.output_folder,
+                    log_level,
+                    self.max_errors,
+                    self.rules_file
+                )
+                violations = rule.check(self.files[0])
+                self.violations.extend(violations)
 
         # Run per-file rules on each file
         for file_path in self.files:

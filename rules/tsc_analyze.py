@@ -4,6 +4,7 @@ TypeScript type checking rule using tsc --noEmit
 
 import csv
 import re
+from itertools import chain
 from pathlib import Path
 
 from models import LogLevel, Severity, Violation
@@ -36,7 +37,7 @@ class TscAnalyzeRule(BaseRule):
         self._tsc_executed = True
 
         # Skip if no TypeScript files exist in the project
-        if self.base_path and not any(self.base_path.rglob('*.ts')) and not any(self.base_path.rglob('*.tsx')):
+        if self.base_path and not any(chain(self.base_path.rglob('*.ts'), self.base_path.rglob('*.tsx'))):
             print("\nSkipping tsc: no .ts/.tsx files found")
             return []
 
@@ -144,7 +145,9 @@ class TscAnalyzeRule(BaseRule):
                 file_path=rel_path,
                 rule_name='tsc_analyze',
                 severity=severity,
-                message=detailed_message
+                message=detailed_message,
+                line=line_num,
+                column=col_num
             )
             violations.append(violation)
 
@@ -163,18 +166,16 @@ class TscAnalyzeRule(BaseRule):
                 writer.writerow(['file', 'line', 'column', 'severity', 'code', 'message'])
 
                 for v in violations:
-                    # Extract code, line and column from message ("TS1234: ... at line X, column Y")
-                    code_match = re.match(r'^(TS\d+): (.+) at line (\d+), column (\d+)$', v.message)
+                    line_num = v.line if v.line is not None else 0
+                    col_num = v.column if v.column is not None else 0
+                    # Extract TSxxxx code from message prefix
+                    code_match = re.match(r'^(TS\d+): (.+)', v.message)
                     if code_match:
                         code = code_match.group(1)
-                        msg = code_match.group(2)
-                        line_num = code_match.group(3)
-                        col_num = code_match.group(4)
+                        msg = re.sub(r' at line \d+, column \d+$', '', code_match.group(2))
                     else:
                         code = ''
-                        msg = v.message
-                        line_num = '0'
-                        col_num = '0'
+                        msg = re.sub(r' at line \d+, column \d+$', '', v.message)
 
                     writer.writerow([v.file_path, line_num, col_num, v.severity.value, code, msg])
 

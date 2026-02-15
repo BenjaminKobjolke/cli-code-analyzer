@@ -30,6 +30,7 @@ class ESLintAnalyzeRule(BaseRule):
         self.log_level = log_level
         self.settings = Settings()
         self._eslint_executed = False  # Track if eslint has been executed
+        self._svelte_files_cache = None  # Cache for _has_svelte_files() result
 
     def check(self, _file_path: Path) -> list[Violation]:
         """Run eslint check on the entire project (only once).
@@ -201,12 +202,14 @@ class ESLintAnalyzeRule(BaseRule):
         return (self.base_path / 'node_modules' / 'eslint-plugin-svelte').is_dir()
 
     def _has_svelte_files(self) -> bool:
-        """Check if the project contains any .svelte files (non-recursively expensive, uses quick check).
+        """Check if the project contains any .svelte files (cached after first call).
 
         Returns:
             True if at least one .svelte file exists under base_path
         """
-        return any(self.base_path.rglob('*.svelte'))
+        if self._svelte_files_cache is None:
+            self._svelte_files_cache = any(self.base_path.rglob('*.svelte'))
+        return self._svelte_files_cache
 
     def _map_eslint_severity(self, severity: int) -> Severity:
         """Map ESLint severity to internal Severity.
@@ -290,7 +293,9 @@ class ESLintAnalyzeRule(BaseRule):
                         file_path=rel_path,
                         rule_name='eslint_analyze',
                         severity=severity,
-                        message=detailed_message
+                        message=detailed_message,
+                        line=line_num,
+                        column=col_num
                     )
                     violations.append(violation)
 

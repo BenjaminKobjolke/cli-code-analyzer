@@ -53,6 +53,16 @@ ANALYZER_REGISTRY = {
     ],
 }
 
+# Shorthand and alternative language names that map to canonical names above
+LANGUAGE_ALIASES = {
+    'typescript': 'javascript',
+    'ts': 'javascript',
+    'js': 'javascript',
+    'dart': 'flutter',
+    'cs': 'csharp',
+    'py': 'python',
+}
+
 
 def get_analyzers_for_language(lang: str) -> List[Tuple[str, str, Optional[str]]]:
     """

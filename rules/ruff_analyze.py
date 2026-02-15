@@ -200,7 +200,9 @@ class RuffAnalyzeRule(BaseRule):
                     file_path=rel_path,
                     rule_name='ruff_analyze',
                     severity=severity,
-                    message=detailed_message
+                    message=detailed_message,
+                    line=line_num,
+                    column=col_num
                 )
                 violations.append(violation)
 
