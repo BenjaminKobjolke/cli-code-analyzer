@@ -66,6 +66,7 @@ python main.py --language javascript --path /path/to/your/project
 | `max_lines_per_file` | Checks file length against warning/error thresholds | JS, TS, JSX, TSX |
 | `pmd_duplicates` | Detects duplicate code blocks (requires PMD) | JS, TS |
 | `eslint_analyze` | Linting with ESLint (800+ rules available) | JS, TS, JSX, TSX |
+| `tsc_analyze` | TypeScript type checking via `tsc --noEmit` (requires TypeScript) | TS, TSX |
 
 ## Supported File Extensions
 
@@ -165,7 +166,34 @@ Use `project` mode when you want to enforce that projects must have their own ES
 }
 ```
 
-## TypeScript-Specific Notes
+## TypeScript Type Checking (tsc_analyze)
+
+The `tsc_analyze` rule runs `tsc --noEmit` to catch type errors that ESLint misses — wrong types passed to functions, null safety issues, missing properties, and cross-file type inconsistencies. ESLint is a linter (style/patterns); `tsc` is a type checker (correctness). They are complementary.
+
+**Disabled by default** since not all JavaScript projects use TypeScript. Enable it in your rules JSON:
+
+```json
+{
+  "tsc_analyze": {
+    "enabled": true,
+    "tsconfig": "./tsconfig.json"
+  }
+}
+```
+
+### Requirements
+
+- TypeScript installed in your project: `npm install --save-dev typescript`
+- A `tsconfig.json` in your project root
+
+### Configuration
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `enabled` | Enable/disable the rule | `false` |
+| `tsconfig` | Path to tsconfig.json (relative to project) | `./tsconfig.json` |
+
+## TypeScript-Specific Notes (ESLint)
 
 TypeScript support is included when you follow the Quick Start steps above (`@typescript-eslint/parser` and `@typescript-eslint/eslint-plugin` are installed together with ESLint).
 
@@ -225,15 +253,16 @@ cd /d "%~dp0"
 
 ## CLI Options
 
-| Option | Description | Default |
-|--------|-------------|---------|
-| `--language` | Set to `javascript` | Required |
-| `--path` | Path to project directory or file | Required |
-| `--rules` | Path to rules JSON file | `rules.json` |
-| `--verbosity` | Output level: `minimal`, `normal`, `verbose` | `normal` |
-| `--output` | Folder for CSV/TXT reports | None (console) |
-| `--loglevel` | Filter: `error`, `warning`, `all` | `all` |
-| `--maxamountoferrors` | Limit violations in CSV | Unlimited |
+| Option | Short | Description | Default |
+|--------|-------|-------------|---------|
+| `--language` | `-l` | Set to `javascript` | Required |
+| `--path` | `-p` | Path to project directory or file | Required |
+| `--rules` | `-r` | Path to rules JSON file | `rules.json` |
+| `--verbosity` | `-v` | Output level: `minimal`, `normal`, `verbose` | `normal` |
+| `--output` | `-o` | Folder for CSV/TXT reports | None (console) |
+| `--loglevel` | `-L` | Filter: `error`, `warning`, `all` | `all` |
+| `--maxamountoferrors` | `-m` | Limit violations in CSV | Unlimited |
+| `--list-files` | `-f` | List all analyzed file paths after analysis | Off |
 
 ## Troubleshooting
 
@@ -262,6 +291,14 @@ If ESLint reports parsing errors on TypeScript files:
 1. Ensure your project has `@typescript-eslint/parser` installed
 2. Configure your project's ESLint to use the TypeScript parser
 3. Or use `config_mode: "builtin"` for basic JavaScript-only linting
+
+### tsc not found
+
+If you get a tsc path error:
+1. Install TypeScript in your project: `npm install --save-dev typescript` (auto-discovered from `node_modules/.bin/`)
+2. Or install TypeScript globally: `npm install -g typescript`
+3. Or run the analyzer once - it will prompt to configure the tsc path
+4. Or manually edit `settings.ini` in the cli-code-analyzer directory
 
 ### Exclusions not working
 

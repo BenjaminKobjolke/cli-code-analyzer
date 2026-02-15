@@ -112,9 +112,9 @@ class DartUnusedDependenciesRule(BaseRule):
         violations = self._filter_violations_by_log_level(violations)
 
         if violations:
-            print(f"\nDart unused dependencies found {len(violations)} unused package(s)")
+            print(f"Dart unused dependencies found {len(violations)} unused package(s)")
         else:
-            print("\nDart unused dependencies: No unused packages found")
+            print("Dart unused dependencies: No unused packages found")
 
         if self.output_folder and violations:
             output_file = self.output_folder / 'dart_unused_dependencies.csv'

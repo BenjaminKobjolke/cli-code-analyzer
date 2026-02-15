@@ -43,7 +43,24 @@ ANALYZER_REGISTRY = {
         ('max_lines_per_file', 'File length checks', None),
         ('pmd_duplicates', 'Duplicate code detection', 'PMD'),
         ('eslint_analyze', 'Linting and style', 'ESLint (npm)'),
+        ('tsc_analyze', 'TypeScript type checking', 'TypeScript (npm)'),
     ],
+    'svelte': [
+        ('max_lines_per_file', 'File length checks', None),
+        ('pmd_duplicates', 'Duplicate code detection', 'PMD'),
+        ('eslint_analyze', 'Linting and style', 'ESLint (npm) + eslint-plugin-svelte'),
+        ('svelte_check', 'TypeScript/Svelte type checking', 'svelte-check (npm)'),
+    ],
+}
+
+# Shorthand and alternative language names that map to canonical names above
+LANGUAGE_ALIASES = {
+    'typescript': 'javascript',
+    'ts': 'javascript',
+    'js': 'javascript',
+    'dart': 'flutter',
+    'cs': 'csharp',
+    'py': 'python',
 }
 
 

@@ -30,6 +30,7 @@ class ESLintAnalyzeRule(BaseRule):
         self.log_level = log_level
         self.settings = Settings()
         self._eslint_executed = False  # Track if eslint has been executed
+        self._svelte_files_cache = None  # Cache for _has_svelte_files() result
 
     def check(self, _file_path: Path) -> list[Violation]:
         """Run eslint check on the entire project (only once).
@@ -127,7 +128,18 @@ class ESLintAnalyzeRule(BaseRule):
                 cmd.extend(['--ignore-pattern', pattern])
 
         # Add extensions to analyze
-        extensions = ['.js', '.mjs', '.cjs', '.ts', '.tsx', '.jsx']
+        # If explicitly configured, use that; otherwise auto-detect
+        if 'extensions' in self.config:
+            extensions = self.config['extensions']
+        else:
+            extensions = ['.js', '.mjs', '.cjs', '.ts', '.tsx', '.jsx']
+            # Auto-include .svelte if eslint-plugin-svelte is available
+            if self._has_svelte_eslint_plugin():
+                extensions.append('.svelte')
+            elif self._has_svelte_files():
+                print("Warning: .svelte files found but eslint-plugin-svelte is not installed — skipping ESLint for .svelte files")
+                print("  Install it with: npm install --save-dev eslint-plugin-svelte svelte-eslint-parser")
+                print("  Then configure your eslint.config.js to use the Svelte parser (see CLI Code Analyzer README)")
         cmd.extend(['--ext', ','.join(extensions)])
 
         # Add base path to analyze
@@ -152,9 +164,9 @@ class ESLintAnalyzeRule(BaseRule):
 
             # Print summary
             if violations:
-                print(f"\nESLint found {len(violations)} issue(s)")
+                print(f"ESLint found {len(violations)} issue(s)")
             else:
-                print("\nESLint: No issues found")
+                print("ESLint: No issues found")
 
             # Write to CSV file if output folder is specified and violations found
             if self.output_folder and violations:
@@ -204,6 +216,32 @@ class ESLintAnalyzeRule(BaseRule):
                 pass
 
         return False
+
+    def _has_svelte_eslint_plugin(self) -> bool:
+        """Check if the project has eslint-plugin-svelte available.
+
+        Checks for the package in node_modules.
+
+        Returns:
+            True if eslint-plugin-svelte is installed
+        """
+        return (self.base_path / 'node_modules' / 'eslint-plugin-svelte').is_dir()
+
+    def _has_svelte_files(self) -> bool:
+        """Check if the project contains any .svelte files (cached after first call).
+
+        Skips node_modules to avoid expensive traversal.
+
+        Returns:
+            True if at least one .svelte file exists under base_path
+        """
+        if self._svelte_files_cache is None:
+            self._svelte_files_cache = False
+            for path in self.base_path.rglob('*.svelte'):
+                if 'node_modules' not in path.parts:
+                    self._svelte_files_cache = True
+                    break
+        return self._svelte_files_cache
 
     def _map_eslint_severity(self, severity: int) -> Severity:
         """Map ESLint severity to internal Severity.
@@ -287,7 +325,9 @@ class ESLintAnalyzeRule(BaseRule):
                         file_path=rel_path,
                         rule_name='eslint_analyze',
                         severity=severity,
-                        message=detailed_message
+                        message=detailed_message,
+                        line=line_num,
+                        column=col_num
                     )
                     violations.append(violation)
 

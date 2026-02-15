@@ -143,10 +143,17 @@ class BaseRule(ABC):
         )
 
     def _get_tool_path(self, tool_name: str, get_method: Callable, prompt_method: Callable) -> str | None:
-        """Get tool path from PATH, settings, or prompt user."""
+        """Get tool path from PATH, local node_modules, settings, or prompt user."""
         tool_in_path = shutil.which(tool_name)
         if tool_in_path:
             return tool_in_path
+
+        # Check project-local node_modules/.bin/ for Node-based tools
+        if self.base_path:
+            for suffix in ['.cmd', '.bat', '']:
+                local_bin = self.base_path / 'node_modules' / '.bin' / (tool_name + suffix)
+                if local_bin.exists():
+                    return str(local_bin)
 
         tool_path = get_method()
         if not tool_path:

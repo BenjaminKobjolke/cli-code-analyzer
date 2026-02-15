@@ -7,6 +7,16 @@ import argparse
 import sys
 from pathlib import Path
 
+from analyzer_registry import LANGUAGE_ALIASES, list_analyzers
+from file_discovery import FileDiscovery
+
+
+def _clean_report_files(output_folder: Path) -> None:
+    """Remove all CSV and TXT report files from the output folder."""
+    for f in output_folder.iterdir():
+        if f.is_file() and f.suffix in ('.csv', '.txt'):
+            f.unlink()
+
 
 def main():
     """Main entry point"""
@@ -17,14 +27,14 @@ def main():
 Examples:
   python main.py --language flutter --path src/ --rules rules.json
   python main.py --language flutter --path . --rules rules.json --verbosity minimal
-  python main.py --language flutter --path lib/ --verbosity verbose
-  python main.py --language flutter --path src/ --loglevel error
+  python main.py --language python javascript --path ./src --verbosity verbose
+  python main.py --language python,javascript --path ./src --loglevel error
   python main.py --language flutter --path lib/ --output reports/
         """
     )
 
     parser.add_argument(
-        '--list-analyzers',
+        '-a', '--list-analyzers',
         metavar='LANGUAGE',
         nargs='?',
         const='all',
@@ -32,56 +42,64 @@ Examples:
     )
 
     parser.add_argument(
-        '--language',
+        '-l', '--language',
         required=False,
-        help='Programming language to analyze. Line counting: flutter, python, php, csharp, javascript. Duplicate detection (PMD): dart, python, java, javascript, typescript, php, csharp. Static analysis: php (PHPStan, PHP-CS-Fixer), python (Ruff), javascript/typescript (ESLint), csharp (dotnet build)'
+        nargs='+',
+        help='Programming language(s) to analyze (space-separated or comma-separated). Supported: flutter, python, php, csharp, javascript, svelte. Aliases: typescript/ts/js -> javascript, dart -> flutter, cs -> csharp, py -> python'
     )
 
     parser.add_argument(
-        '--path',
+        '-p', '--path',
         required=False,
         help='Path to the code directory (analyzes recursively) or single file to analyze'
     )
 
     parser.add_argument(
-        '--rules',
+        '-r', '--rules',
         default='rules.json',
         help='Path to the rules JSON file (default: rules.json)'
     )
 
     parser.add_argument(
-        '--verbosity',
+        '-v', '--verbosity',
         default='normal',
         choices=['minimal', 'normal', 'verbose'],
         help='Output verbosity level (default: normal)'
     )
 
     parser.add_argument(
-        '--output',
+        '-o', '--output',
         default=None,
         help='Path to output folder for reports (if set, saves reports to files instead of console)'
     )
 
     parser.add_argument(
-        '--loglevel',
+        '-L', '--loglevel',
         default='all',
         choices=['error', 'warning', 'all'],
         help='Filter violations by severity level (default: all)'
     )
 
     parser.add_argument(
-        '--maxamountoferrors',
+        '-m', '--maxamountoferrors',
         type=int,
         default=None,
         help='Maximum number of violations to include in CSV reports (default: unlimited)'
+    )
+
+    parser.add_argument(
+        '-f', '--list-files',
+        action='store_true',
+        default=False,
+        help='List all analyzed file paths after analysis completes'
     )
 
     args = parser.parse_args()
 
     # Handle --list-analyzers before other validation
     if args.list_analyzers:
-        from analyzer_registry import list_analyzers
-        list_analyzers(args.list_analyzers)
+        lang_arg = LANGUAGE_ALIASES.get(args.list_analyzers.lower(), args.list_analyzers)
+        list_analyzers(lang_arg)
         sys.exit(0)
 
     # Validate required arguments for analysis mode
@@ -89,6 +107,15 @@ Examples:
         parser.error("--language is required for analysis")
     if not args.path:
         parser.error("--path is required for analysis")
+
+    # Normalize languages: support both space-separated and comma-separated
+    languages = []
+    for lang in args.language:
+        languages.extend(part.strip() for part in lang.split(',') if part.strip())
+
+    # Resolve language aliases
+    languages = [LANGUAGE_ALIASES.get(l.lower(), l) for l in languages]
+    languages = list(dict.fromkeys(languages))  # deduplicate, preserve order
 
     # Validate path exists
     if not Path(args.path).exists():
@@ -106,7 +133,7 @@ Examples:
     # Determine if --loglevel was explicitly provided by user
     # If not provided, pass None to let CodeAnalyzer use config values
     cli_log_level = None
-    if '--loglevel' in sys.argv:
+    if '--loglevel' in sys.argv or '-L' in sys.argv:
         cli_log_level = LogLevel(args.loglevel)
 
     # Validate and create output folder if specified
@@ -114,40 +141,54 @@ Examples:
     if args.output:
         output_folder = Path(args.output)
         output_folder.mkdir(parents=True, exist_ok=True)
-
-        # Clean up old report files
-        (output_folder / 'line_count_report.csv').unlink(missing_ok=True)
-        (output_folder / 'line_count_report.txt').unlink(missing_ok=True)  # Legacy format
-        (output_folder / 'duplicate_code.csv').unlink(missing_ok=True)
-        (output_folder / 'dart_analyze.csv').unlink(missing_ok=True)
-        (output_folder / 'dart_code_linter.csv').unlink(missing_ok=True)
-        (output_folder / 'dotnet_analyze.csv').unlink(missing_ok=True)
-        (output_folder / 'eslint_analyze.csv').unlink(missing_ok=True)
-        (output_folder / 'dart_unused_files.csv').unlink(missing_ok=True)
-        (output_folder / 'dart_unused_dependencies.csv').unlink(missing_ok=True)
-        (output_folder / 'dart_import_rules.csv').unlink(missing_ok=True)
-        (output_folder / 'dart_unused_code.csv').unlink(missing_ok=True)
-        (output_folder / 'dart_missing_dispose.csv').unlink(missing_ok=True)
-        (output_folder / 'dart_test_coverage.csv').unlink(missing_ok=True)
+        _clean_report_files(output_folder)
 
     # Run analysis
     try:
-        analyzer = CodeAnalyzer(args.language, args.path, args.rules, output_folder, cli_log_level, args.maxamountoferrors)
+        # Collect all extensions for the requested languages
+        all_extensions = []
+        for lang in languages:
+            for ext in FileDiscovery.LANGUAGE_EXTENSIONS.get(lang.lower(), []):
+                if ext not in all_extensions:
+                    all_extensions.append(ext)
+        ext_str = ", ".join(all_extensions) if all_extensions else "unknown"
+        lang_str = ", ".join(languages)
+
+        print(f"\n{'=' * 60}")
+        print(f"  CLI Code Analyzer")
+        print(f"  Path: {args.path}")
+        print(f"  Language: {lang_str}")
+        print(f"  Extensions: {ext_str}")
+        print(f"{'=' * 60}")
+
+        analyzer = CodeAnalyzer(languages, args.path, args.rules, output_folder, cli_log_level, args.maxamountoferrors)
         analyzer.analyze()
+
+        all_violations = analyzer.get_violations()
+        total_file_count = analyzer.get_file_count()
+        all_file_paths = analyzer.get_analyzed_file_paths()
 
         # Generate report
         # For reporter, use CLI log level if provided, otherwise use 'all' as default
         # (violations are already filtered by rules, reporter filtering is redundant but kept for backward compatibility)
         reporter_log_level = cli_log_level if cli_log_level else LogLevel.ALL
         reporter = Reporter(
-            analyzer.get_violations(),
-            analyzer.get_file_count(),
+            all_violations,
+            total_file_count,
             output_level,
             reporter_log_level,
             output_folder,
             args.maxamountoferrors
         )
         has_errors = reporter.report()
+
+        # Show analyzed files summary (always) and list (if requested)
+        found_extensions = sorted(set(Path(fp).suffix for fp in all_file_paths if Path(fp).suffix))
+        found_ext_str = ", ".join(found_extensions)
+        print(f"\nAnalyzed files ({len(all_file_paths)}) [{found_ext_str}]")
+        if args.list_files:
+            for fp in all_file_paths:
+                print(f"- {fp}")
 
         # Exit with error code if violations found
         sys.exit(1 if has_errors else 0)

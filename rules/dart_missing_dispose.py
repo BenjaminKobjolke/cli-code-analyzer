@@ -90,9 +90,9 @@ class DartMissingDisposeRule(BaseRule):
         violations = self._filter_violations_by_log_level(violations)
 
         if violations:
-            print(f"\nDart missing dispose found {len(violations)} issue(s)")
+            print(f"Dart missing dispose found {len(violations)} issue(s)")
         else:
-            print("\nDart missing dispose: No issues found")
+            print("Dart missing dispose: No issues found")
 
         if self.output_folder and violations:
             output_file = self.output_folder / 'dart_missing_dispose.csv'

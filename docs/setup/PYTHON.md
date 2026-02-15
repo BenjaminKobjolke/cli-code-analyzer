@@ -152,15 +152,16 @@ cd /d "%~dp0"
 
 ### Analyzer (main.py)
 
-| Option | Description | Default |
-|--------|-------------|---------|
-| `--language` | Set to `python` | Required |
-| `--path` | Path to project directory or file | Required |
-| `--rules` | Path to rules JSON file | `rules.json` |
-| `--verbosity` | Output level: `minimal`, `normal`, `verbose` | `normal` |
-| `--output` | Folder for CSV/TXT reports | None (console) |
-| `--loglevel` | Filter: `error`, `warning`, `all` | `all` |
-| `--maxamountoferrors` | Limit violations in CSV | Unlimited |
+| Option | Short | Description | Default |
+|--------|-------|-------------|---------|
+| `--language` | `-l` | Set to `python` | Required |
+| `--path` | `-p` | Path to project directory or file | Required |
+| `--rules` | `-r` | Path to rules JSON file | `rules.json` |
+| `--verbosity` | `-v` | Output level: `minimal`, `normal`, `verbose` | `normal` |
+| `--output` | `-o` | Folder for CSV/TXT reports | None (console) |
+| `--loglevel` | `-L` | Filter: `error`, `warning`, `all` | `all` |
+| `--maxamountoferrors` | `-m` | Limit violations in CSV | Unlimited |
+| `--list-files` | `-f` | List all analyzed file paths after analysis | Off |
 
 ### Ruff Fixer (ruff_fixer.py)
 
