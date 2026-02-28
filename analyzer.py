@@ -25,6 +25,7 @@ from rules import (
     PHPCSFixerAnalyzeRule,
     PHPStanAnalyzeRule,
     PMDDuplicatesRule,
+    PMDSimilarCodeRule,
     RuffAnalyzeRule,
     SvelteCheckRule,
     TscAnalyzeRule,
@@ -139,6 +140,27 @@ class CodeAnalyzer:
                     self._last_language_header = pmd_lang
                     print(f"\n--- {pmd_lang} ---")
                 pmd_rule = PMDDuplicatesRule(
+                    rule_config,
+                    self.base_path,
+                    pmd_lang,
+                    self.output_folder,
+                    pmd_log_level,
+                    self.max_errors,
+                    self.rules_file
+                )
+                violations = pmd_rule.check(self.files[0])
+                self.violations.extend(violations)
+
+        # Run PMD similar code check (once per language that has it registered)
+        if self._should_run('pmd_similar_code'):
+            rule_config = self.config.get_rule('pmd_similar_code')
+            pmd_log_level = self._resolve_log_level('pmd_similar_code')
+            pmd_languages = self._get_languages_for_analyzer('pmd_similar_code')
+            for pmd_lang in pmd_languages:
+                if self._multi_language:
+                    self._last_language_header = pmd_lang
+                    print(f"\n--- {pmd_lang} ---")
+                pmd_rule = PMDSimilarCodeRule(
                     rule_config,
                     self.base_path,
                     pmd_lang,

@@ -17,6 +17,20 @@
       "svelte": ["**/node_modules/**", "**/dist/**", "**/build/**", "**/.svelte-kit/**"]
     }
   },
+  "pmd_similar_code": {
+    "enabled": false,
+    "minimum_tokens": 100,
+    "ignore_identifiers": true,
+    "ignore_literals": true,
+    "ignore_annotations": false,
+    "exclude_patterns": {
+      "dart": ["*.g.dart", "*.freezed.dart"],
+      "python": ["**/__pycache__/**", "*.pyc"],
+      "javascript": ["**/node_modules/**", "**/dist/**", "**/build/**"],
+      "typescript": ["**/node_modules/**", "**/dist/**", "**/build/**"],
+      "svelte": ["**/node_modules/**", "**/dist/**", "**/build/**", "**/.svelte-kit/**"]
+    }
+  },
   "dart_analyze": {
     "enabled": true
   },

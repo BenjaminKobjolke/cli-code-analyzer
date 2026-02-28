@@ -12,6 +12,16 @@
       "dart": ["*.g.dart", "*.freezed.dart"]
     }
   },
+  "pmd_similar_code": {
+    "enabled": false,
+    "minimum_tokens": 100,
+    "ignore_identifiers": true,
+    "ignore_literals": true,
+    "ignore_annotations": false,
+    "exclude_patterns": {
+      "dart": ["*.g.dart", "*.freezed.dart"]
+    }
+  },
   "dart_analyze": {
     "enabled": true
   },

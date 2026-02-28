@@ -20,6 +20,7 @@ python main.py --language python --path /path/to/your/project
 |------|-------------|
 | `max_lines_per_file` | Checks file length against warning/error thresholds |
 | `pmd_duplicates` | Detects duplicate code blocks (requires PMD) |
+| `pmd_similar_code` | Detects structurally similar code patterns (requires PMD) |
 | `ruff_analyze` | Fast Python linter with 800+ rules (replaces flake8/pylint) |
 
 ## Example Configuration
@@ -37,6 +38,24 @@ Create a `code_analysis_rules.json` file in your project:
   "pmd_duplicates": {
     "enabled": true,
     "minimum_tokens": 100,
+    "exclude_patterns": {
+      "python": [
+        "__pycache__/**",
+        "*.pyc",
+        "venv/**",
+        ".venv/**",
+        "*venv/**",
+        "env/**",
+        ".git/**"
+      ]
+    }
+  },
+  "pmd_similar_code": {
+    "enabled": false,
+    "minimum_tokens": 100,
+    "ignore_identifiers": true,
+    "ignore_literals": true,
+    "ignore_annotations": false,
     "exclude_patterns": {
       "python": [
         "__pycache__/**",

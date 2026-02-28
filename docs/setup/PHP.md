@@ -29,6 +29,7 @@ This guide explains how to set up cli-code-analyzer for PHP projects.
 |------|-------------|
 | `max_lines_per_file` | Checks file length against warning/error thresholds |
 | `pmd_duplicates` | Detects duplicate code blocks (requires PMD) |
+| `pmd_similar_code` | Detects structurally similar code patterns (requires PMD) |
 | `phpstan_analyze` | Static analysis using PHPStan |
 | `php_cs_fixer` | Code style checking using PHP-CS-Fixer |
 | `intelephense_analyze` | LSP-based diagnostics using Intelephense |
@@ -48,6 +49,16 @@ Create a `code_analysis_rules.json` file in your project:
   "pmd_duplicates": {
     "enabled": true,
     "minimum_tokens": 100,
+    "exclude_patterns": {
+      "php": ["vendor/**", "node_modules/**", ".git/**"]
+    }
+  },
+  "pmd_similar_code": {
+    "enabled": false,
+    "minimum_tokens": 100,
+    "ignore_identifiers": true,
+    "ignore_literals": true,
+    "ignore_annotations": false,
     "exclude_patterns": {
       "php": ["vendor/**", "node_modules/**", ".git/**"]
     }

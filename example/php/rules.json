@@ -12,6 +12,16 @@
       "php": ["vendor/**", "node_modules/**", ".git/**"]
     }
   },
+  "pmd_similar_code": {
+    "enabled": false,
+    "minimum_tokens": 100,
+    "ignore_identifiers": true,
+    "ignore_literals": true,
+    "ignore_annotations": false,
+    "exclude_patterns": {
+      "php": ["vendor/**", "node_modules/**", ".git/**"]
+    }
+  },
   "phpstan_analyze": {
     "enabled": true,
     "level": 5,

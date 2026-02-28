@@ -12,6 +12,7 @@ ANALYZER_REGISTRY = {
     'php': [
         ('max_lines_per_file', 'File length checks', None),
         ('pmd_duplicates', 'Duplicate code detection', 'PMD'),
+        ('pmd_similar_code', 'Similar code pattern detection', 'PMD'),
         ('phpstan_analyze', 'Static analysis', 'PHPStan (composer)'),
         ('php_cs_fixer', 'Code style checking', 'PHP-CS-Fixer (composer)'),
         ('intelephense_analyze', 'LSP diagnostics', 'Intelephense (npm)'),
@@ -19,11 +20,13 @@ ANALYZER_REGISTRY = {
     'python': [
         ('max_lines_per_file', 'File length checks', None),
         ('pmd_duplicates', 'Duplicate code detection', 'PMD'),
+        ('pmd_similar_code', 'Similar code pattern detection', 'PMD'),
         ('ruff_analyze', 'Linting and style', 'Ruff (pip)'),
     ],
     'flutter': [
         ('max_lines_per_file', 'File length checks', None),
         ('pmd_duplicates', 'Duplicate code detection', 'PMD'),
+        ('pmd_similar_code', 'Similar code pattern detection', 'PMD'),
         ('dart_analyze', 'Dart static analysis', 'Dart SDK'),
         ('flutter_analyze', 'Flutter analysis', 'Flutter SDK'),
         ('dart_code_linter', 'Code metrics', 'DCM'),
@@ -37,17 +40,20 @@ ANALYZER_REGISTRY = {
     'csharp': [
         ('max_lines_per_file', 'File length checks', None),
         ('pmd_duplicates', 'Duplicate code detection', 'PMD'),
+        ('pmd_similar_code', 'Similar code pattern detection', 'PMD'),
         ('dotnet_analyze', '.NET analysis', '.NET SDK'),
     ],
     'javascript': [
         ('max_lines_per_file', 'File length checks', None),
         ('pmd_duplicates', 'Duplicate code detection', 'PMD'),
+        ('pmd_similar_code', 'Similar code pattern detection', 'PMD'),
         ('eslint_analyze', 'Linting and style', 'ESLint (npm)'),
         ('tsc_analyze', 'TypeScript type checking', 'TypeScript (npm)'),
     ],
     'svelte': [
         ('max_lines_per_file', 'File length checks', None),
         ('pmd_duplicates', 'Duplicate code detection', 'PMD'),
+        ('pmd_similar_code', 'Similar code pattern detection', 'PMD'),
         ('eslint_analyze', 'Linting and style', 'ESLint (npm) + eslint-plugin-svelte'),
         ('svelte_check', 'TypeScript/Svelte type checking', 'svelte-check (npm)'),
     ],

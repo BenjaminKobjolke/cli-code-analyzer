@@ -21,6 +21,7 @@ python main.py --language flutter --path /path/to/your/project/lib
 |------|-------------|
 | `max_lines_per_file` | Checks file length against warning/error thresholds |
 | `pmd_duplicates` | Detects duplicate code blocks (requires PMD) |
+| `pmd_similar_code` | Detects structurally similar code patterns (requires PMD) |
 | `dart_analyze` | Runs `dart analyze` for static analysis |
 | `dart_code_linter` | Advanced code metrics (complexity, maintainability, etc.) |
 | `flutter_analyze` | Runs `flutter analyze` for Flutter-specific issues |
@@ -46,6 +47,16 @@ Create a `code_analysis_rules.json` file in your project:
   "pmd_duplicates": {
     "enabled": true,
     "minimum_tokens": 100,
+    "exclude_patterns": {
+      "dart": ["*.g.dart", "*.freezed.dart"]
+    }
+  },
+  "pmd_similar_code": {
+    "enabled": false,
+    "minimum_tokens": 100,
+    "ignore_identifiers": true,
+    "ignore_literals": true,
+    "ignore_annotations": false,
     "exclude_patterns": {
       "dart": ["*.g.dart", "*.freezed.dart"]
     }
@@ -266,6 +277,7 @@ When using `--output`, these files are generated:
 |------|---------|
 | `line_count_report.csv` | File line counts |
 | `duplicate_code.csv` | PMD duplicate code results |
+| `similar_code.csv` | PMD similar code results |
 | `dart_analyze.csv` | Dart analyzer results |
 | `dart_code_linter.csv` | Code metrics violations |
 | `flutter_analyze.csv` | Flutter analyzer results |

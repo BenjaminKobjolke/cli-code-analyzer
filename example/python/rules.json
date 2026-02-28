@@ -12,6 +12,16 @@
       "python": ["__pycache__/**", "*.pyc", "venv/**", ".venv/**", "env/**", ".git/**"]
     }
   },
+  "pmd_similar_code": {
+    "enabled": false,
+    "minimum_tokens": 100,
+    "ignore_identifiers": true,
+    "ignore_literals": true,
+    "ignore_annotations": false,
+    "exclude_patterns": {
+      "python": ["__pycache__/**", "*.pyc", "venv/**", ".venv/**", "env/**", ".git/**"]
+    }
+  },
   "ruff_analyze": {
     "enabled": true,
     "select": [

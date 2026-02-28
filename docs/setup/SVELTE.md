@@ -22,6 +22,7 @@ python main.py --language svelte --path /path/to/your/project
 |------|-------------|----------|
 | `max_lines_per_file` | Checks file length against warning/error thresholds | `.svelte` |
 | `pmd_duplicates` | Detects duplicate code blocks (requires PMD) | `.svelte` |
+| `pmd_similar_code` | Detects structurally similar code patterns (requires PMD) | `.svelte` |
 | `eslint_analyze` | Linting with ESLint + eslint-plugin-svelte | `.svelte` |
 | `svelte_check` | TypeScript/Svelte type checking (requires svelte-check) | `.svelte`, `.ts`, `.js` |
 
@@ -98,6 +99,16 @@ Create a `code_analysis_rules.json` file in your project:
   "pmd_duplicates": {
     "enabled": true,
     "minimum_tokens": 100,
+    "exclude_patterns": {
+      "svelte": ["**/node_modules/**", "**/dist/**", "**/build/**", "**/.svelte-kit/**"]
+    }
+  },
+  "pmd_similar_code": {
+    "enabled": false,
+    "minimum_tokens": 100,
+    "ignore_identifiers": true,
+    "ignore_literals": true,
+    "ignore_annotations": false,
     "exclude_patterns": {
       "svelte": ["**/node_modules/**", "**/dist/**", "**/build/**", "**/.svelte-kit/**"]
     }
