@@ -13,6 +13,7 @@ A flexible command-line tool for analyzing code files based on configurable rule
 - **Severity filtering**: Filter violations by error or warning levels
 - **Line count rules**: Check maximum lines per file with warning and error thresholds
 - **Duplicate code detection**: Integrated [PMD](https://pmd.github.io/) CPD for finding copy-paste code across projects
+- **Similar code detection**: PMD CPD with identifier/literal normalization to find structurally similar code where variables or constants were renamed
 - **Flutter/Dart static analysis**: Integrated `dart analyze --fatal-infos` for comprehensive Dart code analysis with severity mapping (info/warning/error)
 - **Flutter analyze**: Integrated `flutter analyze` for Flutter-specific code analysis with text output parsing
 - **Dart code metrics**: Integrated [dart_code_linter](https://pub.dev/packages/dart_code_linter) for advanced metrics (cyclomatic complexity, maintainability index, technical debt, etc.)
@@ -1286,6 +1287,7 @@ cli-code-analyzer/
 │   ├── base.py                # Base rule class
 │   ├── max_lines.py           # Max lines per file rule
 │   ├── pmd_duplicates.py      # PMD duplicate code detection rule
+│   ├── pmd_similar_code.py    # PMD similar code detection rule
 │   ├── dart_analyze.py        # Dart static analysis rule
 │   ├── flutter_analyze.py     # Flutter static analysis rule
 │   ├── dart_code_linter.py    # Dart code metrics analysis rule
