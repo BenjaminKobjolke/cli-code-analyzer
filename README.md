@@ -24,6 +24,9 @@ A flexible command-line tool for analyzing code files based on configurable rule
 - **Auto-fix support**: Automatically fix Python issues using Ruff with `ruff_fixer.py`
 - **Language-specific exclusions**: Automatically exclude generated files (e.g., `**.g.dart`, `**.freezed.dart`)
 - **Relative path display**: Clean, readable output with relative file paths
+- **JSON output**: Machine-readable JSON output format via `--format json`
+- **Violation cache**: SQLite-based caching — normal runs with `--output` auto-save results; subsequent runs and `--file` queries use cached data when fresh
+- **Quiet file mode**: `--file` suppresses all progress output, showing only results
 
 ## Installation
 
@@ -88,8 +91,83 @@ python main.py --language <language> --path <path> [options]
 | `--output` | `-o` | No | - | Path to output folder for reports. If set, saves reports to files (`line_count_report.txt`, `duplicate_code.csv`) instead of console output |
 | `--loglevel` | `-L` | No | `all` | Filter violations by severity: `error`, `warning`, or `all` |
 | `--maxamountoferrors` | `-m` | No | unlimited | Maximum number of violations to include in reports. When exceeded, keeps the largest violations (e.g., duplicates with most lines) |
+| `--file` | `-F` | No | - | Filter violations to a single file (requires `--path`). Defaults `--maxamountoferrors` to 5. Suppresses progress output. |
 | `--list-files` | `-f` | No | off | List all analyzed file paths after analysis |
 | `--list-analyzers` | `-a` | No | - | List available analyzers for a language (or all) |
+| `--format` | | No | `text` | Output format: `text` (default) or `json` |
+| `--build-cache` | | No | off | Build a violation cache in the output folder for fast `--file` queries. Requires `--output`. |
+| `--cache-max-age` | | No | `60` | Maximum cache age in minutes before it is considered stale |
+
+## JSON Output
+
+Use `--format json` to get machine-readable output:
+
+```bash
+python main.py --language python --path ./src --format json
+```
+
+Output:
+```json
+{
+  "violations": [
+    {
+      "file_path": "src/app.py",
+      "rule_name": "ruff_analyze",
+      "severity": "ERROR",
+      "message": "F401: `os` imported but unused",
+      "line": 1,
+      "column": 1
+    }
+  ],
+  "summary": {
+    "total": 1,
+    "errors": 1,
+    "warnings": 0,
+    "infos": 0
+  }
+}
+```
+
+## Violation Cache
+
+The cache stores analyzer results in a SQLite database so that subsequent runs skip analysis when the cache is fresh. Requires `--output`.
+
+### Automatic caching
+
+Every normal run with `--output` automatically saves results to the cache. On the next run, if the cache is still valid, analysis is skipped entirely and results are loaded from cache:
+
+```bash
+# First run: full analysis, results saved to cache
+python main.py --language python --path ./src --output ./reports
+
+# Second run (within cache-max-age): instant, loaded from cache
+python main.py --language python --path ./src --output ./reports
+```
+
+### Fast single-file queries
+
+Use `--file` to query violations for a specific file from the cache:
+
+```bash
+python main.py --language python --path ./src --output ./reports --file src/app.py
+python main.py --language python --path ./src --output ./reports --file src/app.py --format json
+```
+
+If no valid cache exists when using `--file`, a full analysis runs automatically, saves the cache, then filters results.
+
+### Explicit cache build
+
+Use `--build-cache` to build the cache and exit without reporting:
+
+```bash
+python main.py --language python --path ./src --output ./reports --build-cache
+```
+
+### Cache staleness
+
+- `--cache-max-age 60` (default): cache expires after 60 minutes
+- Editing `rules.json` invalidates the cache (hash mismatch)
+- Cache status is logged (not found, too old, rules changed)
 
 ## Examples
 
@@ -246,6 +324,23 @@ python main.py --language flutter --path example/lib --rules example/rules.json
 - Full project analysis
 - Pre-commit checks
 - Comprehensive code quality audits
+
+#### Single File Filtering
+
+Use `--file` to run all project-wide analyzers but only show violations for a specific file. This is useful for quickly checking a file you just edited without limiting the analysis scope:
+
+```bash
+# Run full project analysis but only show violations for home.dart
+python main.py --language flutter --path ./lib --file ./lib/screens/home.dart --rules rules.json
+
+# Override the default max 5 errors
+python main.py --language flutter --path ./lib --file ./lib/screens/home.dart -m 10
+```
+
+**When to use:**
+- Fast feedback loop while editing a single file
+- AI-assisted development where you want to verify one file at a time
+- When `--path` to a single file would miss project-wide analyzers (e.g., `dart analyze`)
 
 ### Analyze Your Own Flutter Project
 

@@ -28,15 +28,27 @@ python main.py --language javascript --path ./src --loglevel error
 
 # List all analyzed file paths
 python main.py --language python --path ./src --list-files
+
+# JSON output
+python main.py --language python --path ./src --format json
+
+# Build violation cache for fast --file queries
+python main.py --language python --path ./src --output ./reports --build-cache
+
+# Query single file (uses cache if available, auto-rebuilds if stale)
+python main.py --language python --path ./src --output ./reports --file src/app.py
+
+# Query single file with JSON output (clean, no progress noise)
+python main.py --language python --path ./src --output ./reports --file src/app.py --format json
 ```
 
-**Arguments:** `-l`/`--language` (flutter|python|php|csharp|javascript|svelte; supports multiple), `-p`/`--path`, `-r`/`--rules` (default: rules.json), `-v`/`--verbosity` (minimal|normal|verbose), `-o`/`--output` (folder for CSV; previous reports are auto-cleaned), `-L`/`--loglevel` (error|warning|all), `-m`/`--maxamountoferrors`, `-f`/`--list-files` (show analyzed file paths), `-a`/`--list-analyzers`
+**Arguments:** `-l`/`--language` (flutter|python|php|csharp|javascript|svelte; supports multiple), `-p`/`--path`, `-F`/`--file` (filter violations to single file; defaults max errors to 5; suppresses progress output), `-r`/`--rules` (default: rules.json), `-v`/`--verbosity` (minimal|normal|verbose), `-o`/`--output` (folder for CSV; previous reports are auto-cleaned), `-L`/`--loglevel` (error|warning|all), `-m`/`--maxamountoferrors`, `-f`/`--list-files` (show analyzed file paths), `-a`/`--list-analyzers`, `--format` (text|json; default: text), `--build-cache` (build violation cache in output folder; requires --output), `--cache-max-age` (cache staleness in minutes; default: 60)
 
 **Exit codes:** 0 = no errors, 1 = errors found or failure.
 
 ## Architecture
 
-The pipeline flows: `main.py` (CLI parsing) -> `CodeAnalyzer` (orchestration) -> `FileDiscovery` (find files) -> `BaseRule` subclasses (analysis) -> `Reporter` (output).
+The pipeline flows: `main.py` (CLI parsing) -> `CodeAnalyzer` (orchestration) -> `FileDiscovery` (find files) -> `BaseRule` subclasses (analysis) -> `Reporter` (output). A `Logger` instance is created in `main.py` and propagated to all components. When `--file` is used, the logger is set to quiet mode, suppressing all progress output. `ViolationCache` provides SQLite-based caching of violations for fast `--file` queries.
 
 ### Two types of analyzers
 
