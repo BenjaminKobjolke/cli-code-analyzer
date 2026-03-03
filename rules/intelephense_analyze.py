@@ -18,6 +18,7 @@ class IntelephenseAnalyzeRule(BaseRule):
         log_level: LogLevel = LogLevel.ALL,
         max_errors: int | None = None,
         rules_file_path: str | None = None,
+        logger=None,
     ):
         super().__init__(
             config=config,
@@ -25,6 +26,7 @@ class IntelephenseAnalyzeRule(BaseRule):
             log_level=log_level,
             max_errors=max_errors,
             rules_file_path=rules_file_path,
+            logger=logger,
         )
         self.output_folder = output_folder
         self._executed = False
@@ -52,13 +54,13 @@ class IntelephenseAnalyzeRule(BaseRule):
             return []
 
         self._executed = True
-        print("\nRunning Intelephense check...")
+        self.logger.info("\nRunning Intelephense check...")
 
         try:
             from intelephense_watcher.api import get_diagnostics
         except ImportError as e:
-            print(f"Error: Could not import intelephense_watcher: {e}")
-            print("Please run: pip install -r requirements.txt")
+            self.logger.error(f"Error: Could not import intelephense_watcher: {e}")
+            self.logger.error("Please run: pip install -r requirements.txt")
             return []
 
         violations = self._run_intelephense_check(get_diagnostics)
@@ -107,9 +109,9 @@ class IntelephenseAnalyzeRule(BaseRule):
                 violations = violations[: self.max_errors]
 
             if violations:
-                print(f"Intelephense found {len(violations)} issue(s)")
+                self.logger.info(f"Intelephense found {len(violations)} issue(s)")
             else:
-                print("Intelephense: No issues found")
+                self.logger.info("Intelephense: No issues found")
 
             if self.output_folder and violations:
                 output_file = self.output_folder / "intelephense_analyze.csv"
@@ -118,10 +120,10 @@ class IntelephenseAnalyzeRule(BaseRule):
             return violations
 
         except RuntimeError as e:
-            print(f"Error: {e}")
+            self.logger.error(f"Error: {e}")
             return []
         except Exception as e:
-            print(f"Error running Intelephense check: {e}")
+            self.logger.error(f"Error running Intelephense check: {e}")
             return []
 
     def _write_csv_output(self, output_file: Path, diagnostics: list) -> bool:
@@ -152,9 +154,9 @@ class IntelephenseAnalyzeRule(BaseRule):
                         [diag.file_path, diag.line, diag.column, diag.severity, diag.message]
                     )
 
-            print(f"Intelephense report saved to: {output_file}")
+            self.logger.info(f"Intelephense report saved to: {output_file}")
             return True
 
         except Exception as e:
-            print(f"Error writing Intelephense CSV file: {e}")
+            self.logger.error(f"Error writing Intelephense CSV file: {e}")
             return False

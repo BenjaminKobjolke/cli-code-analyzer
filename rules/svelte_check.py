@@ -14,8 +14,8 @@ from settings import Settings
 class SvelteCheckRule(BaseRule):
     """Rule to analyze Svelte/TypeScript code using svelte-check"""
 
-    def __init__(self, config: dict, base_path: Path | None = None, output_folder: Path | None = None, log_level: LogLevel = LogLevel.ALL, max_errors: int | None = None, rules_file_path: str | None = None):
-        super().__init__(config=config, base_path=base_path, log_level=log_level, max_errors=max_errors, rules_file_path=rules_file_path)
+    def __init__(self, config: dict, base_path: Path | None = None, output_folder: Path | None = None, log_level: LogLevel = LogLevel.ALL, max_errors: int | None = None, rules_file_path: str | None = None, logger=None):
+        super().__init__(config=config, base_path=base_path, log_level=log_level, max_errors=max_errors, rules_file_path=rules_file_path, logger=logger)
         self.output_folder = output_folder
         self.log_level = log_level
         self.settings = Settings()
@@ -35,7 +35,7 @@ class SvelteCheckRule(BaseRule):
 
         self._svelte_check_executed = True
 
-        print("Running svelte-check...")
+        self.logger.info("Running svelte-check...")
 
         svelte_check_path = self._get_tool_path('svelte-check', self.settings.get_svelte_check_path, self.settings.prompt_and_save_svelte_check_path)
         if not svelte_check_path:
@@ -77,9 +77,9 @@ class SvelteCheckRule(BaseRule):
                 violations = violations[:self.max_errors]
 
             if violations:
-                print(f"svelte-check found {len(violations)} issue(s)")
+                self.logger.info(f"svelte-check found {len(violations)} issue(s)")
             else:
-                print("svelte-check: No issues found")
+                self.logger.info("svelte-check: No issues found")
 
             if self.output_folder and violations:
                 output_file = self.output_folder / 'svelte_check.csv'
@@ -88,11 +88,11 @@ class SvelteCheckRule(BaseRule):
             return violations
 
         except FileNotFoundError:
-            print(f"Error: svelte-check executable not found: {svelte_check_path}")
-            print("Please ensure svelte-check is installed: npm install --save-dev svelte-check")
+            self.logger.error(f"Error: svelte-check executable not found: {svelte_check_path}")
+            self.logger.error("Please ensure svelte-check is installed: npm install --save-dev svelte-check")
             return []
         except Exception as e:
-            print(f"Error running svelte-check: {e}")
+            self.logger.error(f"Error running svelte-check: {e}")
             return []
 
     def _map_severity(self, severity_str: str) -> Severity:
@@ -194,7 +194,7 @@ class SvelteCheckRule(BaseRule):
 
                     writer.writerow([v.file_path, line_num, col_num, v.severity.value, msg])
 
-            print(f"svelte-check report saved to: {output_file}")
+            self.logger.info(f"svelte-check report saved to: {output_file}")
 
         except Exception as e:
-            print(f"Error writing svelte-check CSV file: {e}")
+            self.logger.error(f"Error writing svelte-check CSV file: {e}")

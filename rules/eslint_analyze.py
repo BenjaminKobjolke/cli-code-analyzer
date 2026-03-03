@@ -14,7 +14,7 @@ from settings import Settings
 class ESLintAnalyzeRule(BaseRule):
     """Rule to analyze JavaScript/TypeScript code using ESLint linter"""
 
-    def __init__(self, config: dict, base_path: Path | None = None, output_folder: Path | None = None, log_level: LogLevel = LogLevel.ALL, max_errors: int | None = None, rules_file_path: str | None = None):
+    def __init__(self, config: dict, base_path: Path | None = None, output_folder: Path | None = None, log_level: LogLevel = LogLevel.ALL, max_errors: int | None = None, rules_file_path: str | None = None, logger=None):
         """Initialize ESLint analyze rule.
 
         Args:
@@ -24,8 +24,9 @@ class ESLintAnalyzeRule(BaseRule):
             log_level: Log level for filtering violations
             max_errors: Optional limit on number of violations to include in CSV
             rules_file_path: Path to the rules.json file
+            logger: Optional Logger instance for structured logging
         """
-        super().__init__(config=config, base_path=base_path, log_level=log_level, max_errors=max_errors, rules_file_path=rules_file_path)
+        super().__init__(config=config, base_path=base_path, log_level=log_level, max_errors=max_errors, rules_file_path=rules_file_path, logger=logger)
         self.output_folder = output_folder
         self.log_level = log_level
         self.settings = Settings()
@@ -50,17 +51,17 @@ class ESLintAnalyzeRule(BaseRule):
 
         self._eslint_executed = True
 
-        print("\nRunning ESLint check...")
+        self.logger.info("\nRunning ESLint check...")
 
         # Check for local node_modules eslint first
         eslint_path = self._find_local_eslint()
         if not eslint_path:
             # If this looks like a Node.js project, suggest local install
             if (self.base_path / 'package.json').exists():
-                print("\nESLint is not installed in this project.")
-                print("Install with:")
-                print("  npm install --save-dev eslint @typescript-eslint/parser @typescript-eslint/eslint-plugin")
-                print("\nSkipping ESLint analysis.")
+                self.logger.info("\nESLint is not installed in this project.")
+                self.logger.info("Install with:")
+                self.logger.info("  npm install --save-dev eslint @typescript-eslint/parser @typescript-eslint/eslint-plugin")
+                self.logger.info("\nSkipping ESLint analysis.")
                 return []
             # Not a Node.js project — try global/settings path
             eslint_path = self._get_tool_path('eslint', self.settings.get_eslint_path, self.settings.prompt_and_save_eslint_path)
@@ -117,8 +118,8 @@ class ESLintAnalyzeRule(BaseRule):
         elif config_mode == 'project':
             # Require project config - check if it exists
             if not self._has_project_config():
-                print("Error: config_mode is 'project' but no ESLint config found")
-                print("Create eslint.config.js or .eslintrc.* in your project")
+                self.logger.error("Error: config_mode is 'project' but no ESLint config found")
+                self.logger.error("Create eslint.config.js or .eslintrc.* in your project")
                 return []
         # config_mode == 'auto': ESLint will automatically detect project config or use defaults
 
@@ -137,9 +138,9 @@ class ESLintAnalyzeRule(BaseRule):
             if self._has_svelte_eslint_plugin():
                 extensions.append('.svelte')
             elif self._has_svelte_files():
-                print("Warning: .svelte files found but eslint-plugin-svelte is not installed — skipping ESLint for .svelte files")
-                print("  Install it with: npm install --save-dev eslint-plugin-svelte svelte-eslint-parser")
-                print("  Then configure your eslint.config.js to use the Svelte parser (see CLI Code Analyzer README)")
+                self.logger.warning("Warning: .svelte files found but eslint-plugin-svelte is not installed — skipping ESLint for .svelte files")
+                self.logger.warning("  Install it with: npm install --save-dev eslint-plugin-svelte svelte-eslint-parser")
+                self.logger.warning("  Then configure your eslint.config.js to use the Svelte parser (see CLI Code Analyzer README)")
         cmd.extend(['--ext', ','.join(extensions)])
 
         # Add base path to analyze
@@ -164,9 +165,9 @@ class ESLintAnalyzeRule(BaseRule):
 
             # Print summary
             if violations:
-                print(f"ESLint found {len(violations)} issue(s)")
+                self.logger.info(f"ESLint found {len(violations)} issue(s)")
             else:
-                print("ESLint: No issues found")
+                self.logger.info("ESLint: No issues found")
 
             # Write to CSV file if output folder is specified and violations found
             if self.output_folder and violations:
@@ -176,11 +177,11 @@ class ESLintAnalyzeRule(BaseRule):
             return violations
 
         except FileNotFoundError:
-            print(f"Error: ESLint executable not found: {eslint_path}")
-            print("Please ensure ESLint is installed: npm install -g eslint")
+            self.logger.error(f"Error: ESLint executable not found: {eslint_path}")
+            self.logger.error("Please ensure ESLint is installed: npm install -g eslint")
             return []
         except Exception as e:
-            print(f"Error running eslint check: {e}")
+            self.logger.error(f"Error running eslint check: {e}")
             return []
 
     def _has_project_config(self) -> bool:
@@ -332,10 +333,10 @@ class ESLintAnalyzeRule(BaseRule):
                     violations.append(violation)
 
         except json.JSONDecodeError as e:
-            print(f"Error parsing eslint JSON output: {e}")
-            print(f"Output was: {output[:200]}...")  # Print first 200 chars for debugging
+            self.logger.error(f"Error parsing eslint JSON output: {e}")
+            self.logger.error(f"Output was: {output[:200]}...")
         except Exception as e:
-            print(f"Error processing eslint results: {e}")
+            self.logger.error(f"Error processing eslint results: {e}")
 
         return violations
 
@@ -412,9 +413,9 @@ class ESLintAnalyzeRule(BaseRule):
 
                     writer.writerow([rel_path, line_num, col_num, severity.value, rule_id, msg])
 
-            print(f"ESLint report saved to: {output_file}")
+            self.logger.info(f"ESLint report saved to: {output_file}")
 
         except json.JSONDecodeError as e:
-            print(f"Error parsing JSON for CSV output: {e}")
+            self.logger.error(f"Error parsing JSON for CSV output: {e}")
         except Exception as e:
-            print(f"Error writing eslint CSV file: {e}")
+            self.logger.error(f"Error writing eslint CSV file: {e}")

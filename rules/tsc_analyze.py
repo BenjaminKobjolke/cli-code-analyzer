@@ -14,8 +14,8 @@ from settings import Settings
 class TscAnalyzeRule(BaseRule):
     """Rule to analyze TypeScript code using tsc --noEmit"""
 
-    def __init__(self, config: dict, base_path: Path | None = None, output_folder: Path | None = None, log_level: LogLevel = LogLevel.ALL, max_errors: int | None = None, rules_file_path: str | None = None):
-        super().__init__(config=config, base_path=base_path, log_level=log_level, max_errors=max_errors, rules_file_path=rules_file_path)
+    def __init__(self, config: dict, base_path: Path | None = None, output_folder: Path | None = None, log_level: LogLevel = LogLevel.ALL, max_errors: int | None = None, rules_file_path: str | None = None, logger=None):
+        super().__init__(config=config, base_path=base_path, log_level=log_level, max_errors=max_errors, rules_file_path=rules_file_path, logger=logger)
         self.output_folder = output_folder
         self.log_level = log_level
         self.settings = Settings()
@@ -35,7 +35,7 @@ class TscAnalyzeRule(BaseRule):
 
         self._tsc_executed = True
 
-        print("Running tsc type checking...")
+        self.logger.info("Running tsc type checking...")
 
         tsc_path = self._get_tool_path('tsc', self.settings.get_tsc_path, self.settings.prompt_and_save_tsc_path)
         if not tsc_path:
@@ -84,9 +84,9 @@ class TscAnalyzeRule(BaseRule):
                 violations = violations[:self.max_errors]
 
             if violations:
-                print(f"tsc found {len(violations)} issue(s)")
+                self.logger.info(f"tsc found {len(violations)} issue(s)")
             else:
-                print("tsc: No issues found")
+                self.logger.info("tsc: No issues found")
 
             if self.output_folder and violations:
                 output_file = self.output_folder / 'tsc_analyze.csv'
@@ -95,11 +95,11 @@ class TscAnalyzeRule(BaseRule):
             return violations
 
         except FileNotFoundError:
-            print(f"Error: tsc executable not found: {tsc_path}")
-            print("Please ensure TypeScript is installed: npm install --save-dev typescript")
+            self.logger.error(f"Error: tsc executable not found: {tsc_path}")
+            self.logger.error("Please ensure TypeScript is installed: npm install --save-dev typescript")
             return []
         except Exception as e:
-            print(f"Error running tsc: {e}")
+            self.logger.error(f"Error running tsc: {e}")
             return []
 
     def _parse_tsc_output(self, output: str) -> list[Violation]:
@@ -184,7 +184,7 @@ class TscAnalyzeRule(BaseRule):
 
                     writer.writerow([v.file_path, line_num, col_num, v.severity.value, code, msg])
 
-            print(f"tsc report saved to: {output_file}")
+            self.logger.info(f"tsc report saved to: {output_file}")
 
         except Exception as e:
-            print(f"Error writing tsc CSV file: {e}")
+            self.logger.error(f"Error writing tsc CSV file: {e}")

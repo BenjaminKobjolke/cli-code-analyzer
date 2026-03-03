@@ -11,8 +11,8 @@ from rules.base import BaseRule
 class MaxLinesRule(BaseRule):
     """Rule to check maximum lines per file"""
 
-    def __init__(self, config: dict, base_path: Path | None = None, log_level: LogLevel = LogLevel.ALL, max_errors: int | None = None, rules_file_path: str | None = None):
-        super().__init__(config, base_path, log_level, max_errors, rules_file_path)
+    def __init__(self, config: dict, base_path: Path | None = None, log_level: LogLevel = LogLevel.ALL, max_errors: int | None = None, rules_file_path: str | None = None, logger=None):
+        super().__init__(config, base_path, log_level, max_errors, rules_file_path, logger=logger)
         self.warning_threshold = config.get('warning', 300)
         self.error_threshold = config.get('error', 500)
 

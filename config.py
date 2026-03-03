@@ -6,12 +6,15 @@ import json
 import sys
 from typing import Any
 
+from logger import Logger
+
 
 class Config:
     """Handles loading and accessing rule configurations"""
 
-    def __init__(self, rules_file: str):
+    def __init__(self, rules_file: str, logger=None):
         self.rules_file = rules_file
+        self.logger = logger or Logger()
         self.rules = self._load_rules()
 
     def _load_rules(self) -> dict[str, Any]:
@@ -20,10 +23,10 @@ class Config:
             with open(self.rules_file, encoding='utf-8') as f:
                 return json.load(f)
         except FileNotFoundError:
-            print(f"Error: Rules file '{self.rules_file}' not found")
+            self.logger.error(f"Error: Rules file '{self.rules_file}' not found")
             sys.exit(1)
         except json.JSONDecodeError as e:
-            print(f"Error: Invalid JSON in rules file: {e}")
+            self.logger.error(f"Error: Invalid JSON in rules file: {e}")
             sys.exit(1)
 
     def get_rule(self, rule_name: str) -> dict[str, Any]:

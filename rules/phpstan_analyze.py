@@ -12,8 +12,8 @@ from settings import Settings
 class PHPStanAnalyzeRule(BaseRule):
     """Rule to analyze PHP code using PHPStan static analyzer"""
 
-    def __init__(self, config: dict, base_path: Path | None = None, output_folder: Path | None = None, log_level: LogLevel = LogLevel.ALL, max_errors: int | None = None, rules_file_path: str | None = None):
-        super().__init__(config=config, base_path=base_path, log_level=log_level, max_errors=max_errors, rules_file_path=rules_file_path)
+    def __init__(self, config: dict, base_path: Path | None = None, output_folder: Path | None = None, log_level: LogLevel = LogLevel.ALL, max_errors: int | None = None, rules_file_path: str | None = None, logger=None):
+        super().__init__(config=config, base_path=base_path, log_level=log_level, max_errors=max_errors, rules_file_path=rules_file_path, logger=logger)
         self.output_folder = output_folder
         self.log_level = log_level
         self.settings = Settings()
@@ -37,7 +37,7 @@ class PHPStanAnalyzeRule(BaseRule):
             return []
 
         self._phpstan_executed = True
-        print("\nRunning PHPStan check...")
+        self.logger.info("\nRunning PHPStan check...")
 
         # First check bundled php/vendor/bin folder
         phpstan_path = self._get_bundled_phpstan_path()
@@ -82,23 +82,23 @@ class PHPStanAnalyzeRule(BaseRule):
                 violations = violations[:self.max_errors]
 
             if violations:
-                print(f"PHPStan found {len(violations)} issue(s)")
+                self.logger.info(f"PHPStan found {len(violations)} issue(s)")
             else:
-                print("PHPStan: No issues found")
+                self.logger.info("PHPStan: No issues found")
 
             if self.output_folder and violations:
                 output_file = self.output_folder / 'phpstan_analyze.csv'
                 if self._write_csv_output(output_file, output):
-                    print(f"PHPStan report saved to: {output_file}")
+                    self.logger.info(f"PHPStan report saved to: {output_file}")
 
             return violations
 
         except FileNotFoundError:
-            print(f"Error: PHPStan executable not found: {phpstan_path}")
-            print("Please ensure PHPStan is installed: composer require --dev phpstan/phpstan")
+            self.logger.error(f"Error: PHPStan executable not found: {phpstan_path}")
+            self.logger.error("Please ensure PHPStan is installed: composer require --dev phpstan/phpstan")
             return []
         except Exception as e:
-            print(f"Error running PHPStan check: {e}")
+            self.logger.error(f"Error running PHPStan check: {e}")
             return []
 
     def _map_phpstan_severity(self, level: str | int) -> Severity:
@@ -171,10 +171,10 @@ class PHPStanAnalyzeRule(BaseRule):
                 violations.append(violation)
 
         except json.JSONDecodeError as e:
-            print(f"Error parsing PHPStan JSON output: {e}")
-            print(f"Output was: {output[:200]}...")
+            self.logger.error(f"Error parsing PHPStan JSON output: {e}")
+            self.logger.error(f"Output was: {output[:200]}...")
         except Exception as e:
-            print(f"Error processing PHPStan results: {e}")
+            self.logger.error(f"Error processing PHPStan results: {e}")
 
         return violations
 
@@ -237,8 +237,8 @@ class PHPStanAnalyzeRule(BaseRule):
             return True
 
         except json.JSONDecodeError as e:
-            print(f"Error parsing JSON for CSV output: {e}")
+            self.logger.error(f"Error parsing JSON for CSV output: {e}")
             return False
         except Exception as e:
-            print(f"Error writing PHPStan CSV file: {e}")
+            self.logger.error(f"Error writing PHPStan CSV file: {e}")
             return False

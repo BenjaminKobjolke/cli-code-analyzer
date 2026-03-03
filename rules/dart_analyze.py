@@ -14,7 +14,7 @@ from settings import Settings
 class DartAnalyzeRule(BaseRule):
     """Rule to analyze Dart/Flutter code using dart analyze"""
 
-    def __init__(self, config: dict, base_path: Path | None = None, output_folder: Path | None = None, log_level: LogLevel = LogLevel.ALL, max_errors: int | None = None, rules_file_path: str | None = None):
+    def __init__(self, config: dict, base_path: Path | None = None, output_folder: Path | None = None, log_level: LogLevel = LogLevel.ALL, max_errors: int | None = None, rules_file_path: str | None = None, logger=None):
         """Initialize Dart analyze rule.
 
         Args:
@@ -24,8 +24,9 @@ class DartAnalyzeRule(BaseRule):
             log_level: Log level for filtering violations
             max_errors: Optional limit on number of violations to include in CSV
             rules_file_path: Path to the rules.json file
+            logger: Optional Logger instance for output
         """
-        super().__init__(config, base_path, log_level, max_errors, rules_file_path)
+        super().__init__(config, base_path, log_level, max_errors, rules_file_path, logger=logger)
         self.output_folder = output_folder
         self.log_level = log_level
         self.settings = Settings()
@@ -49,7 +50,7 @@ class DartAnalyzeRule(BaseRule):
 
         self._dart_executed = True
 
-        print("\nRunning dart analyze...")
+        self.logger.info("\nRunning dart analyze...")
 
         # Get dart command using FVM-aware utility
         dart_cmd = self._get_dart_command(self.settings.get_dart_path, self.settings.prompt_and_save_dart_path)
@@ -88,9 +89,9 @@ class DartAnalyzeRule(BaseRule):
 
             # Print summary
             if violations:
-                print(f"Dart analyze found {len(violations)} issue(s)")
+                self.logger.info(f"Dart analyze found {len(violations)} issue(s)")
             else:
-                print("Dart analyze: No issues found")
+                self.logger.info("Dart analyze: No issues found")
 
             # Write to CSV file if output folder is specified and violations found
             if self.output_folder and violations:
@@ -100,11 +101,11 @@ class DartAnalyzeRule(BaseRule):
             return violations
 
         except FileNotFoundError:
-            print(f"Error: Dart executable not found: {dart_path}")
-            print("Please ensure Dart/Flutter SDK is installed and configured correctly")
+            self.logger.error(f"Error: Dart executable not found: {dart_path}")
+            self.logger.error("Please ensure Dart/Flutter SDK is installed and configured correctly")
             return []
         except Exception as e:
-            print(f"Error running dart analyze: {e}")
+            self.logger.error(f"Error running dart analyze: {e}")
             return []
 
     def _parse_dart_json(self, output: str) -> list[Violation]:
@@ -169,10 +170,10 @@ class DartAnalyzeRule(BaseRule):
                 violations.append(violation)
 
         except json.JSONDecodeError as e:
-            print(f"Error parsing dart analyze JSON output: {e}")
-            print(f"Output was: {output[:200]}...")  # Print first 200 chars for debugging
+            self.logger.error(f"Error parsing dart analyze JSON output: {e}")
+            self.logger.error(f"Output was: {output[:200]}...")
         except Exception as e:
-            print(f"Error processing dart analyze results: {e}")
+            self.logger.error(f"Error processing dart analyze results: {e}")
 
         return violations
 
@@ -253,9 +254,9 @@ class DartAnalyzeRule(BaseRule):
 
                     writer.writerow([rel_path, line_num, col_num, severity, code, full_message])
 
-            print(f"Dart analyze report saved to: {output_file}")
+            self.logger.info(f"Dart analyze report saved to: {output_file}")
 
         except json.JSONDecodeError as e:
-            print(f"Error parsing JSON for CSV output: {e}")
+            self.logger.error(f"Error parsing JSON for CSV output: {e}")
         except Exception as e:
-            print(f"Error writing dart analyze CSV file: {e}")
+            self.logger.error(f"Error writing dart analyze CSV file: {e}")

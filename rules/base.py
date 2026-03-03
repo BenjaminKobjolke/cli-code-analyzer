@@ -11,18 +11,20 @@ from fnmatch import fnmatch
 from pathlib import Path
 from typing import Any
 
+from logger import Logger
 from models import LogLevel, Severity, Violation
 
 
 class BaseRule(ABC):
     """Abstract base class for all rules"""
 
-    def __init__(self, config: dict, base_path: Path | None = None, log_level: LogLevel = LogLevel.ALL, max_errors: int | None = None, rules_file_path: str | None = None):
+    def __init__(self, config: dict, base_path: Path | None = None, log_level: LogLevel = LogLevel.ALL, max_errors: int | None = None, rules_file_path: str | None = None, logger: Logger | None = None):
         self.config = config
         self.base_path = base_path
         self.log_level = log_level
         self.max_errors = max_errors
         self.rules_file_path = rules_file_path
+        self.logger = logger or Logger()
 
     @abstractmethod
     def check(self, file_path: Path) -> list[Violation]:
@@ -43,7 +45,7 @@ class BaseRule(ABC):
             with open(file_path, encoding='utf-8') as f:
                 return sum(1 for _ in f)
         except Exception as e:
-            print(f"Warning: Could not read {file_path}: {e}")
+            self.logger.warning(f"Warning: Could not read {file_path}: {e}")
             return 0
 
     def _build_threshold_dict(self, exception: dict | None, base: dict) -> dict[str, float | None]:
@@ -169,7 +171,7 @@ class BaseRule(ABC):
             tool_path = str(tool_path_obj)
 
         if not tool_path_obj.exists():
-            print(f"Error: {tool_name} executable not found at: {tool_path}")
+            self.logger.error(f"Error: {tool_name} executable not found at: {tool_path}")
             return None
 
         return tool_path
@@ -222,6 +224,6 @@ class BaseRule(ABC):
                 writer.writerow(headers)
                 for v in sorted_violations:
                     writer.writerow(row_mapper(v))
-            print(f"Report saved to: {output_file}")
+            self.logger.info(f"Report saved to: {output_file}")
         except Exception as e:
-            print(f"Error writing CSV: {e}")
+            self.logger.error(f"Error writing CSV: {e}")

@@ -19,9 +19,9 @@ from settings import Settings
 class DartCodeLinterRule(BaseRule):
     """Rule to analyze Dart/Flutter code metrics using dart_code_linter"""
 
-    def __init__(self, config: dict, base_path: Path | None = None, output_folder: Path | None = None, log_level: LogLevel = LogLevel.ALL, max_errors: int | None = None, rules_file_path: str | None = None):
+    def __init__(self, config: dict, base_path: Path | None = None, output_folder: Path | None = None, log_level: LogLevel = LogLevel.ALL, max_errors: int | None = None, rules_file_path: str | None = None, logger=None):
         """Initialize Dart Code Linter rule with config and output settings."""
-        super().__init__(config, base_path, log_level, max_errors, rules_file_path)
+        super().__init__(config, base_path, log_level, max_errors, rules_file_path, logger=logger)
         self.output_folder = output_folder
         self.log_level = log_level
         self.settings = Settings()
@@ -34,7 +34,7 @@ class DartCodeLinterRule(BaseRule):
             return []
         self._executed = True
 
-        print("\nChecking dart_code_linter metrics...")
+        self.logger.info("\nChecking dart_code_linter metrics...")
 
         dart_cmd = self._get_dart_command(self.settings.get_dart_path, self.settings.prompt_and_save_dart_path)
         if not dart_cmd:
@@ -45,7 +45,7 @@ class DartCodeLinterRule(BaseRule):
                 if not self._install_dart_code_linter(dart_cmd):
                     return []
             else:
-                print("Warning: dart_code_linter is not installed. Run: dart pub add --dev dart_code_linter")
+                self.logger.warning("Warning: dart_code_linter is not installed. Run: dart pub add --dev dart_code_linter")
                 return []
 
         return self._run_dart_code_linter(dart_cmd)
@@ -54,7 +54,7 @@ class DartCodeLinterRule(BaseRule):
         """Check if dart_code_linter is in dev_dependencies of pubspec.yaml."""
         self.project_root = self._find_pubspec()
         if not self.project_root:
-            print(f"Warning: pubspec.yaml not found in {self.base_path} or parent directory")
+            self.logger.warning(f"Warning: pubspec.yaml not found in {self.base_path} or parent directory")
             return False
 
         try:
@@ -63,28 +63,28 @@ class DartCodeLinterRule(BaseRule):
             dev_deps = pubspec_data.get('dev_dependencies', {}) if pubspec_data else {}
             return 'dart_code_linter' in dev_deps
         except Exception as e:
-            print(f"Error reading pubspec.yaml: {e}")
+            self.logger.error(f"Error reading pubspec.yaml: {e}")
             return False
 
     def _install_dart_code_linter(self, dart_cmd: list[str]) -> bool:
         """Install dart_code_linter using dart pub add."""
-        print("dart_code_linter not found. Installing...")
+        self.logger.info("dart_code_linter not found. Installing...")
         install_dir = self.project_root or self.base_path
         try:
             result = self._run_subprocess(dart_cmd + ['pub', 'add', '--dev', 'dart_code_linter'], install_dir)
             if result.returncode == 0:
-                print("dart_code_linter installed successfully\n")
+                self.logger.info("dart_code_linter installed successfully\n")
                 return True
-            print(f"Failed to install dart_code_linter: {result.stderr}")
+            self.logger.error(f"Failed to install dart_code_linter: {result.stderr}")
             return False
         except Exception as e:
-            print(f"Error installing dart_code_linter: {e}")
+            self.logger.error(f"Error installing dart_code_linter: {e}")
             return False
 
     def _run_dart_code_linter(self, dart_cmd: list[str]) -> list[Violation]:
         """Execute dart_code_linter and return parsed violations."""
         analyze_path = self.config.get('analyze_path', 'lib')
-        print(f"Running dart_code_linter analysis on '{analyze_path}'...")
+        self.logger.info(f"Running dart_code_linter analysis on '{analyze_path}'...")
 
         working_dir = self.project_root or self.base_path
         report_dir = (self.output_folder or working_dir) / 'code_analysis'
@@ -99,16 +99,16 @@ class DartCodeLinterRule(BaseRule):
             result = self._run_subprocess(cmd, working_dir)
 
             if not report_json.exists():
-                print(f"Warning: dart_code_linter did not generate report.json (rc={result.returncode})")
+                self.logger.warning(f"Warning: dart_code_linter did not generate report.json (rc={result.returncode})")
                 if result.stdout:
-                    print(f"Stdout: {result.stdout}")
+                    self.logger.info(f"Stdout: {result.stdout}")
                 if result.stderr:
-                    print(f"Stderr: {result.stderr}")
+                    self.logger.info(f"Stderr: {result.stderr}")
                 return []
 
-            print(f"Metrics report saved to: {report_json}")
+            self.logger.info(f"Metrics report saved to: {report_json}")
             violations = self._filter_violations_by_log_level(self._parse_metrics_json(report_json))
-            print(f"Dart Code Linter found {len(violations)} metric violation(s)" if violations
+            self.logger.info(f"Dart Code Linter found {len(violations)} metric violation(s)" if violations
                   else "Dart Code Linter: No metric violations found")
 
             if self.output_folder and violations:
@@ -117,13 +117,13 @@ class DartCodeLinterRule(BaseRule):
             if not self.config.get('keep_report', False):
                 try:
                     shutil.rmtree(report_dir)
-                    print(f"Cleaned up: {report_dir}")
+                    self.logger.info(f"Cleaned up: {report_dir}")
                 except Exception as e:
-                    print(f"Warning: Could not delete report directory: {e}")
+                    self.logger.warning(f"Warning: Could not delete report directory: {e}")
 
             return violations
         except Exception as e:
-            print(f"Error running dart_code_linter: {e}")
+            self.logger.error(f"Error running dart_code_linter: {e}")
             return []
 
     def _parse_metrics_json(self, report_path: Path) -> list[Violation]:
@@ -147,9 +147,9 @@ class DartCodeLinterRule(BaseRule):
                         if v := self._check_metric_threshold(file_path, metric, thresholds, context):
                             violations.append(v)
         except (FileNotFoundError, json.JSONDecodeError) as e:
-            print(f"Error reading dart_code_linter report: {e}")
+            self.logger.error(f"Error reading dart_code_linter report: {e}")
         except Exception as e:
-            print(f"Error processing dart_code_linter results: {e}")
+            self.logger.error(f"Error processing dart_code_linter results: {e}")
         return violations
 
     INVERSE_METRICS: ClassVar[set[str]] = {'maintainability-index', 'weight-of-class'}
@@ -215,8 +215,8 @@ class DartCodeLinterRule(BaseRule):
                     writer.writerow(['file_path', 'metric', 'value', 'threshold', 'severity', 'context'])
                     for r in csv_rows:
                         writer.writerow([r['file_path'], r['metric'], r['value'], r['threshold'], r['severity'], r['context']])
-                print(f"Dart Code Linter report saved to: {output_file}")
+                self.logger.info(f"Dart Code Linter report saved to: {output_file}")
             else:
-                print("No violations to write to CSV (after log level filtering)")
+                self.logger.info("No violations to write to CSV (after log level filtering)")
         except Exception as e:
-            print(f"Error writing dart_code_linter CSV file: {e}")
+            self.logger.error(f"Error writing dart_code_linter CSV file: {e}")

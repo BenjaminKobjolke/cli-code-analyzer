@@ -2,7 +2,6 @@
 Dart unused dependencies analyzer - finds packages in pubspec.yaml never imported in code.
 """
 
-import csv
 from pathlib import Path
 
 import yaml
@@ -15,9 +14,8 @@ from rules.dart_utils import collect_dart_files, parse_imports
 class DartUnusedDependenciesRule(BaseRule):
     """Find packages listed in pubspec.yaml that are never imported in code."""
 
-    def __init__(self, config: dict, base_path: Path | None = None, output_folder: Path | None = None, log_level: LogLevel = LogLevel.ALL, max_errors: int | None = None, rules_file_path: str | None = None):
-        super().__init__(config, base_path, log_level, max_errors, rules_file_path)
-        self.output_folder = output_folder
+    def __init__(self, config: dict, base_path: Path | None = None, output_folder: Path | None = None, log_level: LogLevel = LogLevel.ALL, max_errors: int | None = None, rules_file_path: str | None = None, logger=None):
+        super().__init__(config, base_path, log_level, max_errors, rules_file_path, logger=logger)
         self._executed = False
 
     def check(self, _file_path: Path) -> list[Violation]:
@@ -25,11 +23,11 @@ class DartUnusedDependenciesRule(BaseRule):
             return []
         self._executed = True
 
-        print("\nRunning dart unused dependencies check...")
+        self.logger.info("\nRunning dart unused dependencies check...")
 
         project_root = self._find_pubspec()
         if not project_root:
-            print("Warning: pubspec.yaml not found, skipping dart_unused_dependencies")
+            self.logger.warning("Warning: pubspec.yaml not found, skipping dart_unused_dependencies")
             return []
 
         pubspec_path = project_root / 'pubspec.yaml'
@@ -37,7 +35,7 @@ class DartUnusedDependenciesRule(BaseRule):
             with open(pubspec_path, encoding='utf-8') as f:
                 pubspec_data = yaml.safe_load(f)
         except Exception as e:
-            print(f"Error reading pubspec.yaml: {e}")
+            self.logger.error(f"Error reading pubspec.yaml: {e}")
             return []
 
         if not pubspec_data:
@@ -112,21 +110,8 @@ class DartUnusedDependenciesRule(BaseRule):
         violations = self._filter_violations_by_log_level(violations)
 
         if violations:
-            print(f"Dart unused dependencies found {len(violations)} unused package(s)")
+            self.logger.info(f"Dart unused dependencies found {len(violations)} unused package(s)")
         else:
-            print("Dart unused dependencies: No unused packages found")
-
-        if self.output_folder and violations:
-            output_file = self.output_folder / 'dart_unused_dependencies.csv'
-            self._write_violations_csv(
-                output_file, violations,
-                ['package_name', 'dependency_type', 'severity', 'message'],
-                lambda v: [
-                    v.message.split("'")[1] if "'" in v.message else '',
-                    'dev_dependencies' if 'dev_dependencies' in v.message else 'dependencies',
-                    v.severity.name,
-                    v.message
-                ]
-            )
+            self.logger.info("Dart unused dependencies: No unused packages found")
 
         return violations

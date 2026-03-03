@@ -19,9 +19,8 @@ except ImportError:
 class DartUnusedCodeRule(BaseRule):
     """Find unused classes, functions, enums, mixins, typedefs, extensions across the project using LSP."""
 
-    def __init__(self, config: dict, base_path: Path | None = None, output_folder: Path | None = None, log_level: LogLevel = LogLevel.ALL, max_errors: int | None = None, rules_file_path: str | None = None):
-        super().__init__(config, base_path, log_level, max_errors, rules_file_path)
-        self.output_folder = output_folder
+    def __init__(self, config: dict, base_path: Path | None = None, output_folder: Path | None = None, log_level: LogLevel = LogLevel.ALL, max_errors: int | None = None, rules_file_path: str | None = None, logger=None):
+        super().__init__(config, base_path, log_level, max_errors, rules_file_path, logger=logger)
         self._executed = False
 
     def check(self, _file_path: Path) -> list[Violation]:
@@ -29,22 +28,22 @@ class DartUnusedCodeRule(BaseRule):
             return []
         self._executed = True
 
-        print("\nRunning dart unused code check...")
+        self.logger.info("\nRunning dart unused code check...")
 
         if not HAS_DART_LSP:
-            print("Warning: dart-lsp-mcp not installed. Skipping dart_unused_code analyzer.")
-            print("Install from: D:\\GIT\\BenjaminKobjolke\\dart-lsp-mcp")
+            self.logger.warning("Warning: dart-lsp-mcp not installed. Skipping dart_unused_code analyzer.")
+            self.logger.warning("Install from: D:\\GIT\\BenjaminKobjolke\\dart-lsp-mcp")
             return []
 
         project_root = self._find_pubspec()
         if not project_root:
-            print("Warning: pubspec.yaml not found, skipping dart_unused_code")
+            self.logger.warning("Warning: pubspec.yaml not found, skipping dart_unused_code")
             return []
 
         analyze_path = self.config.get('analyze_path', 'lib')
         analyze_dir = project_root / analyze_path
         if not analyze_dir.exists():
-            print(f"Warning: analyze path '{analyze_dir}' does not exist")
+            self.logger.warning(f"Warning: analyze path '{analyze_dir}' does not exist")
             return []
 
         exclude_patterns = self.config.get('exclude_patterns', ['*.g.dart', '*.freezed.dart'])
@@ -55,20 +54,20 @@ class DartUnusedCodeRule(BaseRule):
 
         all_dart_files = collect_dart_files(analyze_dir, exclude_patterns)
         if not all_dart_files:
-            print("No Dart files found to analyze")
+            self.logger.info("No Dart files found to analyze")
             return []
 
         violations = []
         total_symbols = 0
         checked_symbols = 0
 
-        print(f"Scanning {len(all_dart_files)} files for unused code...")
+        self.logger.info(f"Scanning {len(all_dart_files)} files for unused code...")
 
         for dart_file in all_dart_files:
             try:
                 symbols = get_document_symbols(str(dart_file))
             except Exception as e:
-                print(f"Warning: Could not get symbols for {dart_file}: {e}")
+                self.logger.warning(f"Warning: Could not get symbols for {dart_file}: {e}")
                 continue
 
             if not symbols:
@@ -124,23 +123,9 @@ class DartUnusedCodeRule(BaseRule):
         violations = self._filter_violations_by_log_level(violations)
 
         if violations:
-            print(f"Dart unused code found {len(violations)} unused declaration(s) (checked {checked_symbols}/{total_symbols} symbols)")
+            self.logger.info(f"Dart unused code found {len(violations)} unused declaration(s) (checked {checked_symbols}/{total_symbols} symbols)")
         else:
-            print(f"Dart unused code: No unused declarations found (checked {checked_symbols}/{total_symbols} symbols)")
-
-        if self.output_folder and violations:
-            output_file = self.output_folder / 'dart_unused_code.csv'
-            self._write_violations_csv(
-                output_file, violations,
-                ['file_path', 'line', 'declaration_type', 'name', 'severity'],
-                lambda v: [
-                    v.file_path,
-                    self._extract_line(v.message),
-                    self._extract_type(v.message),
-                    self._extract_name(v.message),
-                    v.severity.name
-                ]
-            )
+            self.logger.info(f"Dart unused code: No unused declarations found (checked {checked_symbols}/{total_symbols} symbols)")
 
         return violations
 

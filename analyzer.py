@@ -7,6 +7,7 @@ from pathlib import Path
 from analyzer_registry import get_analyzers_for_language
 from config import Config
 from file_discovery import FileDiscovery
+from logger import Logger
 from models import LogLevel, Violation
 from rules import (
     DartAnalyzeRule,
@@ -55,7 +56,7 @@ class CodeAnalyzer:
         ('dart_test_coverage', DartTestCoverageRule),
     ]
 
-    def __init__(self, languages: str | list[str], path: str, rules_file: str, output_folder: Path | None = None, cli_log_level: LogLevel | None = None, max_errors: int | None = None):
+    def __init__(self, languages: str | list[str], path: str, rules_file: str, output_folder: Path | None = None, cli_log_level: LogLevel | None = None, max_errors: int | None = None, filter_file: str | None = None, logger: Logger | None = None):
         if isinstance(languages, str):
             languages = [languages]
         self.languages = languages
@@ -68,6 +69,8 @@ class CodeAnalyzer:
         self.output_folder = output_folder
         self.cli_log_level = cli_log_level  # CLI-provided log level (highest priority)
         self.max_errors = max_errors
+        self.filter_file = filter_file
+        self.logger = logger or Logger()
         self._enabled_analyzers = self._get_enabled_analyzers()
         self._multi_language = len(self.languages) > 1
         self._last_language_header = None
@@ -105,7 +108,7 @@ class CodeAnalyzer:
         lang_key = ', '.join(langs)
         if langs and lang_key != self._last_language_header:
             self._last_language_header = lang_key
-            print(f"\n--- {lang_key} ---")
+            self.logger.info(f"\n--- {lang_key} ---")
 
     def analyze(self):
         """Run the analysis"""
@@ -116,13 +119,13 @@ class CodeAnalyzer:
             exclude_patterns = rule_config.get('exclude_patterns')
 
         # Discover files (single pass for all languages)
-        print(f"\nDiscovering files...")
+        self.logger.info("\nDiscovering files...")
         discovery = FileDiscovery(self.languages, self.path, exclude_patterns)
         self.files = discovery.discover()
-        print(f"Found {len(self.files)} file(s)")
+        self.logger.info(f"Found {len(self.files)} file(s)")
 
         if not self.files:
-            print(f"No files found to analyze in '{self.path}'")
+            self.logger.info(f"No files found to analyze in '{self.path}'")
             return
 
         # INVARIANT: self.files is non-empty beyond this point.
@@ -132,21 +135,20 @@ class CodeAnalyzer:
         # Run PMD duplicates check (once per language that has it registered)
         if self._should_run('pmd_duplicates'):
             rule_config = self.config.get_rule('pmd_duplicates')
-            pmd_log_level = self._resolve_log_level('pmd_duplicates')
             # PMD needs a language parameter, so run once per language that has it
             pmd_languages = self._get_languages_for_analyzer('pmd_duplicates')
             for pmd_lang in pmd_languages:
                 if self._multi_language:
                     self._last_language_header = pmd_lang
-                    print(f"\n--- {pmd_lang} ---")
+                    self.logger.info(f"\n--- {pmd_lang} ---")
                 pmd_rule = PMDDuplicatesRule(
                     rule_config,
                     self.base_path,
                     pmd_lang,
-                    self.output_folder,
-                    pmd_log_level,
+                    LogLevel.ALL,
                     self.max_errors,
-                    self.rules_file
+                    self.rules_file,
+                    logger=self.logger,
                 )
                 violations = pmd_rule.check(self.files[0])
                 self.violations.extend(violations)
@@ -154,20 +156,19 @@ class CodeAnalyzer:
         # Run PMD similar code check (once per language that has it registered)
         if self._should_run('pmd_similar_code'):
             rule_config = self.config.get_rule('pmd_similar_code')
-            pmd_log_level = self._resolve_log_level('pmd_similar_code')
             pmd_languages = self._get_languages_for_analyzer('pmd_similar_code')
             for pmd_lang in pmd_languages:
                 if self._multi_language:
                     self._last_language_header = pmd_lang
-                    print(f"\n--- {pmd_lang} ---")
+                    self.logger.info(f"\n--- {pmd_lang} ---")
                 pmd_rule = PMDSimilarCodeRule(
                     rule_config,
                     self.base_path,
                     pmd_lang,
-                    self.output_folder,
-                    pmd_log_level,
+                    LogLevel.ALL,
                     self.max_errors,
-                    self.rules_file
+                    self.rules_file,
+                    logger=self.logger,
                 )
                 violations = pmd_rule.check(self.files[0])
                 self.violations.extend(violations)
@@ -177,14 +178,14 @@ class CodeAnalyzer:
             if self._should_run(analyzer_name):
                 self._print_language_header(analyzer_name)
                 rule_config = self.config.get_rule(analyzer_name)
-                log_level = self._resolve_log_level(analyzer_name)
                 rule = RuleClass(
                     rule_config,
                     self.base_path,
                     self.output_folder,
-                    log_level,
+                    LogLevel.ALL,
                     self.max_errors,
-                    self.rules_file
+                    self.rules_file,
+                    logger=self.logger,
                 )
                 violations = rule.check(self.files[0])
                 self.violations.extend(violations)
@@ -192,6 +193,10 @@ class CodeAnalyzer:
         # Run per-file rules on each file
         for file_path in self.files:
             self._check_file(file_path)
+
+        # Apply single-file filter if specified
+        if self.filter_file:
+            self._filter_violations_by_file()
 
     def get_analyzed_file_paths(self) -> list[str]:
         """Get relative paths of all analyzed files."""
@@ -201,13 +206,28 @@ class CodeAnalyzer:
             paths.append(str(relative))
         return paths
 
+    def _filter_violations_by_file(self):
+        """Filter violations to only those matching self.filter_file."""
+        filter_path = Path(self.filter_file).resolve()
+        # Compute relative path from base_path, normalized with forward slashes
+        try:
+            filter_rel = str(filter_path.relative_to(self.base_path)).replace('\\', '/')
+        except ValueError:
+            filter_rel = str(filter_path).replace('\\', '/')
+
+        filtered = []
+        for v in self.violations:
+            vp = v.file_path.replace('\\', '/')
+            if vp == filter_rel or vp.endswith('/' + filter_rel) or filter_rel.endswith('/' + vp):
+                filtered.append(v)
+        self.violations = filtered
+
     def _check_file(self, file_path: Path):
         """Check a single file against all enabled rules"""
         # Check max lines rule
         if self._should_run('max_lines_per_file'):
             rule_config = self.config.get_rule('max_lines_per_file')
-            max_lines_log_level = self._resolve_log_level('max_lines_per_file')
-            rule = MaxLinesRule(rule_config, self.base_path, max_lines_log_level, self.max_errors, self.rules_file)
+            rule = MaxLinesRule(rule_config, self.base_path, LogLevel.ALL, self.max_errors, self.rules_file, logger=self.logger)
             violations = rule.check(file_path)
             self.violations.extend(violations)
 
@@ -238,7 +258,7 @@ class CodeAnalyzer:
             try:
                 return LogLevel(rule_log_level_str)
             except ValueError:
-                print(f"Warning: Invalid log_level '{rule_log_level_str}' for rule '{rule_name}', using default")
+                self.logger.warning(f"Warning: Invalid log_level '{rule_log_level_str}' for rule '{rule_name}', using default")
 
         # 3. Global log level from rules.json
         global_log_level_str = self.config.get_global_log_level()
@@ -246,7 +266,7 @@ class CodeAnalyzer:
             try:
                 return LogLevel(global_log_level_str)
             except ValueError:
-                print(f"Warning: Invalid global log_level '{global_log_level_str}', using default")
+                self.logger.warning(f"Warning: Invalid global log_level '{global_log_level_str}', using default")
 
         # 4. Default to ALL
         return LogLevel.ALL

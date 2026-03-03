@@ -17,9 +17,9 @@ from settings import Settings
 class FlutterAnalyzeRule(BaseRule):
     """Rule to analyze Flutter code using flutter analyze"""
 
-    def __init__(self, config: dict, base_path: Path | None = None, output_folder: Path | None = None, log_level: LogLevel = LogLevel.ALL, max_errors: int | None = None, rules_file_path: str | None = None):
+    def __init__(self, config: dict, base_path: Path | None = None, output_folder: Path | None = None, log_level: LogLevel = LogLevel.ALL, max_errors: int | None = None, rules_file_path: str | None = None, logger=None):
         """Initialize Flutter analyze rule with config and output settings."""
-        super().__init__(config, base_path, log_level, max_errors, rules_file_path)
+        super().__init__(config, base_path, log_level, max_errors, rules_file_path, logger=logger)
         self.output_folder = output_folder
         self.log_level = log_level
         self.settings = Settings()
@@ -32,10 +32,10 @@ class FlutterAnalyzeRule(BaseRule):
             return []
         self._flutter_executed = True
 
-        print("\nRunning flutter analyze...")
+        self.logger.info("\nRunning flutter analyze...")
 
         if not self._is_flutter_project():
-            print("Not a Flutter project (no flutter dependency in pubspec.yaml)")
+            self.logger.info("Not a Flutter project (no flutter dependency in pubspec.yaml)")
             return []
 
         flutter_cmd = self._get_flutter_command(self.settings.get_flutter_path, self.settings.prompt_and_save_flutter_path)
@@ -48,7 +48,7 @@ class FlutterAnalyzeRule(BaseRule):
         """Check if project has flutter dependency in pubspec.yaml."""
         self.project_root = self._find_pubspec()
         if not self.project_root:
-            print(f"Warning: pubspec.yaml not found in {self.base_path} or parent")
+            self.logger.warning(f"Warning: pubspec.yaml not found in {self.base_path} or parent")
             return False
 
         try:
@@ -60,7 +60,7 @@ class FlutterAnalyzeRule(BaseRule):
             dev_deps = pubspec_data.get('dev_dependencies', {})
             return 'flutter' in deps or 'flutter' in dev_deps
         except Exception as e:
-            print(f"Warning: Could not parse pubspec.yaml: {e}")
+            self.logger.warning(f"Warning: Could not parse pubspec.yaml: {e}")
             return False
 
     def _run_flutter_analyze(self, flutter_cmd: list[str]) -> list[Violation]:
@@ -70,7 +70,7 @@ class FlutterAnalyzeRule(BaseRule):
             output = result.stdout if result.stdout.strip() else result.stderr
             violations = self._filter_violations_by_log_level(self._parse_flutter_text_output(output))
 
-            print(f"Flutter analyze found {len(violations)} issue(s)" if violations else "Flutter analyze: No issues found")
+            self.logger.info(f"Flutter analyze found {len(violations)} issue(s)" if violations else "Flutter analyze: No issues found")
 
             if self.output_folder and violations:
                 self._write_csv_output(self.output_folder / 'flutter_analyze.csv', violations)
@@ -78,7 +78,7 @@ class FlutterAnalyzeRule(BaseRule):
             return violations
         except Exception as e:
             err_msg = "Flutter executable not found" if isinstance(e, FileNotFoundError) else str(e)
-            print(f"Error running flutter analyze: {err_msg}")
+            self.logger.error(f"Error running flutter analyze: {err_msg}")
             return []
 
     def _parse_flutter_text_output(self, output: str) -> list[Violation]:
@@ -163,7 +163,7 @@ class FlutterAnalyzeRule(BaseRule):
                 for d in violation_data:
                     writer.writerow([d['file'], d['line'], d['column'], d['severity'], d['code'], d['message']])
 
-            print(f"Flutter analyze report saved to: {output_file}")
+            self.logger.info(f"Flutter analyze report saved to: {output_file}")
 
         except Exception as e:
-            print(f"Error writing flutter analyze CSV file: {e}")
+            self.logger.error(f"Error writing flutter analyze CSV file: {e}")

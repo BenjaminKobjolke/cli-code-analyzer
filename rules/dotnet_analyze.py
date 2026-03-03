@@ -22,9 +22,9 @@ class DotnetAnalyzeRule(BaseRule):
 
     def __init__(self, config: dict, base_path: Path | None = None, output_folder: Path | None = None,
                  log_level: LogLevel = LogLevel.ALL, max_errors: int | None = None,
-                 rules_file_path: str | None = None):
+                 rules_file_path: str | None = None, logger=None):
         super().__init__(config=config, base_path=base_path, log_level=log_level,
-                        max_errors=max_errors, rules_file_path=rules_file_path)
+                        max_errors=max_errors, rules_file_path=rules_file_path, logger=logger)
         self.output_folder = output_folder
         self.log_level = log_level
         self.settings = Settings()
@@ -36,7 +36,7 @@ class DotnetAnalyzeRule(BaseRule):
             return []
 
         self._dotnet_executed = True
-        print("\nRunning dotnet build analysis...")
+        self.logger.info("\nRunning dotnet build analysis...")
 
         # Get dotnet path using base utility
         dotnet_path = self._get_tool_path('dotnet', self.settings.get_dotnet_path,
@@ -85,9 +85,9 @@ class DotnetAnalyzeRule(BaseRule):
                 violations = violations[:self.max_errors]
 
             if violations:
-                print(f"Dotnet build found {len(violations)} issue(s)")
+                self.logger.info(f"Dotnet build found {len(violations)} issue(s)")
             else:
-                print("Dotnet build: No issues found")
+                self.logger.info("Dotnet build: No issues found")
 
             if self.output_folder and violations:
                 output_file = self.output_folder / 'dotnet_analyze.csv'
@@ -96,11 +96,11 @@ class DotnetAnalyzeRule(BaseRule):
             return violations
 
         except FileNotFoundError:
-            print(f"Error: dotnet executable not found: {dotnet_path}")
-            print("Please ensure .NET SDK is installed: https://dotnet.microsoft.com/download")
+            self.logger.error(f"Error: dotnet executable not found: {dotnet_path}")
+            self.logger.error("Please ensure .NET SDK is installed: https://dotnet.microsoft.com/download")
             return []
         except Exception as e:
-            print(f"Error running dotnet build: {e}")
+            self.logger.error(f"Error running dotnet build: {e}")
             return []
 
     def _map_severity(self, severity_str: str) -> Severity:
@@ -177,7 +177,7 @@ class DotnetAnalyzeRule(BaseRule):
 
                     writer.writerow([v.file_path, line, col, v.severity.value, code, clean_msg])
 
-            print(f"Dotnet analyze report saved to: {output_file}")
+            self.logger.info(f"Dotnet analyze report saved to: {output_file}")
 
         except Exception as e:
-            print(f"Error writing dotnet analyze CSV file: {e}")
+            self.logger.error(f"Error writing dotnet analyze CSV file: {e}")

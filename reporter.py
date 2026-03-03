@@ -3,16 +3,24 @@ Report generation and formatting
 """
 
 import csv
+import json
 from collections import defaultdict
 from pathlib import Path
 
+from logger import Logger
 from models import LogLevel, OutputLevel, Severity, Violation
 
 
 class Reporter:
     """Handles report generation in different formats"""
 
-    def __init__(self, violations: list[Violation], file_count: int, output_level: OutputLevel, log_level: LogLevel = LogLevel.ALL, output_folder: Path | None = None, max_errors: int | None = None):
+    CSV_FILENAME_MAP = {
+        'pmd_duplicates': 'duplicate_code.csv',
+        'pmd_similar_code': 'similar_code.csv',
+        'php_cs_fixer_analyze': 'php_cs_fixer.csv',
+    }
+
+    def __init__(self, violations: list[Violation], file_count: int, output_level: OutputLevel, log_level: LogLevel = LogLevel.ALL, output_folder: Path | None = None, max_errors: int | None = None, logger: Logger | None = None):
         self.all_violations = violations
         self.violations = self._filter_violations(violations, log_level)
         self.file_count = file_count
@@ -20,6 +28,7 @@ class Reporter:
         self.log_level = log_level
         self.output_folder = output_folder
         self.max_errors = max_errors
+        self.logger = logger or Logger()
 
     def _filter_violations(self, violations: list[Violation], log_level: LogLevel) -> list[Violation]:
         """Filter violations based on log level"""
@@ -75,10 +84,58 @@ class Reporter:
         else:
             return self._report_normal()
 
+    def report_json(self) -> bool:
+        """Output violations as JSON to stdout.
+
+        Always prints to stdout (bypasses quiet mode) so that JSON output
+        is available even when --file suppresses other output.
+
+        Returns:
+            True if errors were found, False otherwise
+        """
+        errors = [v for v in self.violations if v.severity == Severity.ERROR]
+        warnings = [v for v in self.violations if v.severity == Severity.WARNING]
+        infos = [v for v in self.violations if v.severity == Severity.INFO]
+
+        violation_dicts = []
+        for v in self.violations:
+            d = {
+                "file_path": v.file_path,
+                "rule_name": v.rule_name,
+                "severity": v.severity.value,
+                "message": v.message,
+            }
+            if v.line is not None:
+                d["line"] = v.line
+            if v.column is not None:
+                d["column"] = v.column
+            if v.line_count is not None:
+                d["line_count"] = v.line_count
+            violation_dicts.append(d)
+
+        output = {
+            "violations": violation_dicts,
+            "summary": {
+                "total": len(self.violations),
+                "errors": len(errors),
+                "warnings": len(warnings),
+                "infos": len(infos),
+            },
+        }
+
+        # Always print JSON to stdout, bypassing quiet mode
+        print(json.dumps(output, indent=2))
+
+        # Also write to file if output folder is set
+        if self.output_folder:
+            self._report_to_file()
+
+        return len(errors) > 0
+
     def _report_minimal(self) -> bool:
         """Generate minimal output format"""
         if not self.violations:
-            print("No violations found")
+            self.logger.info("No violations found")
             return False
 
         # Group violations by file
@@ -104,29 +161,29 @@ class Reporter:
 
             # Build output based on log level
             if self.log_level == LogLevel.ERROR:
-                print(f"{file_path} errors:{errors} {details}")
+                self.logger.info(f"{file_path} errors:{errors} {details}")
             elif self.log_level == LogLevel.WARNING:
-                print(f"{file_path} warnings:{warnings} {details}")
+                self.logger.info(f"{file_path} warnings:{warnings} {details}")
             else:  # LogLevel.ALL
-                print(f"{file_path} errors:{errors} warnings:{warnings} {details}")
+                self.logger.info(f"{file_path} errors:{errors} warnings:{warnings} {details}")
 
         # Summary
         total_errors = sum(1 for v in self.violations if v.severity == Severity.ERROR)
         total_warnings = sum(1 for v in self.violations if v.severity == Severity.WARNING)
 
         if self.log_level == LogLevel.ERROR:
-            print(f"Summary: {total_errors} error(s)")
+            self.logger.info(f"Summary: {total_errors} error(s)")
         elif self.log_level == LogLevel.WARNING:
-            print(f"Summary: {total_warnings} warning(s)")
+            self.logger.info(f"Summary: {total_warnings} warning(s)")
         else:  # LogLevel.ALL
-            print(f"Summary: {total_errors} error(s), {total_warnings} warning(s)")
+            self.logger.info(f"Summary: {total_errors} error(s), {total_warnings} warning(s)")
 
         return total_errors > 0
 
     def _report_normal(self) -> bool:
         """Generate normal output format"""
         if not self.violations:
-            print("No violations found!")
+            self.logger.info("No violations found!")
             return False
 
         # Separate errors, warnings, and infos
@@ -136,48 +193,48 @@ class Reporter:
 
         # Print errors
         if errors:
-            print(f"ERRORS ({len(errors)}):")
-            print("=" * 80)
+            self.logger.info(f"ERRORS ({len(errors)}):")
+            self.logger.info("=" * 80)
             for violation in errors:
-                print(f"  {violation.file_path}")
-                print(f"    {violation.message}")
-                print()
+                self.logger.info(f"  {violation.file_path}")
+                self.logger.info(f"    {violation.message}")
+                self.logger.info()
 
         # Print warnings
         if warnings:
-            print(f"WARNINGS ({len(warnings)}):")
-            print("=" * 80)
+            self.logger.info(f"WARNINGS ({len(warnings)}):")
+            self.logger.info("=" * 80)
             for violation in warnings:
-                print(f"  {violation.file_path}")
-                print(f"    {violation.message}")
-                print()
+                self.logger.info(f"  {violation.file_path}")
+                self.logger.info(f"    {violation.message}")
+                self.logger.info()
 
         # Print infos
         if infos:
-            print(f"INFO ({len(infos)}):")
-            print("=" * 80)
+            self.logger.info(f"INFO ({len(infos)}):")
+            self.logger.info("=" * 80)
             for violation in infos:
-                print(f"  {violation.file_path}")
-                print(f"    {violation.message}")
-                print()
+                self.logger.info(f"  {violation.file_path}")
+                self.logger.info(f"    {violation.message}")
+                self.logger.info()
 
         # Summary
-        print("=" * 80)
+        self.logger.info("=" * 80)
         if self.log_level == LogLevel.ERROR:
-            print(f"Summary: {len(errors)} error(s)")
+            self.logger.info(f"Summary: {len(errors)} error(s)")
         elif self.log_level == LogLevel.WARNING:
-            print(f"Summary: {len(errors)} error(s), {len(warnings)} warning(s)")
+            self.logger.info(f"Summary: {len(errors)} error(s), {len(warnings)} warning(s)")
         else:  # LogLevel.ALL
-            print(f"Summary: {len(errors)} error(s), {len(warnings)} warning(s), {len(infos)} info(s)")
+            self.logger.info(f"Summary: {len(errors)} error(s), {len(warnings)} warning(s), {len(infos)} info(s)")
 
         return len(errors) > 0
 
     def _report_verbose(self) -> bool:
         """Generate verbose output format"""
-        print(f"Analyzing {self.file_count} file(s)...\n")
+        self.logger.info(f"Analyzing {self.file_count} file(s)...\n")
 
         if not self.violations:
-            print("No violations found!")
+            self.logger.info("No violations found!")
             return False
 
         # Separate errors, warnings, and infos
@@ -187,57 +244,57 @@ class Reporter:
 
         # Print errors
         if errors:
-            print(f"ERRORS ({len(errors)}):")
-            print("=" * 80)
+            self.logger.info(f"ERRORS ({len(errors)}):")
+            self.logger.info("=" * 80)
             for violation in errors:
-                print(f"  {violation.file_path}")
-                print(f"    Rule: {violation.rule_name}")
-                print(f"    Severity: {violation.severity.value}")
+                self.logger.info(f"  {violation.file_path}")
+                self.logger.info(f"    Rule: {violation.rule_name}")
+                self.logger.info(f"    Severity: {violation.severity.value}")
                 if violation.line_count:
                     threshold = self._get_threshold(violation)
                     excess = violation.line_count - threshold
-                    print(f"    Lines: {violation.line_count} / {threshold} (limit exceeded by {excess})")
-                print(f"    Message: {violation.message}")
-                print()
+                    self.logger.info(f"    Lines: {violation.line_count} / {threshold} (limit exceeded by {excess})")
+                self.logger.info(f"    Message: {violation.message}")
+                self.logger.info()
 
         # Print warnings
         if warnings:
-            print(f"WARNINGS ({len(warnings)}):")
-            print("=" * 80)
+            self.logger.info(f"WARNINGS ({len(warnings)}):")
+            self.logger.info("=" * 80)
             for violation in warnings:
-                print(f"  {violation.file_path}")
-                print(f"    Rule: {violation.rule_name}")
-                print(f"    Severity: {violation.severity.value}")
+                self.logger.info(f"  {violation.file_path}")
+                self.logger.info(f"    Rule: {violation.rule_name}")
+                self.logger.info(f"    Severity: {violation.severity.value}")
                 if violation.line_count:
                     threshold = self._get_threshold(violation)
                     excess = violation.line_count - threshold
-                    print(f"    Lines: {violation.line_count} / {threshold} ({excess} lines over warning threshold)")
-                print(f"    Message: {violation.message}")
-                print()
+                    self.logger.info(f"    Lines: {violation.line_count} / {threshold} ({excess} lines over warning threshold)")
+                self.logger.info(f"    Message: {violation.message}")
+                self.logger.info()
 
         # Print infos
         if infos:
-            print(f"INFO ({len(infos)}):")
-            print("=" * 80)
+            self.logger.info(f"INFO ({len(infos)}):")
+            self.logger.info("=" * 80)
             for violation in infos:
-                print(f"  {violation.file_path}")
-                print(f"    Rule: {violation.rule_name}")
-                print(f"    Severity: {violation.severity.value}")
-                print(f"    Message: {violation.message}")
-                print()
+                self.logger.info(f"  {violation.file_path}")
+                self.logger.info(f"    Rule: {violation.rule_name}")
+                self.logger.info(f"    Severity: {violation.severity.value}")
+                self.logger.info(f"    Message: {violation.message}")
+                self.logger.info()
 
         # Summary
-        print("=" * 80)
-        print(f"Files analyzed: {self.file_count}")
+        self.logger.info("=" * 80)
+        self.logger.info(f"Files analyzed: {self.file_count}")
         files_with_violations = len({v.file_path for v in self.violations})
-        print(f"Files with violations: {files_with_violations}")
+        self.logger.info(f"Files with violations: {files_with_violations}")
 
         if self.log_level == LogLevel.ERROR:
-            print(f"Summary: {len(errors)} error(s)")
+            self.logger.info(f"Summary: {len(errors)} error(s)")
         elif self.log_level == LogLevel.WARNING:
-            print(f"Summary: {len(errors)} error(s), {len(warnings)} warning(s)")
+            self.logger.info(f"Summary: {len(errors)} error(s), {len(warnings)} warning(s)")
         else:  # LogLevel.ALL
-            print(f"Summary: {len(errors)} error(s), {len(warnings)} warning(s), {len(infos)} info(s)")
+            self.logger.info(f"Summary: {len(errors)} error(s), {len(warnings)} warning(s), {len(infos)} info(s)")
 
         return len(errors) > 0
 
@@ -282,13 +339,38 @@ class Reporter:
                         violation.severity.value
                     ])
 
-            print(f"Line count report saved to: {output_file}")
+            self.logger.info(f"Line count report saved to: {output_file}")
         else:
-            print("No line count violations found")
+            self.logger.info("No line count violations found")
 
-        # PMD duplicates and dart analyze reports are already saved by their respective rules
-        # They print their own "saved to" messages, so we don't need to print anything here
+        # Write CSVs for all rules (centralized — rules no longer write their own)
+        self._write_rule_csvs()
 
         # Determine if there are errors
         total_errors = sum(1 for v in self.violations if v.severity == Severity.ERROR)
         return total_errors > 0
+
+    def _write_rule_csvs(self):
+        """Write CSV files for each rule's violations."""
+        by_rule: dict[str, list[Violation]] = defaultdict(list)
+        for v in self.violations:
+            if v.rule_name != 'max_lines_per_file':
+                by_rule[v.rule_name].append(v)
+
+        severity_order = {Severity.ERROR: 0, Severity.WARNING: 1, Severity.INFO: 2}
+
+        for rule_name, violations in by_rule.items():
+            filename = self.CSV_FILENAME_MAP.get(rule_name, f'{rule_name}.csv')
+            output_file = self.output_folder / filename
+
+            sorted_v = sorted(violations, key=lambda v: severity_order.get(v.severity, 3))
+            if self.max_errors and len(sorted_v) > self.max_errors:
+                sorted_v = sorted_v[:self.max_errors]
+
+            with open(output_file, 'w', encoding='utf-8', newline='') as f:
+                writer = csv.writer(f)
+                writer.writerow(['file_path', 'line', 'column', 'severity', 'message'])
+                for v in sorted_v:
+                    writer.writerow([v.file_path, v.line or '', v.column or '', v.severity.value, v.message])
+
+            self.logger.info(f"Report saved to: {output_file}")

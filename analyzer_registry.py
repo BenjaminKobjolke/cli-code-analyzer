@@ -5,6 +5,8 @@ Centralized registry of available analyzers per language.
 import json
 from typing import List, Tuple, Optional
 
+from logger import Logger
+
 
 # Registry format: (analyzer_name, description, requires)
 # requires = None means no external tool required
@@ -164,12 +166,14 @@ def _format_analyzer_list(analyzers: List[Tuple[str, str, Optional[str]]]) -> Li
     return lines
 
 
-def list_analyzers(lang: str, output_format: str = 'text') -> None:
+def list_analyzers(lang: str, output_format: str = 'text', logger=None) -> None:
     """
     Print available analyzers for the given language.
 
     Args:
         lang: Language name or 'all' for all languages
         output_format: 'text' or 'json'
+        logger: Optional Logger instance for output
     """
-    print(format_analyzers_output(lang, output_format))
+    logger = logger or Logger()
+    logger.info(format_analyzers_output(lang, output_format))

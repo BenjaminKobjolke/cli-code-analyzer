@@ -19,8 +19,8 @@ FIXER_CONFIG_FILES = ['.php-cs-fixer.dist.php', '.php-cs-fixer.php']
 class PHPCSFixerAnalyzeRule(BaseRule):
     """Rule to analyze PHP code style using PHP-CS-Fixer in dry-run mode"""
 
-    def __init__(self, config: dict, base_path: Path | None = None, output_folder: Path | None = None, log_level: LogLevel = LogLevel.ALL, max_errors: int | None = None, rules_file_path: str | None = None):
-        super().__init__(config=config, base_path=base_path, log_level=log_level, max_errors=max_errors, rules_file_path=rules_file_path)
+    def __init__(self, config: dict, base_path: Path | None = None, output_folder: Path | None = None, log_level: LogLevel = LogLevel.ALL, max_errors: int | None = None, rules_file_path: str | None = None, logger=None):
+        super().__init__(config=config, base_path=base_path, log_level=log_level, max_errors=max_errors, rules_file_path=rules_file_path, logger=logger)
         self.output_folder = output_folder
         self.log_level = log_level
         self.settings = Settings()
@@ -106,7 +106,7 @@ return (new PhpCsFixer\\Config())
         config_path = self.base_path / '.php-cs-fixer.dist.php'
         content = self._generate_fixer_config(exclude_paths, rules)
         config_path.write_text(content, encoding='utf-8')
-        print(f"  Created config: {config_path.name}")
+        self.logger.info(f"  Created config: {config_path.name}")
         return config_path
 
     def _update_fixer_config(self, config_path: Path, exclude_paths: list[str], rules: str) -> bool:
@@ -125,13 +125,13 @@ return (new PhpCsFixer\\Config())
             # Update the config file
             new_content = self._generate_fixer_config(exclude_paths, rules)
             config_path.write_text(new_content, encoding='utf-8')
-            print(f"  Updated config: {config_path.name}")
-            print(f"    Old excludes: {current_excludes}")
-            print(f"    New excludes: {exclude_paths}")
+            self.logger.info(f"  Updated config: {config_path.name}")
+            self.logger.info(f"    Old excludes: {current_excludes}")
+            self.logger.info(f"    New excludes: {exclude_paths}")
             return True
 
         except Exception as e:
-            print(f"  Warning: Could not update config {config_path.name}: {e}")
+            self.logger.warning(f"  Warning: Could not update config {config_path.name}: {e}")
             return False
 
     def _ensure_fixer_config(self) -> Path | None:
@@ -142,7 +142,7 @@ return (new PhpCsFixer\\Config())
         if not self._is_managed():
             existing = self._get_fixer_config_path()
             if existing:
-                print(f"  Using existing config: {existing.name} (managed=false)")
+                self.logger.info(f"  Using existing config: {existing.name} (managed=false)")
             return existing
 
         exclude_paths = self._get_exclude_paths()
@@ -164,7 +164,7 @@ return (new PhpCsFixer\\Config())
             return []
 
         self._fixer_executed = True
-        print("\nRunning PHP-CS-Fixer check...")
+        self.logger.info("\nRunning PHP-CS-Fixer check...")
 
         # First check bundled php/vendor/bin folder
         fixer_path = self._get_bundled_fixer_path()
@@ -208,9 +208,9 @@ return (new PhpCsFixer\\Config())
         # Print scanning info
         exclude_paths = self._get_exclude_paths()
         rules = self._get_rules()
-        print(f"  Scanning: {analyze_path}")
-        print(f"  Excluding: {', '.join(exclude_paths)}")
-        print(f"  Rules: {rules}")
+        self.logger.info(f"  Scanning: {analyze_path}")
+        self.logger.info(f"  Excluding: {', '.join(exclude_paths)}")
+        self.logger.info(f"  Rules: {rules}")
 
         try:
             result = self._run_subprocess(cmd, self.base_path)
@@ -223,7 +223,7 @@ return (new PhpCsFixer\\Config())
                                if l.strip() and 'legend:' not in l.lower() and l.strip() != '.']
                 if stderr_lines:
                     for line in stderr_lines[:5]:  # Show first few lines of progress
-                        print(f"  {line}")
+                        self.logger.info(f"  {line}")
 
             violations = self._parse_fixer_json(output)
             violations = self._filter_violations_by_log_level(violations)
@@ -232,9 +232,9 @@ return (new PhpCsFixer\\Config())
                 violations = violations[:self.max_errors]
 
             if violations:
-                print(f"PHP-CS-Fixer found {len(violations)} issue(s)")
+                self.logger.info(f"PHP-CS-Fixer found {len(violations)} issue(s)")
             else:
-                print("PHP-CS-Fixer: No issues found")
+                self.logger.info("PHP-CS-Fixer: No issues found")
 
             if self.output_folder and violations:
                 output_file = self.output_folder / 'php_cs_fixer.csv'
@@ -243,11 +243,11 @@ return (new PhpCsFixer\\Config())
             return violations
 
         except FileNotFoundError:
-            print(f"Error: PHP-CS-Fixer executable not found: {fixer_path}")
-            print("Please ensure PHP-CS-Fixer is installed: composer require --dev friendsofphp/php-cs-fixer")
+            self.logger.error(f"Error: PHP-CS-Fixer executable not found: {fixer_path}")
+            self.logger.error("Please ensure PHP-CS-Fixer is installed: composer require --dev friendsofphp/php-cs-fixer")
             return []
         except Exception as e:
-            print(f"Error running PHP-CS-Fixer check: {e}")
+            self.logger.error(f"Error running PHP-CS-Fixer check: {e}")
             return []
 
     def _parse_fixer_json(self, output: str) -> list[Violation]:
@@ -295,10 +295,10 @@ return (new PhpCsFixer\\Config())
                     violations.append(violation)
 
         except json.JSONDecodeError as e:
-            print(f"Error parsing PHP-CS-Fixer JSON output: {e}")
-            print(f"Output was: {output[:200]}...")
+            self.logger.error(f"Error parsing PHP-CS-Fixer JSON output: {e}")
+            self.logger.error(f"Output was: {output[:200]}...")
         except Exception as e:
-            print(f"Error processing PHP-CS-Fixer results: {e}")
+            self.logger.error(f"Error processing PHP-CS-Fixer results: {e}")
 
         return violations
 
@@ -344,9 +344,9 @@ return (new PhpCsFixer\\Config())
                 for v in all_violations:
                     writer.writerow([v['file'], v['severity'], v['fixers'], v['fixer_count']])
 
-            print(f"PHP-CS-Fixer report saved to: {output_file}")
+            self.logger.info(f"PHP-CS-Fixer report saved to: {output_file}")
 
         except json.JSONDecodeError as e:
-            print(f"Error parsing JSON for CSV output: {e}")
+            self.logger.error(f"Error parsing JSON for CSV output: {e}")
         except Exception as e:
-            print(f"Error writing PHP-CS-Fixer CSV file: {e}")
+            self.logger.error(f"Error writing PHP-CS-Fixer CSV file: {e}")

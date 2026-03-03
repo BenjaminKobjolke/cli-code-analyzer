@@ -14,7 +14,7 @@ from settings import Settings
 class RuffAnalyzeRule(BaseRule):
     """Rule to analyze Python code using Ruff linter"""
 
-    def __init__(self, config: dict, base_path: Path | None = None, output_folder: Path | None = None, log_level: LogLevel = LogLevel.ALL, max_errors: int | None = None, rules_file_path: str | None = None):
+    def __init__(self, config: dict, base_path: Path | None = None, output_folder: Path | None = None, log_level: LogLevel = LogLevel.ALL, max_errors: int | None = None, rules_file_path: str | None = None, logger=None):
         """Initialize Ruff analyze rule.
 
         Args:
@@ -24,8 +24,9 @@ class RuffAnalyzeRule(BaseRule):
             log_level: Log level for filtering violations
             max_errors: Optional limit on number of violations to include in CSV
             rules_file_path: Path to the rules.json file
+            logger: Optional Logger instance for structured logging
         """
-        super().__init__(config=config, base_path=base_path, log_level=log_level, max_errors=max_errors, rules_file_path=rules_file_path)
+        super().__init__(config=config, base_path=base_path, log_level=log_level, max_errors=max_errors, rules_file_path=rules_file_path, logger=logger)
         self.output_folder = output_folder
         self.log_level = log_level
         self.settings = Settings()
@@ -49,7 +50,7 @@ class RuffAnalyzeRule(BaseRule):
 
         self._ruff_executed = True
 
-        print("\nRunning ruff check...")
+        self.logger.info("\nRunning ruff check...")
 
         # Get ruff path using base utility
         ruff_path = self._get_tool_path('ruff', self.settings.get_ruff_path, self.settings.prompt_and_save_ruff_path)
@@ -108,9 +109,9 @@ class RuffAnalyzeRule(BaseRule):
 
             # Print summary
             if violations:
-                print(f"Ruff found {len(violations)} issue(s)")
+                self.logger.info(f"Ruff found {len(violations)} issue(s)")
             else:
-                print("Ruff: No issues found")
+                self.logger.info("Ruff: No issues found")
 
             # Write to CSV file if output folder is specified and violations found
             if self.output_folder and violations:
@@ -120,11 +121,11 @@ class RuffAnalyzeRule(BaseRule):
             return violations
 
         except FileNotFoundError:
-            print(f"Error: Ruff executable not found: {ruff_path}")
-            print("Please ensure Ruff is installed: pip install ruff")
+            self.logger.error(f"Error: Ruff executable not found: {ruff_path}")
+            self.logger.error("Please ensure Ruff is installed: pip install ruff")
             return []
         except Exception as e:
-            print(f"Error running ruff check: {e}")
+            self.logger.error(f"Error running ruff check: {e}")
             return []
 
     def _map_ruff_severity(self, code: str) -> Severity:
@@ -207,10 +208,10 @@ class RuffAnalyzeRule(BaseRule):
                 violations.append(violation)
 
         except json.JSONDecodeError as e:
-            print(f"Error parsing ruff JSON output: {e}")
-            print(f"Output was: {output[:200]}...")  # Print first 200 chars for debugging
+            self.logger.error(f"Error parsing ruff JSON output: {e}")
+            self.logger.error(f"Output was: {output[:200]}...")
         except Exception as e:
-            print(f"Error processing ruff results: {e}")
+            self.logger.error(f"Error processing ruff results: {e}")
 
         return violations
 
@@ -284,9 +285,9 @@ class RuffAnalyzeRule(BaseRule):
 
                     writer.writerow([rel_path, line_num, col_num, severity.value, code, message, url])
 
-            print(f"Ruff report saved to: {output_file}")
+            self.logger.info(f"Ruff report saved to: {output_file}")
 
         except json.JSONDecodeError as e:
-            print(f"Error parsing JSON for CSV output: {e}")
+            self.logger.error(f"Error parsing JSON for CSV output: {e}")
         except Exception as e:
-            print(f"Error writing ruff CSV file: {e}")
+            self.logger.error(f"Error writing ruff CSV file: {e}")

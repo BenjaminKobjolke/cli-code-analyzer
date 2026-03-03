@@ -3,6 +3,8 @@ import urllib.request
 import zipfile
 from pathlib import Path
 
+from logger import Logger
+
 PMD_VERSION = "7.17.0"
 PMD_DOWNLOAD_URL = f"https://github.com/pmd/pmd/releases/download/pmd_releases%2F{PMD_VERSION}/pmd-dist-{PMD_VERSION}-bin.zip"
 PMD_INSTALL_DIR = Path("bin")
@@ -18,44 +20,45 @@ def get_pmd_install_path() -> Path:
     return PMD_INSTALL_DIR / PMD_EXTRACTED_DIR / "bin" / "pmd.bat"
 
 
-def download_pmd() -> Path | None:
+def download_pmd(logger=None) -> Path | None:
     """Download and extract PMD from GitHub.
 
     Returns:
         Path to pmd.bat if successful, None otherwise
     """
+    logger = logger or Logger()
     try:
         # Create bin directory if it doesn't exist
         PMD_INSTALL_DIR.mkdir(parents=True, exist_ok=True)
 
         # Download PMD
-        print(f"Downloading PMD {PMD_VERSION}...")
+        logger.info(f"Downloading PMD {PMD_VERSION}...")
         zip_path = PMD_INSTALL_DIR / f"pmd-{PMD_VERSION}.zip"
 
         # Download with progress
         urllib.request.urlretrieve(PMD_DOWNLOAD_URL, zip_path)
-        print("Download complete")
+        logger.info("Download complete")
 
         # Extract ZIP
-        print(f"Extracting to {PMD_INSTALL_DIR}/...")
+        logger.info(f"Extracting to {PMD_INSTALL_DIR}/...")
         with zipfile.ZipFile(zip_path, 'r') as zip_ref:
             zip_ref.extractall(PMD_INSTALL_DIR)
 
         # Clean up ZIP file
         zip_path.unlink()
-        print("Extraction complete")
+        logger.info("Extraction complete")
 
         # Verify installation
         pmd_path = get_pmd_install_path()
         if pmd_path.exists():
-            print(f"PMD installed successfully at: {pmd_path}")
+            logger.info(f"PMD installed successfully at: {pmd_path}")
             return pmd_path
         else:
-            print(f"Error: PMD executable not found at expected path: {pmd_path}")
+            logger.error(f"Error: PMD executable not found at expected path: {pmd_path}")
             return None
 
     except Exception as e:
-        print(f"Error downloading/extracting PMD: {e}")
+        logger.error(f"Error downloading/extracting PMD: {e}")
         return None
 
 

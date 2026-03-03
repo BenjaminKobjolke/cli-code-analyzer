@@ -19,9 +19,8 @@ from rules.dart_utils import (
 class DartImportRulesRule(BaseRule):
     """Enforce architecture layer boundaries via configurable forbidden import rules."""
 
-    def __init__(self, config: dict, base_path: Path | None = None, output_folder: Path | None = None, log_level: LogLevel = LogLevel.ALL, max_errors: int | None = None, rules_file_path: str | None = None):
-        super().__init__(config, base_path, log_level, max_errors, rules_file_path)
-        self.output_folder = output_folder
+    def __init__(self, config: dict, base_path: Path | None = None, output_folder: Path | None = None, log_level: LogLevel = LogLevel.ALL, max_errors: int | None = None, rules_file_path: str | None = None, logger=None):
+        super().__init__(config, base_path, log_level, max_errors, rules_file_path, logger=logger)
         self._executed = False
 
     def check(self, _file_path: Path) -> list[Violation]:
@@ -29,31 +28,31 @@ class DartImportRulesRule(BaseRule):
             return []
         self._executed = True
 
-        print("\nRunning dart import rules check...")
+        self.logger.info("\nRunning dart import rules check...")
 
         project_root = self._find_pubspec()
         if not project_root:
-            print("Warning: pubspec.yaml not found, skipping dart_import_rules")
+            self.logger.warning("Warning: pubspec.yaml not found, skipping dart_import_rules")
             return []
 
         analyze_path = self.config.get('analyze_path', 'lib')
         analyze_dir = project_root / analyze_path
         if not analyze_dir.exists():
-            print(f"Warning: analyze path '{analyze_dir}' does not exist")
+            self.logger.warning(f"Warning: analyze path '{analyze_dir}' does not exist")
             return []
 
         exclude_patterns = self.config.get('exclude_patterns', ['*.g.dart', '*.freezed.dart'])
         forbidden_imports = self.config.get('forbidden_imports', [])
 
         if not forbidden_imports:
-            print("No forbidden import rules configured")
+            self.logger.info("No forbidden import rules configured")
             return []
 
         package_name = get_package_name(project_root)
         all_dart_files = collect_dart_files(analyze_dir, exclude_patterns)
 
         if not all_dart_files:
-            print("No Dart files found to analyze")
+            self.logger.info("No Dart files found to analyze")
             return []
 
         violations = []
@@ -121,23 +120,9 @@ class DartImportRulesRule(BaseRule):
         violations = self._filter_violations_by_log_level(violations)
 
         if violations:
-            print(f"Dart import rules found {len(violations)} violation(s)")
+            self.logger.info(f"Dart import rules found {len(violations)} violation(s)")
         else:
-            print("Dart import rules: No violations found")
-
-        if self.output_folder and violations:
-            output_file = self.output_folder / 'dart_import_rules.csv'
-            self._write_violations_csv(
-                output_file, violations,
-                ['file_path', 'line', 'import_statement', 'violated_rule', 'severity'],
-                lambda v: [
-                    v.file_path,
-                    self._extract_line(v.message),
-                    self._extract_import(v.message),
-                    self._extract_rule_msg(v.message),
-                    v.severity.name
-                ]
-            )
+            self.logger.info("Dart import rules: No violations found")
 
         return violations
 

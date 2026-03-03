@@ -13,9 +13,8 @@ from settings import Settings
 class DartTestCoverageRule(BaseRule):
     """Run Flutter tests and check coverage against configurable thresholds."""
 
-    def __init__(self, config: dict, base_path: Path | None = None, output_folder: Path | None = None, log_level: LogLevel = LogLevel.ALL, max_errors: int | None = None, rules_file_path: str | None = None):
-        super().__init__(config, base_path, log_level, max_errors, rules_file_path)
-        self.output_folder = output_folder
+    def __init__(self, config: dict, base_path: Path | None = None, output_folder: Path | None = None, log_level: LogLevel = LogLevel.ALL, max_errors: int | None = None, rules_file_path: str | None = None, logger=None):
+        super().__init__(config, base_path, log_level, max_errors, rules_file_path, logger=logger)
         self.settings = Settings()
         self._executed = False
 
@@ -24,11 +23,11 @@ class DartTestCoverageRule(BaseRule):
             return []
         self._executed = True
 
-        print("\nRunning dart test coverage check...")
+        self.logger.info("\nRunning dart test coverage check...")
 
         project_root = self._find_pubspec()
         if not project_root:
-            print("Warning: pubspec.yaml not found, skipping dart_test_coverage")
+            self.logger.warning("Warning: pubspec.yaml not found, skipping dart_test_coverage")
             return []
 
         run_tests = self.config.get('run_tests', True)
@@ -44,18 +43,18 @@ class DartTestCoverageRule(BaseRule):
         if run_tests:
             success = self._run_flutter_test(project_root, test_timeout)
             if not success:
-                print("Warning: Flutter test run failed, attempting to parse existing coverage data")
+                self.logger.warning("Warning: Flutter test run failed, attempting to parse existing coverage data")
 
         if not lcov_file.exists():
-            print(f"Warning: Coverage file not found at {lcov_file}")
+            self.logger.warning(f"Warning: Coverage file not found at {lcov_file}")
             if run_tests:
-                print("Tests may have failed to produce coverage output")
+                self.logger.warning("Tests may have failed to produce coverage output")
             return []
 
         # Parse LCOV data
         coverage_data = self._parse_lcov(lcov_file, exclude_patterns)
         if not coverage_data:
-            print("No coverage data found")
+            self.logger.info("No coverage data found")
             return []
 
         violations = []
@@ -109,23 +108,15 @@ class DartTestCoverageRule(BaseRule):
         violations = self._filter_violations_by_log_level(violations)
 
         if violations:
-            print(f"Dart test coverage found {len(violations)} issue(s) (overall: {overall_pct:.1f}%)")
+            self.logger.info(f"Dart test coverage found {len(violations)} issue(s) (overall: {overall_pct:.1f}%)")
         else:
-            print(f"Dart test coverage: All thresholds met (overall: {overall_pct:.1f}%)")
-
-        if self.output_folder and violations:
-            output_file = self.output_folder / 'dart_test_coverage.csv'
-            self._write_violations_csv(
-                output_file, violations,
-                ['file_path', 'total_lines', 'covered_lines', 'coverage_pct', 'threshold', 'severity'],
-                lambda v: self._parse_violation_data(v, coverage_data)
-            )
+            self.logger.info(f"Dart test coverage: All thresholds met (overall: {overall_pct:.1f}%)")
 
         return violations
 
     def _run_flutter_test(self, project_root: Path, timeout: int) -> bool:
         """Run flutter test --coverage."""
-        print("Running flutter test --coverage (this may take a while)...")
+        self.logger.info("Running flutter test --coverage (this may take a while)...")
 
         flutter_cmd = self._get_flutter_command(self.settings.get_flutter_path, self.settings.prompt_and_save_flutter_path)
         if not flutter_cmd:
@@ -140,11 +131,11 @@ class DartTestCoverageRule(BaseRule):
             if result.returncode != 0:
                 stderr = result.stderr.strip() if result.stderr else ''
                 if stderr:
-                    print(f"Flutter test stderr: {stderr[:500]}")
+                    self.logger.info(f"Flutter test stderr: {stderr[:500]}")
                 return False
             return True
         except Exception as e:
-            print(f"Error running flutter test: {e}")
+            self.logger.error(f"Error running flutter test: {e}")
             return False
 
     def _parse_lcov(self, lcov_file: Path, exclude_patterns: list[str]) -> dict:
@@ -161,7 +152,7 @@ class DartTestCoverageRule(BaseRule):
         try:
             content = lcov_file.read_text(encoding='utf-8', errors='replace')
         except Exception as e:
-            print(f"Error reading LCOV file: {e}")
+            self.logger.error(f"Error reading LCOV file: {e}")
             return {}
 
         for line in content.split('\n'):

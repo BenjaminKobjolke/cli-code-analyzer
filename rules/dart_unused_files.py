@@ -2,7 +2,6 @@
 Dart unused files analyzer - finds .dart files never imported by any other file.
 """
 
-import csv
 from collections import deque
 from pathlib import Path
 
@@ -20,9 +19,8 @@ from rules.dart_utils import (
 class DartUnusedFilesRule(BaseRule):
     """Find .dart files that are never imported/exported by any other file in the project."""
 
-    def __init__(self, config: dict, base_path: Path | None = None, output_folder: Path | None = None, log_level: LogLevel = LogLevel.ALL, max_errors: int | None = None, rules_file_path: str | None = None):
-        super().__init__(config, base_path, log_level, max_errors, rules_file_path)
-        self.output_folder = output_folder
+    def __init__(self, config: dict, base_path: Path | None = None, output_folder: Path | None = None, log_level: LogLevel = LogLevel.ALL, max_errors: int | None = None, rules_file_path: str | None = None, logger=None):
+        super().__init__(config, base_path, log_level, max_errors, rules_file_path, logger=logger)
         self._executed = False
 
     def check(self, _file_path: Path) -> list[Violation]:
@@ -30,17 +28,17 @@ class DartUnusedFilesRule(BaseRule):
             return []
         self._executed = True
 
-        print("\nRunning dart unused files check...")
+        self.logger.info("\nRunning dart unused files check...")
 
         project_root = self._find_pubspec()
         if not project_root:
-            print("Warning: pubspec.yaml not found, skipping dart_unused_files")
+            self.logger.warning("Warning: pubspec.yaml not found, skipping dart_unused_files")
             return []
 
         analyze_path = self.config.get('analyze_path', 'lib')
         analyze_dir = project_root / analyze_path
         if not analyze_dir.exists():
-            print(f"Warning: analyze path '{analyze_dir}' does not exist")
+            self.logger.warning(f"Warning: analyze path '{analyze_dir}' does not exist")
             return []
 
         exclude_patterns = self.config.get('exclude_patterns', ['*.g.dart', '*.freezed.dart'])
@@ -51,7 +49,7 @@ class DartUnusedFilesRule(BaseRule):
         all_dart_files = collect_dart_files(analyze_dir, exclude_patterns)
 
         if not all_dart_files:
-            print("No Dart files found to analyze")
+            self.logger.info("No Dart files found to analyze")
             return []
 
         # Build import graph: file -> set of files it imports
@@ -98,7 +96,7 @@ class DartUnusedFilesRule(BaseRule):
 
         # If no entry points exist, skip analysis
         if not entry_files:
-            print("Warning: No entry points found, skipping unused files check")
+            self.logger.warning("Warning: No entry points found, skipping unused files check")
             return []
 
         reachable = set()
@@ -141,16 +139,8 @@ class DartUnusedFilesRule(BaseRule):
         violations = self._filter_violations_by_log_level(violations)
 
         if violations:
-            print(f"Dart unused files found {len(violations)} unused file(s)")
+            self.logger.info(f"Dart unused files found {len(violations)} unused file(s)")
         else:
-            print("Dart unused files: No unused files found")
-
-        if self.output_folder and violations:
-            output_file = self.output_folder / 'dart_unused_files.csv'
-            self._write_violations_csv(
-                output_file, violations,
-                ['file_path', 'severity', 'message'],
-                lambda v: [v.file_path, v.severity.name, v.message]
-            )
+            self.logger.info("Dart unused files: No unused files found")
 
         return violations
