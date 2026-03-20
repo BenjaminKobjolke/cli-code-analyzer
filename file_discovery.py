@@ -10,7 +10,7 @@ from typing import ClassVar
 DEFAULT_EXCLUDE_PATTERNS = {
     'flutter': ['*.g.dart', '*.freezed.dart'],
     'python': ['venv/**', '.venv/**', '__pycache__/**', '*.pyc', 'env/**', '.git/**'],
-    'php': ['vendor/**', 'node_modules/**', '.git/**'],
+    'php': ['vendor/**', 'node_modules/**', '.git/**', '.phpstan-cache/**'],
     'csharp': ['bin/**', 'obj/**', '.vs/**', 'packages/**', 'node_modules/**', '.git/**'],
     'javascript': ['node_modules/**', 'dist/**', 'build/**', 'coverage/**', '.git/**'],
     'svelte': ['node_modules/**', 'dist/**', 'build/**', '.svelte-kit/**', '.git/**'],

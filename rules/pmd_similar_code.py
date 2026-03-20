@@ -1,9 +1,8 @@
 """PMD similar code detection rule"""
 
 import contextlib
-import csv
-import io
 import tempfile
+import xml.etree.ElementTree as ET
 from pathlib import Path
 
 from models import LogLevel, Severity, Violation
@@ -125,7 +124,7 @@ class PMDSimilarCodeRule(BaseRule):
                       ignore_identifiers: bool, ignore_literals: bool, ignore_annotations: bool) -> list[Violation]:
         """Execute PMD CPD with similarity flags and return parsed violations."""
         exclude_file_list = self._generate_exclude_file_list(exclude_patterns)
-        cmd = [pmd_path, 'cpd', '-l', language, '-d', str(directory), '-f', 'csv',
+        cmd = [pmd_path, 'cpd', '-l', language, '-d', str(directory), '-f', 'xml',
                '--minimum-tokens', str(minimum_tokens), '--encoding', 'utf-8']
 
         if ignore_identifiers:
@@ -150,8 +149,8 @@ class PMDSimilarCodeRule(BaseRule):
                 if filtered_stderr:
                     self.logger.warning(f"PMD CPD warning: {filtered_stderr}")
 
-            if self._has_results_in_csv(result.stdout):
-                return self._parse_csv_output_from_string(result.stdout)
+            if self._has_results_in_xml(result.stdout):
+                return self._parse_xml_output(result.stdout)
             self.logger.info("No similar code patterns found.")
             return []
         except Exception as e:
@@ -162,30 +161,66 @@ class PMDSimilarCodeRule(BaseRule):
                 with contextlib.suppress(Exception):
                     exclude_file_list.unlink()
 
-    def _has_results_in_csv(self, csv_content: str) -> bool:
-        """Check if CSV output has data rows (header + at least one data row)."""
-        if not csv_content or not csv_content.strip():
+    def _has_results_in_xml(self, xml_content: str) -> bool:
+        """Check if XML output contains duplication elements."""
+        if not xml_content or not xml_content.strip():
             return False
-        return len(csv_content.strip().split('\n')) > 1
+        return '<duplication' in xml_content
 
-    def _parse_csv_output_from_string(self, csv_content: str) -> list[Violation]:
-        """Parse PMD CPD CSV output string into violations and print statistics."""
+    def _parse_xml_output(self, xml_content: str) -> list[Violation]:
+        """Parse PMD CPD XML output string into violations with actual file paths."""
         violations = []
         try:
-            rows = list(csv.DictReader(io.StringIO(csv_content)))
+            root = ET.fromstring(xml_content)
+            duplications = root.findall('duplication')
 
-            if rows:
-                total_lines = sum(int(r.get('lines', 0)) for r in rows if r.get('lines', '').isdigit())
+            if duplications:
+                total_lines = sum(int(d.get('lines', 0)) for d in duplications)
                 self.logger.info(f"\n{'='*80}\nSIMILAR CODE DETECTION RESULTS\n{'='*80}")
-                self.logger.info(f"Total CSV lines (similar patterns found): {len(rows)}")
+                self.logger.info(f"Total similar pattern groups found: {len(duplications)}")
                 self.logger.info(f"Total similar code lines: {total_lines}\n{'='*80}\n")
 
-            for row in rows:
-                msg = f"Similar code found: {row.get('lines', 'N/A')} lines, {row.get('tokens', 'N/A')} tokens, {row.get('occurrences', 'N/A')} occurrences"
-                violations.append(Violation(file_path='multiple files', rule_name='pmd_similar_code',
-                                            severity=Severity.WARNING, message=msg))
+            for dup in duplications:
+                lines = dup.get('lines', 'N/A')
+                tokens = dup.get('tokens', 'N/A')
+                files = dup.findall('file')
+                occurrences = len(files)
+
+                for i, file_elem in enumerate(files):
+                    file_path = file_elem.get('path', 'unknown')
+                    line_num = int(file_elem.get('line', 0)) or None
+
+                    # Make path relative to base_path
+                    try:
+                        rel_path = str(Path(file_path).relative_to(self.base_path))
+                    except ValueError:
+                        rel_path = file_path
+
+                    # Build list of other files in this duplication
+                    other_files = []
+                    for j, other in enumerate(files):
+                        if i != j:
+                            other_path = other.get('path', 'unknown')
+                            other_line = other.get('line', '?')
+                            try:
+                                other_rel = str(Path(other_path).relative_to(self.base_path))
+                            except ValueError:
+                                other_rel = other_path
+                            other_files.append(f"{other_rel}:{other_line}")
+
+                    also_in = ', '.join(other_files)
+                    msg = f"Similar code found: {lines} lines, {tokens} tokens, {occurrences} occurrences — also in: {also_in}"
+                    violations.append(Violation(
+                        file_path=rel_path,
+                        rule_name='pmd_similar_code',
+                        severity=Severity.WARNING,
+                        message=msg,
+                        line=line_num,
+                    ))
+        except ET.ParseError as e:
+            self.logger.error(f"Error parsing PMD XML output: {e}")
         except Exception as e:
-            self.logger.error(f"Error parsing PMD CSV output: {e}")
+            self.logger.error(f"Error parsing PMD XML output: {e}")
 
         if self.max_errors and len(violations) > self.max_errors:
             def get_lines(v):
