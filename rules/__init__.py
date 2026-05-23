@@ -20,6 +20,7 @@ from rules.php_cs_fixer_analyze import PHPCSFixerAnalyzeRule
 from rules.phpstan_analyze import PHPStanAnalyzeRule
 from rules.pmd_duplicates import PMDDuplicatesRule
 from rules.pmd_similar_code import PMDSimilarCodeRule
+from rules.pyscn_analyze import PyscnAnalyzeRule
 from rules.ruff_analyze import RuffAnalyzeRule
 from rules.svelte_check import SvelteCheckRule
 from rules.tsc_analyze import TscAnalyzeRule
@@ -43,6 +44,7 @@ __all__ = [
     'PHPStanAnalyzeRule',
     'PMDDuplicatesRule',
     'PMDSimilarCodeRule',
+    'PyscnAnalyzeRule',
     'RuffAnalyzeRule',
     'SvelteCheckRule',
     'TscAnalyzeRule',

@@ -24,6 +24,7 @@ ANALYZER_REGISTRY = {
         ('pmd_duplicates', 'Duplicate code detection', 'PMD'),
         ('pmd_similar_code', 'Similar code pattern detection', 'PMD'),
         ('ruff_analyze', 'Linting and style', 'Ruff (pip)'),
+        ('pyscn_analyze', 'Complexity, dead code, coupling', 'pyscn (pipx)'),
     ],
     'flutter': [
         ('max_lines_per_file', 'File length checks', None),

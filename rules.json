@@ -31,6 +31,26 @@
       "svelte": ["**/node_modules/**", "**/dist/**", "**/build/**", "**/.svelte-kit/**"]
     }
   },
+  "pyscn_analyze": {
+    "enabled": false,
+    "select": ["complexity", "deadcode", "deps"],
+    "complexity": {
+      "warning": 10,
+      "error": 15,
+      "exceptions": []
+    },
+    "dead_code": {
+      "severity": "warning"
+    },
+    "coupling": {
+      "warning": 8,
+      "error": 15,
+      "report_circular_deps": true,
+      "circular_severity": "error",
+      "exceptions": []
+    },
+    "exclude_patterns": ["**/__pycache__/**", "*.pyc", "**/.venv/**", "**/venv/**"]
+  },
   "dart_analyze": {
     "enabled": true
   },

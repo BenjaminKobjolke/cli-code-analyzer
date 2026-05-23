@@ -7,6 +7,7 @@ This guide explains how to set up cli-code-analyzer for Python projects.
 - Python 3.7+
 - PMD (optional, for duplicate code detection)
 - Ruff (optional, for Python linting)
+- pyscn (optional, for complexity / dead code / coupling)
 
 ## Quick Start
 
@@ -22,6 +23,7 @@ python main.py --language python --path /path/to/your/project
 | `pmd_duplicates` | Detects duplicate code blocks (requires PMD) |
 | `pmd_similar_code` | Detects structurally similar code patterns (requires PMD) |
 | `ruff_analyze` | Fast Python linter with 800+ rules (replaces flake8/pylint) |
+| `pyscn_analyze` | Cyclomatic complexity, CFG dead code, class coupling (CBO), circular deps |
 
 ## Example Configuration
 
@@ -210,6 +212,15 @@ If you get a Ruff path error:
 1. Install Ruff with: `pip install ruff`
 2. Or run the analyzer once - it will prompt to configure the Ruff path
 3. Or manually edit `settings.ini` in the cli-code-analyzer directory
+
+### pyscn not found
+If you get a pyscn path error:
+1. Install pyscn with: `pipx install pyscn` (or `uvx pyscn@latest`)
+2. Or run the analyzer once - it will prompt to configure the pyscn path
+3. Or manually edit `settings.ini` in the cli-code-analyzer directory
+
+### Ruff vs pyscn complexity
+Don't enable Ruff's `C` (mccabe complexity) rules in `ruff_analyze.select` when `pyscn_analyze` is on — they'd double-report. pyscn gives per-function metrics with threshold-driven severity; Ruff `C901` is pass/fail only.
 
 ### Ruff Configuration
 Ruff supports many rule categories. Common select options:

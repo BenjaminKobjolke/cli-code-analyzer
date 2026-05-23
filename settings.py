@@ -458,6 +458,42 @@ class Settings:
         self.logger.info(f"tsc path saved to {self.settings_file}")
         return str(tsc_path)
 
+    def get_pyscn_path(self) -> str | None:
+        """Get the pyscn executable path from settings."""
+        if 'pyscn' in self.config and 'pyscn_path' in self.config['pyscn']:
+            return self.config['pyscn']['pyscn_path']
+        return None
+
+    def set_pyscn_path(self, path: str):
+        """Set the pyscn executable path and save to settings."""
+        if 'pyscn' not in self.config:
+            self.config['pyscn'] = {}
+        self.config['pyscn']['pyscn_path'] = path
+        self._save()
+
+    def prompt_and_save_pyscn_path(self) -> str | None:
+        """Prompt user for pyscn path, validate it, and save to settings."""
+        self.logger.info("\npyscn executable not found in PATH.")
+        self.logger.info("pyscn is a structural Python code analyzer (complexity, dead code, coupling).")
+        self.logger.info("Install with: pipx install pyscn")
+        self.logger.info("Or: uvx pyscn@latest analyze .")
+        self.logger.info("Or: go install github.com/ludo-technologies/pyscn/cmd/pyscn@latest")
+        prompt_msg = "\nEnter path to pyscn executable (or press Enter to skip): "
+        user_input = input(prompt_msg).strip()
+
+        if not user_input:
+            self.logger.info("Skipping pyscn_analyze rule. Install pyscn and configure later.")
+            return None
+
+        pyscn_path = Path(user_input)
+        if not pyscn_path.exists():
+            self.logger.error(f"Error: pyscn executable not found at: {user_input}")
+            return None
+
+        self.set_pyscn_path(str(pyscn_path))
+        self.logger.info(f"pyscn path saved to {self.settings_file}")
+        return str(pyscn_path)
+
     def get_dart_lsp_mcp_path(self) -> str | None:
         """Get the dart-lsp-mcp path from settings."""
         if 'dart_lsp_mcp' in self.config and 'dart_lsp_mcp_path' in self.config['dart_lsp_mcp']:

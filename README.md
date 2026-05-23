@@ -18,6 +18,7 @@ A flexible command-line tool for analyzing code files based on configurable rule
 - **Flutter analyze**: Integrated `flutter analyze` for Flutter-specific code analysis with text output parsing
 - **Dart code metrics**: Integrated [dart_code_linter](https://pub.dev/packages/dart_code_linter) for advanced metrics (cyclomatic complexity, maintainability index, technical debt, etc.)
 - **Python linting**: Integrated [Ruff](https://docs.astral.sh/ruff/) for fast Python linting with 800+ rules
+- **Python structural analysis**: Integrated [pyscn](https://github.com/ludo-technologies/pyscn) for cyclomatic complexity, CFG-based dead code detection, class coupling (CBO), and circular dependency detection
 - **ESLint integration**: Integrated [ESLint](https://eslint.org/) for JavaScript/TypeScript linting with auto-detection of Svelte projects
 - **Svelte type checking**: Integrated [svelte-check](https://github.com/sveltejs/language-tools/tree/master/packages/svelte-check) for Svelte/TypeScript type checking with configurable compiler warning suppression
 - **TypeScript type checking**: Integrated `tsc --noEmit` for project-wide TypeScript type checking with error code filtering
@@ -1387,6 +1388,7 @@ cli-code-analyzer/
 │   ├── flutter_analyze.py     # Flutter static analysis rule
 │   ├── dart_code_linter.py    # Dart code metrics analysis rule
 │   ├── ruff_analyze.py        # Ruff Python linter rule
+│   ├── pyscn_analyze.py       # pyscn structural analysis rule (complexity/deadcode/CBO)
 │   ├── eslint_analyze.py      # ESLint JavaScript/TypeScript/Svelte rule
 │   ├── svelte_check.py        # Svelte type checking rule
 │   └── tsc_analyze.py         # TypeScript type checking rule (tsc --noEmit)
