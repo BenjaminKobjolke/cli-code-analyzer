@@ -216,3 +216,4 @@ php/vendor/
 .php-cs-fixer.cache
 .claude/settings.local.json
 /nul
+claude-plans
