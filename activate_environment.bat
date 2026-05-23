@@ -1,5 +1,5 @@
 @echo off
-call %~dp0\venv\Scripts\activate.bat
+call %~dp0venv\Scripts\activate.bat
 if %errorlevel% neq 0 (
     echo Virtual environment activation failed.
     exit /b 1
