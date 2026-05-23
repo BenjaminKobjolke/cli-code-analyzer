@@ -5,6 +5,7 @@ Rules module
 from rules.base import BaseRule
 from rules.dart_analyze import DartAnalyzeRule
 from rules.dart_code_linter import DartCodeLinterRule
+from rules.dart_crap_score import DartCrapScoreRule
 from rules.dart_import_rules import DartImportRulesRule
 from rules.dart_missing_dispose import DartMissingDisposeRule
 from rules.dart_test_coverage import DartTestCoverageRule
@@ -21,6 +22,8 @@ from rules.phpstan_analyze import PHPStanAnalyzeRule
 from rules.pmd_duplicates import PMDDuplicatesRule
 from rules.pmd_similar_code import PMDSimilarCodeRule
 from rules.pyscn_analyze import PyscnAnalyzeRule
+from rules.python_crap_score import PythonCrapScoreRule
+from rules.python_test_coverage import PythonTestCoverageRule
 from rules.ruff_analyze import RuffAnalyzeRule
 from rules.svelte_check import SvelteCheckRule
 from rules.tsc_analyze import TscAnalyzeRule
@@ -29,6 +32,7 @@ __all__ = [
     'BaseRule',
     'DartAnalyzeRule',
     'DartCodeLinterRule',
+    'DartCrapScoreRule',
     'DartImportRulesRule',
     'DartMissingDisposeRule',
     'DartTestCoverageRule',
@@ -45,6 +49,8 @@ __all__ = [
     'PMDDuplicatesRule',
     'PMDSimilarCodeRule',
     'PyscnAnalyzeRule',
+    'PythonCrapScoreRule',
+    'PythonTestCoverageRule',
     'RuffAnalyzeRule',
     'SvelteCheckRule',
     'TscAnalyzeRule',

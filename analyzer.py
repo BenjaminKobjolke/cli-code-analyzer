@@ -12,6 +12,7 @@ from models import LogLevel, Violation
 from rules import (
     DartAnalyzeRule,
     DartCodeLinterRule,
+    DartCrapScoreRule,
     DartImportRulesRule,
     DartMissingDisposeRule,
     DartTestCoverageRule,
@@ -28,6 +29,8 @@ from rules import (
     PMDDuplicatesRule,
     PMDSimilarCodeRule,
     PyscnAnalyzeRule,
+    PythonCrapScoreRule,
+    PythonTestCoverageRule,
     RuffAnalyzeRule,
     SvelteCheckRule,
     TscAnalyzeRule,
@@ -56,6 +59,9 @@ class CodeAnalyzer:
         ('dart_unused_code', DartUnusedCodeRule),
         ('dart_missing_dispose', DartMissingDisposeRule),
         ('dart_test_coverage', DartTestCoverageRule),
+        ('dart_crap_score', DartCrapScoreRule),
+        ('python_test_coverage', PythonTestCoverageRule),
+        ('python_crap_score', PythonCrapScoreRule),
     ]
 
     def __init__(self, languages: str | list[str], path: str, rules_file: str, output_folder: Path | None = None, cli_log_level: LogLevel | None = None, max_errors: int | None = None, filter_file: str | None = None, logger: Logger | None = None):

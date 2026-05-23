@@ -208,5 +208,45 @@
       "error": 20
     },
     "exclude_patterns": ["*.g.dart", "*.freezed.dart"]
+  },
+  "dart_crap_score": {
+    "enabled": false,
+    "run_tests": true,
+    "reuse_existing_coverage": true,
+    "lcov_path": "coverage/lcov.info",
+    "analyze_path": "lib",
+    "test_timeout": 600,
+    "warning": 15,
+    "error": 30,
+    "keep_report": false,
+    "exclude_patterns": ["*.g.dart", "*.freezed.dart"],
+    "exceptions": []
+  },
+  "python_test_coverage": {
+    "enabled": false,
+    "run_tests": true,
+    "reuse_existing_coverage": true,
+    "coverage_json_path": "coverage.json",
+    "test_timeout": 600,
+    "overall_coverage": {
+      "warning": 60,
+      "error": 40
+    },
+    "per_file_coverage": {
+      "warning": 50,
+      "error": 20
+    },
+    "exclude_patterns": ["**/__pycache__/**", "*.pyc", "**/.venv/**", "**/venv/**"]
+  },
+  "python_crap_score": {
+    "enabled": false,
+    "run_tests": true,
+    "reuse_existing_coverage": true,
+    "coverage_json_path": "coverage.json",
+    "test_timeout": 600,
+    "warning": 15,
+    "error": 30,
+    "exclude_patterns": ["**/__pycache__/**", "*.pyc", "**/.venv/**", "**/venv/**"],
+    "exceptions": []
   }
 }
