@@ -7,6 +7,7 @@ can filter from cached data instead of re-running all analyzers.
 
 import hashlib
 import sqlite3
+from collections.abc import Iterable
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -133,21 +134,33 @@ class ViolationCache:
         con.close()
         self.logger.info(f"Cache saved to: {self.db_path} ({len(violations)} violation(s))")
 
-    def load_for_file(self, file_path: str) -> list[Violation]:
-        """Load violations matching a specific file path from the cache."""
+    def load_for_files(self, file_paths: Iterable[str]) -> list[Violation]:
+        """Load violations whose file_path matches any of `file_paths`.
+
+        Matching is forward-slash-normalized and accepts either exact equality
+        or suffix match (handles absolute-vs-relative path differences).
+        """
+        normalized = [p.replace("\\", "/") for p in file_paths]
+        if not normalized:
+            return []
         if not self.db_path.exists():
             return []
         try:
             con = self._connect()
             cur = con.cursor()
 
-            # Normalise to forward slashes for comparison
-            norm = file_path.replace("\\", "/")
+            clauses = []
+            params: list[str] = []
+            for norm in normalized:
+                clauses.append("REPLACE(file_path, '\\', '/') = ?")
+                params.append(norm)
+                clauses.append("REPLACE(file_path, '\\', '/') LIKE ?")
+                params.append(f"%/{norm}")
+            where = " OR ".join(clauses)
             cur.execute(
                 "SELECT file_path, rule_name, severity, message, line, column_num, line_count "
-                "FROM violations WHERE REPLACE(file_path, '\\', '/') = ? "
-                "   OR REPLACE(file_path, '\\', '/') LIKE ?",
-                (norm, f"%/{norm}"),
+                f"FROM violations WHERE {where}",
+                params,
             )
             rows = cur.fetchall()
             con.close()

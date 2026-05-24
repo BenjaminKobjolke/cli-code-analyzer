@@ -9,6 +9,7 @@ from config import Config
 from file_discovery import FileDiscovery
 from logger import Logger
 from models import LogLevel, Violation
+from path_utils import to_relative_posix
 from rules import (
     DartAnalyzeRule,
     DartCodeLinterRule,
@@ -64,7 +65,7 @@ class CodeAnalyzer:
         ('python_crap_score', PythonCrapScoreRule),
     ]
 
-    def __init__(self, languages: str | list[str], path: str, rules_file: str, output_folder: Path | None = None, cli_log_level: LogLevel | None = None, max_errors: int | None = None, filter_file: str | None = None, logger: Logger | None = None):
+    def __init__(self, languages: str | list[str], path: str, rules_file: str, output_folder: Path | None = None, cli_log_level: LogLevel | None = None, max_errors: int | None = None, filter_files: set[str] | None = None, logger: Logger | None = None):
         if isinstance(languages, str):
             languages = [languages]
         self.languages = languages
@@ -77,7 +78,10 @@ class CodeAnalyzer:
         self.output_folder = output_folder
         self.cli_log_level = cli_log_level  # CLI-provided log level (highest priority)
         self.max_errors = max_errors
-        self.filter_file = filter_file
+        # Normalize set members to forward slashes for consistent matching.
+        self.filter_files: set[str] | None = (
+            {p.replace('\\', '/') for p in filter_files} if filter_files else None
+        )
         self.logger = logger or Logger()
         self._enabled_analyzers = self._get_enabled_analyzers()
         self._multi_language = len(self.languages) > 1
@@ -198,13 +202,17 @@ class CodeAnalyzer:
                 violations = rule.check(self.files[0])
                 self.violations.extend(violations)
 
-        # Run per-file rules on each file
+        # Run per-file rules on each file (skip files not in filter, if set)
         for file_path in self.files:
+            if self.filter_files is not None:
+                rel = to_relative_posix(file_path, self.base_path)
+                if rel not in self.filter_files:
+                    continue
             self._check_file(file_path)
 
-        # Apply single-file filter if specified
-        if self.filter_file:
-            self._filter_violations_by_file()
+        # Filter project-wide tool violations to the requested file set
+        if self.filter_files is not None:
+            self._filter_violations_by_files()
 
     def get_analyzed_file_paths(self) -> list[str]:
         """Get relative paths of all analyzed files."""
@@ -214,20 +222,19 @@ class CodeAnalyzer:
             paths.append(str(relative))
         return paths
 
-    def _filter_violations_by_file(self):
-        """Filter violations to only those matching self.filter_file."""
-        filter_path = Path(self.filter_file).resolve()
-        # Compute relative path from base_path, normalized with forward slashes
-        try:
-            filter_rel = str(filter_path.relative_to(self.base_path)).replace('\\', '/')
-        except ValueError:
-            filter_rel = str(filter_path).replace('\\', '/')
+    def _filter_violations_by_files(self):
+        """Filter violations to only those matching any path in self.filter_files."""
+        if not self.filter_files:
+            self.violations = []
+            return
 
         filtered = []
         for v in self.violations:
             vp = v.file_path.replace('\\', '/')
-            if vp == filter_rel or vp.endswith('/' + filter_rel) or filter_rel.endswith('/' + vp):
-                filtered.append(v)
+            for filter_rel in self.filter_files:
+                if vp == filter_rel or vp.endswith('/' + filter_rel) or filter_rel.endswith('/' + vp):
+                    filtered.append(v)
+                    break
         self.violations = filtered
 
     def _check_file(self, file_path: Path):

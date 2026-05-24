@@ -40,9 +40,12 @@ python main.py --language python --path ./src --output ./reports --file src/app.
 
 # Query single file with JSON output (clean, no progress noise)
 python main.py --language python --path ./src --output ./reports --file src/app.py --format json
+
+# Analyze only files new or modified vs git HEAD (includes untracked, skips deletes)
+python main.py --language flutter --path ./lib --only-changed --rules rules.json
 ```
 
-**Arguments:** `-l`/`--language` (flutter|python|php|csharp|javascript|svelte; supports multiple), `-p`/`--path`, `-F`/`--file` (filter violations to single file; defaults max errors to 5; suppresses progress output), `-r`/`--rules` (default: rules.json), `-v`/`--verbosity` (minimal|normal|verbose), `-o`/`--output` (folder for CSV; previous reports are auto-cleaned), `-L`/`--loglevel` (error|warning|all), `-m`/`--maxamountoferrors`, `-f`/`--list-files` (show analyzed file paths), `-a`/`--list-analyzers`, `--format` (text|json; default: text), `--build-cache` (build violation cache in output folder; requires --output), `--cache-max-age` (cache staleness in minutes; default: 60)
+**Arguments:** `-l`/`--language` (flutter|python|php|csharp|javascript|svelte; supports multiple), `-p`/`--path`, `-F`/`--file` (filter violations to single file; defaults max errors to 5; suppresses progress output), `--only-changed` (filter to files new/modified in git vs HEAD; includes untracked, skips deletes; mutually exclusive with `--file`; defaults max errors to 5), `-r`/`--rules` (default: rules.json), `-v`/`--verbosity` (minimal|normal|verbose), `-o`/`--output` (folder for CSV; previous reports are auto-cleaned), `-L`/`--loglevel` (error|warning|all), `-m`/`--maxamountoferrors`, `-f`/`--list-files` (show analyzed file paths), `-a`/`--list-analyzers`, `--format` (text|json; default: text), `--build-cache` (build violation cache in output folder; requires --output), `--cache-max-age` (cache staleness in minutes; default: 60)
 
 **Exit codes:** 0 = no errors, 1 = errors found or failure.
 

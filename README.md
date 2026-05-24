@@ -28,6 +28,7 @@ A flexible command-line tool for analyzing code files based on configurable rule
 - **JSON output**: Machine-readable JSON output format via `--format json`
 - **Violation cache**: SQLite-based caching — normal runs with `--output` auto-save results; subsequent runs and `--file` queries use cached data when fresh
 - **Quiet file mode**: `--file` suppresses all progress output, showing only results
+- **Git-aware mode**: `--only-changed` reports violations only for files new or modified vs git `HEAD` (includes untracked, skips deletes) — ideal for iterating on a feature branch or AI-assisted post-implementation checks
 
 ## Installation
 
@@ -93,6 +94,7 @@ python main.py --language <language> --path <path> [options]
 | `--loglevel` | `-L` | No | `all` | Filter violations by severity: `error`, `warning`, or `all` |
 | `--maxamountoferrors` | `-m` | No | unlimited | Maximum number of violations to include in reports. When exceeded, keeps the largest violations (e.g., duplicates with most lines) |
 | `--file` | `-F` | No | - | Filter violations to a single file (requires `--path`). Defaults `--maxamountoferrors` to 5. Suppresses progress output. |
+| `--only-changed` | | No | off | Analyze only files new or modified in git vs HEAD (includes untracked, skips deletes). Requires `--path` inside a git repo. Mutually exclusive with `--file`. Defaults `--maxamountoferrors` to 5. |
 | `--list-files` | `-f` | No | off | List all analyzed file paths after analysis |
 | `--list-analyzers` | `-a` | No | - | List available analyzers for a language (or all) |
 | `--format` | | No | `text` | Output format: `text` (default) or `json` |
@@ -342,6 +344,23 @@ python main.py --language flutter --path ./lib --file ./lib/screens/home.dart -m
 - Fast feedback loop while editing a single file
 - AI-assisted development where you want to verify one file at a time
 - When `--path` to a single file would miss project-wide analyzers (e.g., `dart analyze`)
+
+#### Only Changed Files (git-aware)
+
+Use `--only-changed` to report violations only for files that are new or modified vs git `HEAD` (includes untracked, skips deletes). Project-wide analyzers still run on the whole tree, but the report is filtered to the changed set — same mechanism as `--file`, just for many files at once.
+
+```bash
+# Only the files dirty in git
+python main.py --language flutter --path ./lib --only-changed --rules rules.json
+
+# Pair with --output for cache fast-path on repeat runs
+python main.py --language flutter --path ./lib --only-changed --output ./reports
+```
+
+**When to use:**
+- Iterating on a feature branch — see only what you're touching
+- Pre-commit / pre-push checks on the working tree
+- Quickly re-checking after edits without scrolling past unrelated violations
 
 ### Analyze Your Own Flutter Project
 
@@ -1436,6 +1455,49 @@ Create a pre-commit hook to check code before commits:
 #!/bin/bash
 python main.py --language flutter --path lib/ --verbosity minimal
 ```
+
+### Post-Implementation Workflow (Claude Code)
+
+For AI-assisted development with [Claude Code](https://claude.com/claude-code), automate analysis after every feature, plan, or bugfix using `--only-changed` plus a project-local bat file.
+
+**1. Project layout:**
+
+```
+your-project/
+├── code_analysis_rules.json
+├── tools/
+│   ├── analyze_code_config.bat           # shared config (CLI_ANALYZER_PATH, LANGUAGE)
+│   └── analyze_changed_and_new_files.bat # runs analyzer with --only-changed
+└── CLAUDE.md                             # mandates running the bat after each change
+```
+
+**2. `tools/analyze_code_config.bat`:**
+
+```batch
+@echo off
+set CLI_ANALYZER_PATH=D:\GIT\BenjaminKobjolke\cli-code-analyzer
+set LANGUAGE=flutter
+```
+
+**3. `tools/analyze_changed_and_new_files.bat`:**
+
+```batch
+@echo off
+if not exist "%~dp0analyze_code_config.bat" (
+    echo ERROR: analyze_code_config.bat not found.
+    exit /b 1
+)
+call "%~dp0analyze_code_config.bat"
+cd /d "%~dp0.."
+
+"%CLI_ANALYZER_PATH%\venv\Scripts\python.exe" "%CLI_ANALYZER_PATH%\main.py" --language %LANGUAGE% --path "." --only-changed --verbosity minimal --output "code_analysis_results" --rules "code_analysis_rules.json"
+
+cd /d "%~dp0"
+```
+
+**4. CLAUDE.md section telling the agent to run the bat after every feature / finished plan / bugfix.**
+
+The `/analyze:enforce-post-feature-workflow` Claude Code skill (in `BenjaminKobjolke/claude-code/commands/analyze/`) audits a project and installs all three pieces automatically.
 
 ### Code Review
 

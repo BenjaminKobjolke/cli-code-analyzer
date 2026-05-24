@@ -119,6 +119,13 @@ Examples:
     )
 
     parser.add_argument(
+        '--only-changed',
+        action='store_true',
+        default=False,
+        help='Analyze only files new or modified in git (vs HEAD, includes untracked, skips deletes). Mutually exclusive with --file.'
+    )
+
+    parser.add_argument(
         '-f', '--list-files',
         action='store_true',
         default=False,
@@ -160,7 +167,11 @@ Examples:
     if not args.path:
         parser.error("--path is required for analysis")
 
-    # Create logger — quiet when --file is used (suppress progress output)
+    # Mutually exclusive flags
+    if args.file and args.only_changed:
+        parser.error("--file and --only-changed cannot be used together")
+
+    # Create logger — quiet when --file is used (suppress progress output for clean JSON)
     logger = Logger(quiet=bool(args.file))
 
     # Normalize languages: support both space-separated and comma-separated
@@ -198,6 +209,46 @@ Examples:
     if args.build_cache and not args.output:
         parser.error("--build-cache requires --output to be set")
 
+    # -----------------------------------------------------------
+    # Resolve filter_files (set of base-relative posix paths)
+    # Drives both --file (1-element set) and --only-changed (N-element set).
+    # -----------------------------------------------------------
+    from path_utils import to_relative_posix
+
+    filter_files: set[str] | None = None
+    base_path_resolved = Path(args.path).resolve()
+
+    if args.file:
+        filter_files = {to_relative_posix(args.file, base_path_resolved)}
+
+    if args.only_changed:
+        from git_changes import GitNotAvailableError, find_repo_root, get_changed_files
+
+        repo_root = find_repo_root(base_path_resolved)
+        if repo_root is None:
+            print(f"Error: --only-changed requires a git repo; '{args.path}' is not inside one", file=sys.stderr)
+            sys.exit(1)
+        try:
+            changed = get_changed_files(repo_root)
+        except GitNotAvailableError as e:
+            print(f"Error: {e}", file=sys.stderr)
+            sys.exit(1)
+
+        # Reuse FileDiscovery for extension + exclusion filtering.
+        discovery = FileDiscovery(languages, args.path)
+        discovered_set = {p.resolve() for p in discovery.discover()}
+
+        matching = changed & discovered_set
+        if not matching:
+            # Bypass logger (quiet mode swallows info) — user needs to see this.
+            print(f"No changed files for language(s) {', '.join(languages)} under {args.path}", file=sys.stderr)
+            sys.exit(0)
+
+        filter_files = {to_relative_posix(p, base_path_resolved) for p in matching}
+        # Default max_errors to 5 when filtering, unless explicitly provided
+        if args.maxamountoferrors is None and '-m' not in sys.argv and '--maxamountoferrors' not in sys.argv:
+            args.maxamountoferrors = 5
+
     # Import analysis modules (deferred to avoid loading when using --list-analyzers)
     from analyzer import CodeAnalyzer
     from models import LogLevel, OutputLevel
@@ -234,22 +285,16 @@ Examples:
             logger.info("Cache is fresh, skipping rebuild")
             sys.exit(0)
         # Run full analysis and save to cache
-        analyzer = CodeAnalyzer(languages, args.path, args.rules, output_folder, cli_log_level, args.maxamountoferrors, args.file, logger=logger)
+        analyzer = CodeAnalyzer(languages, args.path, args.rules, output_folder, cli_log_level, args.maxamountoferrors, filter_files, logger=logger)
         analyzer.analyze()
         all_violations = analyzer.get_violations()
         cache.save(all_violations, rules_hash, languages, args.path, analyzer.get_analyzed_file_paths())
         logger.info("Cache built successfully")
         sys.exit(0)
 
-    # --file with cache: try cache first
-    if args.file and cache and cache.is_valid(args.cache_max_age, rules_hash):
-        # Fast path: read violations from cache
-        filter_path = Path(args.file).resolve()
-        try:
-            filter_rel = str(filter_path.relative_to(Path(args.path).resolve())).replace('\\', '/')
-        except ValueError:
-            filter_rel = str(filter_path).replace('\\', '/')
-        all_violations = cache.load_for_file(filter_rel)
+    # Filter with cache: try cache first (covers --file and --only-changed)
+    if filter_files and cache and cache.is_valid(args.cache_max_age, rules_hash):
+        all_violations = cache.load_for_files(filter_files)
 
         reporter_log_level = _resolve_reporter_log_level(cli_log_level, args.rules)
         reporter = Reporter(
@@ -289,14 +334,16 @@ Examples:
             logger.info(f"\n{'=' * 60}")
             logger.info("  CLI Code Analyzer")
             logger.info(f"  Path: {args.path}")
-            if args.file:
-                filter_rel = Path(args.file).resolve().relative_to(Path(args.path).resolve())
-                logger.info(f"  File filter: {str(filter_rel).replace(chr(92), '/')}")
+            if filter_files:
+                if len(filter_files) == 1:
+                    logger.info(f"  File filter: {next(iter(filter_files))}")
+                else:
+                    logger.info(f"  File filter: {len(filter_files)} file(s) (--only-changed)")
             logger.info(f"  Language: {lang_str}")
             logger.info(f"  Extensions: {ext_str}")
             logger.info(f"{'=' * 60}")
 
-            analyzer = CodeAnalyzer(languages, args.path, args.rules, output_folder, cli_log_level, args.maxamountoferrors, args.file, logger=logger)
+            analyzer = CodeAnalyzer(languages, args.path, args.rules, output_folder, cli_log_level, args.maxamountoferrors, filter_files, logger=logger)
             analyzer.analyze()
 
             all_violations = analyzer.get_violations()
