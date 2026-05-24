@@ -118,9 +118,34 @@ External tools are optional per-analyzer: PMD (duplicate detection), Dart/Flutte
 - `docs/setup/` - Per-language setup guides (FLUTTER.md, PYTHON.md, PHP.md, CSHARP.md, JAVASCRIPT_TYPESCRIPT.md, SVELTE.md)
 - `CREATING_NEW_ANALYZER.md` - Step-by-step guide for adding new analyzers
 
+## Post-Implementation Code Analysis
+
+After **any** of the following events, you MUST run the changed-file analyzer and fix every reported issue before considering the work complete:
+
+- A new feature has been implemented
+- A plan from `claude-plans/` has been finished
+- A bug has been fixed
+
+### How to run
+
+```bash
+powershell -Command "cd 'D:\GIT\BenjaminKobjolke\cli-code-analyzer'; cmd /c '.\tools\analyze_changed_and_new_files.bat'"
+```
+
+This invokes cli-code-analyzer with `--only-changed`, so it reports only on files new or modified vs git `HEAD` (including untracked, excluding deletes).
+
+### Workflow
+
+1. Run the bat above.
+2. Read the report under `code_analysis_results/`.
+3. Fix every error and warning that applies to your changes.
+4. Re-run until clean. Only then mark the feature / plan / bugfix as done.
+
+If the bat does not exist, run `/analyze:enforce-post-feature-workflow` to install it.
+
 ## Code Analysis
 
-After implementing new features or making significant changes, run the code analysis:
+For full-project analysis (all files, not just changed):
 
 ```bash
 powershell -Command "cd 'D:\GIT\BenjaminKobjolke\cli-code-analyzer'; cmd /c '.\tools\analyze_code.bat'"
