@@ -6,8 +6,8 @@ import re
 from pathlib import Path
 
 from models import LogLevel, Severity, Violation
-from rules.base import BaseRule
-from settings import Settings
+from rules.base import ProjectWideRule
+from rules.context import RuleContext
 
 # Default paths to exclude if none specified
 DEFAULT_EXCLUDE_PATHS = ['vendor', '.git']
@@ -16,15 +16,8 @@ DEFAULT_EXCLUDE_PATHS = ['vendor', '.git']
 FIXER_CONFIG_FILES = ['.php-cs-fixer.dist.php', '.php-cs-fixer.php']
 
 
-class PHPCSFixerAnalyzeRule(BaseRule):
+class PHPCSFixerAnalyzeRule(ProjectWideRule):
     """Rule to analyze PHP code style using PHP-CS-Fixer in dry-run mode"""
-
-    def __init__(self, config: dict, base_path: Path | None = None, output_folder: Path | None = None, log_level: LogLevel = LogLevel.ALL, max_errors: int | None = None, rules_file_path: str | None = None, logger=None):
-        super().__init__(config=config, base_path=base_path, log_level=log_level, max_errors=max_errors, rules_file_path=rules_file_path, logger=logger)
-        self.output_folder = output_folder
-        self.log_level = log_level
-        self.settings = Settings()
-        self._fixer_executed = False
 
     def _get_bundled_fixer_path(self) -> str | None:
         """Get PHP-CS-Fixer path from bundled php/vendor/bin folder."""
@@ -158,12 +151,7 @@ return (new PhpCsFixer\\Config())
             # Create new config
             return self._create_fixer_config(exclude_paths, rules)
 
-    def check(self, _file_path: Path) -> list[Violation]:
-        """Run PHP-CS-Fixer check in dry-run mode on the entire project (only once)."""
-        if self._fixer_executed:
-            return []
-
-        self._fixer_executed = True
+    def _run(self, _file_path: Path) -> list[Violation]:
         self.logger.info("\nRunning PHP-CS-Fixer check...")
 
         # First check bundled php/vendor/bin folder

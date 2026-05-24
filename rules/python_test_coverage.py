@@ -24,27 +24,14 @@ from pathlib import Path
 from typing import Any
 
 from models import LogLevel, Severity, Violation
-from rules.base import BaseRule
+from rules.base import ProjectWideRule
+from rules.context import RuleContext
 
 
-class PythonTestCoverageRule(BaseRule):
+class PythonTestCoverageRule(ProjectWideRule):
     """Run pytest + coverage.py and check coverage thresholds."""
 
-    def __init__(self, config: dict, base_path: Path | None = None,
-                 output_folder: Path | None = None,
-                 log_level: LogLevel = LogLevel.ALL,
-                 max_errors: int | None = None,
-                 rules_file_path: str | None = None,
-                 logger=None):
-        super().__init__(config, base_path, log_level, max_errors, rules_file_path, logger=logger)
-        self.output_folder = output_folder
-        self._executed = False
-
-    def check(self, _file_path: Path) -> list[Violation]:
-        if self._executed:
-            return []
-        self._executed = True
-
+    def _run(self, _file_path: Path) -> list[Violation]:
         self.logger.info("\nRunning python_test_coverage check...")
 
         json_path = self.config.get('coverage_json_path', 'coverage.json')

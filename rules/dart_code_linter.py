@@ -12,28 +12,18 @@ from typing import Any, ClassVar
 import yaml
 
 from models import LogLevel, Severity, Violation
-from rules.base import BaseRule
-from settings import Settings
+from rules.base import ProjectWideRule
+from rules.context import RuleContext
 
 
-class DartCodeLinterRule(BaseRule):
+class DartCodeLinterRule(ProjectWideRule):
     """Rule to analyze Dart/Flutter code metrics using dart_code_linter"""
 
-    def __init__(self, config: dict, base_path: Path | None = None, output_folder: Path | None = None, log_level: LogLevel = LogLevel.ALL, max_errors: int | None = None, rules_file_path: str | None = None, logger=None):
-        """Initialize Dart Code Linter rule with config and output settings."""
-        super().__init__(config, base_path, log_level, max_errors, rules_file_path, logger=logger)
-        self.output_folder = output_folder
-        self.log_level = log_level
-        self.settings = Settings()
-        self._executed = False
+    def __init__(self, ctx: RuleContext):
+        super().__init__(ctx)
         self.project_root = None
 
-    def check(self, _file_path: Path) -> list[Violation]:
-        """Run dart_code_linter on the entire project (executes once, returns empty for subsequent calls)."""
-        if self._executed:
-            return []
-        self._executed = True
-
+    def _run(self, _file_path: Path) -> list[Violation]:
         self.logger.info("\nChecking dart_code_linter metrics...")
 
         dart_cmd = self._get_dart_command(self.settings.get_dart_path, self.settings.prompt_and_save_dart_path)

@@ -20,30 +20,18 @@ import yaml
 
 from models import LogLevel, Severity, Violation
 from rules._crap import coverage_ratio, crap_score
-from rules.base import BaseRule
-from settings import Settings
+from rules.base import ProjectWideRule
+from rules.context import RuleContext
 
 
-class DartCrapScoreRule(BaseRule):
+class DartCrapScoreRule(ProjectWideRule):
     """Per-function CRAP score for Dart/Flutter projects."""
 
-    def __init__(self, config: dict, base_path: Path | None = None,
-                 output_folder: Path | None = None,
-                 log_level: LogLevel = LogLevel.ALL,
-                 max_errors: int | None = None,
-                 rules_file_path: str | None = None,
-                 logger=None):
-        super().__init__(config, base_path, log_level, max_errors, rules_file_path, logger=logger)
-        self.output_folder = output_folder
-        self.settings = Settings()
-        self._executed = False
+    def __init__(self, ctx: RuleContext):
+        super().__init__(ctx)
         self.project_root: Path | None = None
 
-    def check(self, _file_path: Path) -> list[Violation]:
-        if self._executed:
-            return []
-        self._executed = True
-
+    def _run(self, _file_path: Path) -> list[Violation]:
         self.logger.info("\nRunning dart_crap_score check...")
 
         self.project_root = self._find_pubspec()

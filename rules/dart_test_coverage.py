@@ -6,23 +6,14 @@ import re
 from pathlib import Path
 
 from models import LogLevel, Severity, Violation
-from rules.base import BaseRule
-from settings import Settings
+from rules.base import ProjectWideRule
+from rules.context import RuleContext
 
 
-class DartTestCoverageRule(BaseRule):
+class DartTestCoverageRule(ProjectWideRule):
     """Run Flutter tests and check coverage against configurable thresholds."""
 
-    def __init__(self, config: dict, base_path: Path | None = None, output_folder: Path | None = None, log_level: LogLevel = LogLevel.ALL, max_errors: int | None = None, rules_file_path: str | None = None, logger=None):
-        super().__init__(config, base_path, log_level, max_errors, rules_file_path, logger=logger)
-        self.settings = Settings()
-        self._executed = False
-
-    def check(self, _file_path: Path) -> list[Violation]:
-        if self._executed:
-            return []
-        self._executed = True
-
+    def _run(self, _file_path: Path) -> list[Violation]:
         self.logger.info("\nRunning dart test coverage check...")
 
         project_root = self._find_pubspec()

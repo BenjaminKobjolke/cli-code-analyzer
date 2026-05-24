@@ -7,34 +7,14 @@ import re
 from pathlib import Path
 
 from models import LogLevel, Severity, Violation
-from rules.base import BaseRule
-from settings import Settings
+from rules.base import ProjectWideRule
+from rules.context import RuleContext
 
 
-class TscAnalyzeRule(BaseRule):
+class TscAnalyzeRule(ProjectWideRule):
     """Rule to analyze TypeScript code using tsc --noEmit"""
 
-    def __init__(self, config: dict, base_path: Path | None = None, output_folder: Path | None = None, log_level: LogLevel = LogLevel.ALL, max_errors: int | None = None, rules_file_path: str | None = None, logger=None):
-        super().__init__(config=config, base_path=base_path, log_level=log_level, max_errors=max_errors, rules_file_path=rules_file_path, logger=logger)
-        self.output_folder = output_folder
-        self.log_level = log_level
-        self.settings = Settings()
-        self._tsc_executed = False
-
-    def check(self, _file_path: Path) -> list[Violation]:
-        """Run tsc --noEmit on the project (only once).
-
-        Args:
-            _file_path: Path to a file (unused, tsc runs project-wide)
-
-        Returns:
-            List of violations found (only on first execution)
-        """
-        if self._tsc_executed:
-            return []
-
-        self._tsc_executed = True
-
+    def _run(self, _file_path: Path) -> list[Violation]:
         self.logger.info("Running tsc type checking...")
 
         tsc_path = self._get_tool_path('tsc', self.settings.get_tsc_path, self.settings.prompt_and_save_tsc_path)

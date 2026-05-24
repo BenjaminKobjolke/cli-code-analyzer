@@ -250,7 +250,7 @@ Examples:
             args.maxamountoferrors = 5
 
     # Import analysis modules (deferred to avoid loading when using --list-analyzers)
-    from analyzer import CodeAnalyzer
+    from analyzer import AnalyzerConfig, CodeAnalyzer
     from models import LogLevel, OutputLevel
     from reporter import Reporter
     from violation_cache import ViolationCache
@@ -285,7 +285,16 @@ Examples:
             logger.info("Cache is fresh, skipping rebuild")
             sys.exit(0)
         # Run full analysis and save to cache
-        analyzer = CodeAnalyzer(languages, args.path, args.rules, output_folder, cli_log_level, args.maxamountoferrors, filter_files, logger=logger)
+        analyzer = CodeAnalyzer(AnalyzerConfig(
+            languages=languages,
+            path=args.path,
+            rules_file=args.rules,
+            output_folder=output_folder,
+            cli_log_level=cli_log_level,
+            max_errors=args.maxamountoferrors,
+            filter_files=filter_files,
+            logger=logger,
+        ))
         analyzer.analyze()
         all_violations = analyzer.get_violations()
         cache.save(all_violations, rules_hash, languages, args.path, analyzer.get_analyzed_file_paths())
@@ -343,7 +352,16 @@ Examples:
             logger.info(f"  Extensions: {ext_str}")
             logger.info(f"{'=' * 60}")
 
-            analyzer = CodeAnalyzer(languages, args.path, args.rules, output_folder, cli_log_level, args.maxamountoferrors, filter_files, logger=logger)
+            analyzer = CodeAnalyzer(AnalyzerConfig(
+                languages=languages,
+                path=args.path,
+                rules_file=args.rules,
+                output_folder=output_folder,
+                cli_log_level=cli_log_level,
+                max_errors=args.maxamountoferrors,
+                filter_files=filter_files,
+                logger=logger,
+            ))
             analyzer.analyze()
 
             all_violations = analyzer.get_violations()

@@ -7,22 +7,15 @@ from pathlib import Path
 import yaml
 
 from models import LogLevel, Severity, Violation
-from rules.base import BaseRule
+from rules.base import ProjectWideRule
+from rules.context import RuleContext
 from rules.dart_utils import collect_dart_files, parse_imports
 
 
-class DartUnusedDependenciesRule(BaseRule):
+class DartUnusedDependenciesRule(ProjectWideRule):
     """Find packages listed in pubspec.yaml that are never imported in code."""
 
-    def __init__(self, config: dict, base_path: Path | None = None, output_folder: Path | None = None, log_level: LogLevel = LogLevel.ALL, max_errors: int | None = None, rules_file_path: str | None = None, logger=None):
-        super().__init__(config, base_path, log_level, max_errors, rules_file_path, logger=logger)
-        self._executed = False
-
-    def check(self, _file_path: Path) -> list[Violation]:
-        if self._executed:
-            return []
-        self._executed = True
-
+    def _run(self, _file_path: Path) -> list[Violation]:
         self.logger.info("\nRunning dart unused dependencies check...")
 
         project_root = self._find_pubspec()

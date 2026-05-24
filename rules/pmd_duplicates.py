@@ -6,8 +6,8 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 
 from models import LogLevel, Severity, Violation
-from rules.base import BaseRule
-from settings import Settings
+from rules.base import ProjectWideRule
+from rules.context import RuleContext
 
 # Default exclude patterns per language (glob patterns)
 DEFAULT_EXCLUDE_PATTERNS = {
@@ -41,22 +41,10 @@ LANGUAGE_TO_PMD = {
 WINDOWS_RESERVED_NAMES = {'nul', 'con', 'prn', 'aux'}
 
 
-class PMDDuplicatesRule(BaseRule):
+class PMDDuplicatesRule(ProjectWideRule):
     """Rule to detect duplicate code using PMD CPD"""
 
-    def __init__(self, config: dict, base_path: Path | None = None, language: str | None = None, log_level: LogLevel = LogLevel.ALL, max_errors: int | None = None, rules_file_path: str | None = None, logger=None):
-        """Initialize PMD duplicates rule with config and output settings."""
-        super().__init__(config, base_path, log_level, max_errors, rules_file_path, logger=logger)
-        self.language = language
-        self.settings = Settings()
-        self._pmd_executed = False
-
-    def check(self, _file_path: Path) -> list[Violation]:
-        """Run PMD CPD on the entire directory (executes once, returns empty for subsequent calls)."""
-        if self._pmd_executed:
-            return []
-        self._pmd_executed = True
-
+    def _run(self, _file_path: Path) -> list[Violation]:
         self.logger.info("\nChecking for duplicate code...")
 
         pmd_path = self._get_tool_path('pmd', self.settings.get_pmd_path, self.settings.prompt_and_save_pmd_path)

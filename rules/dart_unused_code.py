@@ -5,7 +5,8 @@ Dart unused code analyzer - finds unused classes, functions, enums, etc. using d
 from pathlib import Path
 
 from models import LogLevel, Severity, Violation
-from rules.base import BaseRule
+from rules.base import ProjectWideRule
+from rules.context import RuleContext
 from rules.dart_utils import collect_dart_files
 
 # Optional dependency: dart-lsp-mcp
@@ -16,18 +17,10 @@ except ImportError:
     HAS_DART_LSP = False
 
 
-class DartUnusedCodeRule(BaseRule):
+class DartUnusedCodeRule(ProjectWideRule):
     """Find unused classes, functions, enums, mixins, typedefs, extensions across the project using LSP."""
 
-    def __init__(self, config: dict, base_path: Path | None = None, output_folder: Path | None = None, log_level: LogLevel = LogLevel.ALL, max_errors: int | None = None, rules_file_path: str | None = None, logger=None):
-        super().__init__(config, base_path, log_level, max_errors, rules_file_path, logger=logger)
-        self._executed = False
-
-    def check(self, _file_path: Path) -> list[Violation]:
-        if self._executed:
-            return []
-        self._executed = True
-
+    def _run(self, _file_path: Path) -> list[Violation]:
         self.logger.info("\nRunning dart unused code check...")
 
         if not HAS_DART_LSP:

@@ -15,8 +15,8 @@ from pathlib import Path
 from typing import Any
 
 from models import LogLevel, Severity, Violation
-from rules.base import BaseRule
-from settings import Settings
+from rules.base import ProjectWideRule
+from rules.context import RuleContext
 
 
 # Mapping pyscn dead-code severity strings to our Severity enum
@@ -27,28 +27,11 @@ _DEAD_CODE_SEVERITY_MAP = {
 }
 
 
-class PyscnAnalyzeRule(BaseRule):
+class PyscnAnalyzeRule(ProjectWideRule):
     """Project-wide rule that runs pyscn and emits Violations for
     complexity, dead code, coupling (CBO), and circular dependencies."""
 
-    def __init__(self, config: dict, base_path: Path | None = None,
-                 output_folder: Path | None = None,
-                 log_level: LogLevel = LogLevel.ALL,
-                 max_errors: int | None = None,
-                 rules_file_path: str | None = None,
-                 logger=None):
-        super().__init__(config=config, base_path=base_path,
-                         log_level=log_level, max_errors=max_errors,
-                         rules_file_path=rules_file_path, logger=logger)
-        self.output_folder = output_folder
-        self.settings = Settings()
-        self._pyscn_executed = False
-
-    def check(self, _file_path: Path) -> list[Violation]:
-        if self._pyscn_executed:
-            return []
-        self._pyscn_executed = True
-
+    def _run(self, _file_path: Path) -> list[Violation]:
         self.logger.info("\nRunning pyscn analyze...")
 
         pyscn_path = self._get_tool_path(

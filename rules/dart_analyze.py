@@ -7,49 +7,14 @@ import json
 from pathlib import Path
 
 from models import LogLevel, Severity, Violation
-from rules.base import BaseRule
-from settings import Settings
+from rules.base import ProjectWideRule
+from rules.context import RuleContext
 
 
-class DartAnalyzeRule(BaseRule):
+class DartAnalyzeRule(ProjectWideRule):
     """Rule to analyze Dart/Flutter code using dart analyze"""
 
-    def __init__(self, config: dict, base_path: Path | None = None, output_folder: Path | None = None, log_level: LogLevel = LogLevel.ALL, max_errors: int | None = None, rules_file_path: str | None = None, logger=None):
-        """Initialize Dart analyze rule.
-
-        Args:
-            config: Rule configuration from rules.json
-            base_path: Base path for analysis
-            output_folder: Optional folder for file output (None = console output)
-            log_level: Log level for filtering violations
-            max_errors: Optional limit on number of violations to include in CSV
-            rules_file_path: Path to the rules.json file
-            logger: Optional Logger instance for output
-        """
-        super().__init__(config, base_path, log_level, max_errors, rules_file_path, logger=logger)
-        self.output_folder = output_folder
-        self.log_level = log_level
-        self.settings = Settings()
-        self._dart_executed = False  # Track if dart analyze has been executed
-
-    def check(self, _file_path: Path) -> list[Violation]:
-        """Run dart analyze on the entire project (only once).
-
-        Note: dart analyze analyzes entire projects, not individual files.
-        This method will execute dart analyze once on the first file and return empty for subsequent files.
-
-        Args:
-            file_path: Path to a file (used to determine base directory)
-
-        Returns:
-            List of violations found (only on first execution)
-        """
-        # Only execute dart analyze once per analysis run
-        if self._dart_executed:
-            return []
-
-        self._dart_executed = True
-
+    def _run(self, _file_path: Path) -> list[Violation]:
         self.logger.info("\nRunning dart analyze...")
 
         # Get dart command using FVM-aware utility

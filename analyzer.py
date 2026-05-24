@@ -2,6 +2,7 @@
 Main code analyzer
 """
 
+from dataclasses import dataclass
 from pathlib import Path
 
 from analyzer_registry import get_analyzers_for_language
@@ -36,6 +37,19 @@ from rules import (
     SvelteCheckRule,
     TscAnalyzeRule,
 )
+from rules.context import RuleContext
+
+
+@dataclass(frozen=True)
+class AnalyzerConfig:
+    languages: str | list[str]
+    path: str
+    rules_file: str
+    output_folder: Path | None = None
+    cli_log_level: LogLevel | None = None
+    max_errors: int | None = None
+    filter_files: set[str] | None = None
+    logger: Logger | None = None
 
 
 class CodeAnalyzer:
@@ -65,24 +79,24 @@ class CodeAnalyzer:
         ('python_crap_score', PythonCrapScoreRule),
     ]
 
-    def __init__(self, languages: str | list[str], path: str, rules_file: str, output_folder: Path | None = None, cli_log_level: LogLevel | None = None, max_errors: int | None = None, filter_files: set[str] | None = None, logger: Logger | None = None):
+    def __init__(self, cfg: AnalyzerConfig):
+        languages = cfg.languages
         if isinstance(languages, str):
             languages = [languages]
         self.languages = languages
-        self.path = path
-        self.base_path = Path(path).resolve()
-        self.config = Config(rules_file)
+        self.path = cfg.path
+        self.base_path = Path(cfg.path).resolve()
+        self.config = Config(cfg.rules_file)
         self.rules_file = self.config.rules_file
         self.violations: list[Violation] = []
         self.files: list[Path] = []
-        self.output_folder = output_folder
-        self.cli_log_level = cli_log_level  # CLI-provided log level (highest priority)
-        self.max_errors = max_errors
-        # Normalize set members to forward slashes for consistent matching.
+        self.output_folder = cfg.output_folder
+        self.cli_log_level = cfg.cli_log_level
+        self.max_errors = cfg.max_errors
         self.filter_files: set[str] | None = (
-            {p.replace('\\', '/') for p in filter_files} if filter_files else None
+            {p.replace('\\', '/') for p in cfg.filter_files} if cfg.filter_files else None
         )
-        self.logger = logger or Logger()
+        self.logger = cfg.logger or Logger()
         self._enabled_analyzers = self._get_enabled_analyzers()
         self._multi_language = len(self.languages) > 1
         self._last_language_header = None
@@ -147,21 +161,12 @@ class CodeAnalyzer:
         # Run PMD duplicates check (once per language that has it registered)
         if self._should_run('pmd_duplicates'):
             rule_config = self.config.get_rule('pmd_duplicates')
-            # PMD needs a language parameter, so run once per language that has it
             pmd_languages = self._get_languages_for_analyzer('pmd_duplicates')
             for pmd_lang in pmd_languages:
                 if self._multi_language:
                     self._last_language_header = pmd_lang
                     self.logger.info(f"\n--- {pmd_lang} ---")
-                pmd_rule = PMDDuplicatesRule(
-                    rule_config,
-                    self.base_path,
-                    pmd_lang,
-                    LogLevel.ALL,
-                    self.max_errors,
-                    self.rules_file,
-                    logger=self.logger,
-                )
+                pmd_rule = PMDDuplicatesRule(self._make_ctx(rule_config, language=pmd_lang))
                 violations = pmd_rule.check(self.files[0])
                 self.violations.extend(violations)
 
@@ -173,15 +178,7 @@ class CodeAnalyzer:
                 if self._multi_language:
                     self._last_language_header = pmd_lang
                     self.logger.info(f"\n--- {pmd_lang} ---")
-                pmd_rule = PMDSimilarCodeRule(
-                    rule_config,
-                    self.base_path,
-                    pmd_lang,
-                    LogLevel.ALL,
-                    self.max_errors,
-                    self.rules_file,
-                    logger=self.logger,
-                )
+                pmd_rule = PMDSimilarCodeRule(self._make_ctx(rule_config, language=pmd_lang))
                 violations = pmd_rule.check(self.files[0])
                 self.violations.extend(violations)
 
@@ -190,15 +187,7 @@ class CodeAnalyzer:
             if self._should_run(analyzer_name):
                 self._print_language_header(analyzer_name)
                 rule_config = self.config.get_rule(analyzer_name)
-                rule = RuleClass(
-                    rule_config,
-                    self.base_path,
-                    self.output_folder,
-                    LogLevel.ALL,
-                    self.max_errors,
-                    self.rules_file,
-                    logger=self.logger,
-                )
+                rule = RuleClass(self._make_ctx(rule_config))
                 violations = rule.check(self.files[0])
                 self.violations.extend(violations)
 
@@ -237,12 +226,23 @@ class CodeAnalyzer:
                     break
         self.violations = filtered
 
+    def _make_ctx(self, rule_config: dict, language: str | None = None) -> RuleContext:
+        return RuleContext(
+            config=rule_config,
+            base_path=self.base_path,
+            output_folder=self.output_folder,
+            log_level=LogLevel.ALL,
+            max_errors=self.max_errors,
+            rules_file_path=self.rules_file,
+            logger=self.logger,
+            language=language,
+        )
+
     def _check_file(self, file_path: Path):
         """Check a single file against all enabled rules"""
-        # Check max lines rule
         if self._should_run('max_lines_per_file'):
             rule_config = self.config.get_rule('max_lines_per_file')
-            rule = MaxLinesRule(rule_config, self.base_path, LogLevel.ALL, self.max_errors, self.rules_file, logger=self.logger)
+            rule = MaxLinesRule(self._make_ctx(rule_config))
             violations = rule.check(file_path)
             self.violations.extend(violations)
 

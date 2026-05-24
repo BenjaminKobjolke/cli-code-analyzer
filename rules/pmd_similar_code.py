@@ -6,27 +6,15 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 
 from models import LogLevel, Severity, Violation
-from rules.base import BaseRule
+from rules.base import ProjectWideRule
+from rules.context import RuleContext
 from rules.pmd_duplicates import DEFAULT_EXCLUDE_PATTERNS, LANGUAGE_TO_PMD, WINDOWS_RESERVED_NAMES
-from settings import Settings
 
 
-class PMDSimilarCodeRule(BaseRule):
+class PMDSimilarCodeRule(ProjectWideRule):
     """Rule to detect structurally similar code using PMD CPD with identifier/literal normalization"""
 
-    def __init__(self, config: dict, base_path: Path | None = None, language: str | None = None, log_level: LogLevel = LogLevel.ALL, max_errors: int | None = None, rules_file_path: str | None = None, logger=None):
-        """Initialize PMD similar code rule with config and output settings."""
-        super().__init__(config, base_path, log_level, max_errors, rules_file_path, logger=logger)
-        self.language = language
-        self.settings = Settings()
-        self._pmd_executed = False
-
-    def check(self, _file_path: Path) -> list[Violation]:
-        """Run PMD CPD with similarity flags on the entire directory (executes once, returns empty for subsequent calls)."""
-        if self._pmd_executed:
-            return []
-        self._pmd_executed = True
-
+    def _run(self, _file_path: Path) -> list[Violation]:
         self.logger.info("\nChecking for similar code patterns...")
 
         pmd_path = self._get_tool_path('pmd', self.settings.get_pmd_path, self.settings.prompt_and_save_pmd_path)

@@ -2,7 +2,7 @@
 Rules module
 """
 
-from rules.base import BaseRule
+from rules.base import BaseRule, ProjectWideRule
 from rules.dart_analyze import DartAnalyzeRule
 from rules.dart_code_linter import DartCodeLinterRule
 from rules.dart_crap_score import DartCrapScoreRule
@@ -30,6 +30,7 @@ from rules.tsc_analyze import TscAnalyzeRule
 
 __all__ = [
     'BaseRule',
+    'ProjectWideRule',
     'DartAnalyzeRule',
     'DartCodeLinterRule',
     'DartCrapScoreRule',

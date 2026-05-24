@@ -13,18 +13,30 @@ from typing import Any
 
 from logger import Logger
 from models import LogLevel, Severity, Violation
+from rules.context import RuleContext
 
 
 class BaseRule(ABC):
     """Abstract base class for all rules"""
 
-    def __init__(self, config: dict, base_path: Path | None = None, log_level: LogLevel = LogLevel.ALL, max_errors: int | None = None, rules_file_path: str | None = None, logger: Logger | None = None):
-        self.config = config
-        self.base_path = base_path
-        self.log_level = log_level
-        self.max_errors = max_errors
-        self.rules_file_path = rules_file_path
-        self.logger = logger or Logger()
+    def __init__(self, ctx: RuleContext):
+        self.ctx = ctx
+        self.config = ctx.config
+        self.base_path = ctx.base_path
+        self.output_folder = ctx.output_folder
+        self.log_level = ctx.log_level
+        self.max_errors = ctx.max_errors
+        self.rules_file_path = ctx.rules_file_path
+        self.logger = ctx.logger or Logger()
+        self.language = ctx.language
+        self._settings = None
+
+    @property
+    def settings(self):
+        if self._settings is None:
+            from settings import Settings
+            self._settings = Settings()
+        return self._settings
 
     @abstractmethod
     def check(self, file_path: Path) -> list[Violation]:
@@ -227,3 +239,26 @@ class BaseRule(ABC):
             self.logger.info(f"Report saved to: {output_file}")
         except Exception as e:
             self.logger.error(f"Error writing CSV: {e}")
+
+
+class ProjectWideRule(BaseRule):
+    """Base for rules that run once per project regardless of file count.
+
+    Subclasses implement `_run(file_path)`; this class handles the once-only
+    guard. The first call to `check()` runs the body and caches; subsequent
+    calls return an empty list.
+    """
+
+    def __init__(self, ctx: RuleContext):
+        super().__init__(ctx)
+        self._executed = False
+
+    def check(self, file_path: Path) -> list[Violation]:
+        if self._executed:
+            return []
+        self._executed = True
+        return self._run(file_path)
+
+    @abstractmethod
+    def _run(self, file_path: Path) -> list[Violation]:
+        """Execute the project-wide analysis exactly once."""

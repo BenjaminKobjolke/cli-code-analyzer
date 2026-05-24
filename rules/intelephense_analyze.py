@@ -4,32 +4,12 @@ import csv
 from pathlib import Path
 
 from models import LogLevel, Severity, Violation
-from rules.base import BaseRule
+from rules.base import ProjectWideRule
+from rules.context import RuleContext
 
 
-class IntelephenseAnalyzeRule(BaseRule):
+class IntelephenseAnalyzeRule(ProjectWideRule):
     """Rule to analyze PHP code using Intelephense LSP."""
-
-    def __init__(
-        self,
-        config: dict,
-        base_path: Path | None = None,
-        output_folder: Path | None = None,
-        log_level: LogLevel = LogLevel.ALL,
-        max_errors: int | None = None,
-        rules_file_path: str | None = None,
-        logger=None,
-    ):
-        super().__init__(
-            config=config,
-            base_path=base_path,
-            log_level=log_level,
-            max_errors=max_errors,
-            rules_file_path=rules_file_path,
-            logger=logger,
-        )
-        self.output_folder = output_folder
-        self._executed = False
 
     def _map_severity(self, intelephense_severity: str) -> Severity:
         """Map Intelephense severity to cli-code-analyzer Severity.
@@ -48,12 +28,7 @@ class IntelephenseAnalyzeRule(BaseRule):
         }
         return severity_map.get(intelephense_severity.lower(), Severity.WARNING)
 
-    def check(self, _file_path: Path) -> list[Violation]:
-        """Run Intelephense check on the entire project (only once)."""
-        if self._executed:
-            return []
-
-        self._executed = True
+    def _run(self, _file_path: Path) -> list[Violation]:
         self.logger.info("\nRunning Intelephense check...")
 
         try:

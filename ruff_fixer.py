@@ -5,25 +5,20 @@ Ruff Fixer - Auto-fix Python code issues using Ruff with settings from rules JSO
 
 import argparse
 import json
+import re
+import shutil
 import subprocess
 import sys
 from pathlib import Path
 
+from logger import Logger
 from settings import Settings
 
 
-def load_ruff_config(rules_file: str) -> dict:
-    """Load ruff configuration from rules JSON file.
-
-    Args:
-        rules_file: Path to the rules JSON file
-
-    Returns:
-        Ruff configuration dict, or empty dict if not found
-    """
+def load_ruff_config(rules_file: str, logger: Logger) -> dict:
     rules_path = Path(rules_file)
     if not rules_path.exists():
-        print(f"Warning: Rules file not found: {rules_file}")
+        logger.warning(f"Warning: Rules file not found: {rules_file}")
         return {}
 
     try:
@@ -31,24 +26,15 @@ def load_ruff_config(rules_file: str) -> dict:
             config = json.load(f)
         return config.get('ruff_analyze', {})
     except json.JSONDecodeError as e:
-        print(f"Error parsing rules file: {e}")
+        logger.error(f"Error parsing rules file: {e}")
         return {}
 
 
-def get_ruff_path() -> str | None:
-    """Get ruff executable path.
-
-    Returns:
-        Path to ruff executable or None
-    """
-    import shutil
-
-    # Check if ruff is in PATH
+def get_ruff_path(logger: Logger) -> str | None:
     ruff_in_path = shutil.which('ruff')
     if ruff_in_path:
         return ruff_in_path
 
-    # Check common venv locations relative to script
     script_dir = Path(__file__).parent
     venv_paths = [
         script_dir / 'venv' / 'Scripts' / 'ruff.exe',
@@ -60,62 +46,38 @@ def get_ruff_path() -> str | None:
         if venv_ruff.exists():
             return str(venv_ruff)
 
-    # Check settings
-    settings = Settings()
+    settings = Settings(logger=logger)
     ruff_path = settings.get_ruff_path()
     if ruff_path and Path(ruff_path).exists():
         return ruff_path
 
-    # Prompt user (only if running interactively)
-    import sys
     if sys.stdin.isatty():
         return settings.prompt_and_save_ruff_path()
 
-    print("Error: Ruff not found. Please install with: pip install ruff")
+    logger.error("Error: Ruff not found. Please install with: pip install ruff")
     return None
 
 
-def run_ruff_fix(path: str, ruff_config: dict, dry_run: bool = False) -> int:
-    """Run ruff fix on the specified path.
-
-    Args:
-        path: Path to fix
-        ruff_config: Ruff configuration from rules JSON
-        dry_run: If True, show what would be fixed without making changes
-
-    Returns:
-        Number of issues fixed (or would be fixed in dry-run mode)
-    """
-    ruff_path = get_ruff_path()
+def run_ruff_fix(path: str, ruff_config: dict, logger: Logger, dry_run: bool = False) -> int:
+    ruff_path = get_ruff_path(logger)
     if not ruff_path:
-        print("Error: Ruff executable not found")
+        logger.error("Error: Ruff executable not found")
         return -1
 
-    # Build command
     cmd = [ruff_path, 'check']
+    cmd.append('--diff' if dry_run else '--fix')
 
-    if dry_run:
-        cmd.append('--diff')
-    else:
-        cmd.append('--fix')
-
-    # Add select rules if configured
     if ruff_config.get('select'):
         cmd.extend(['--select', ','.join(ruff_config['select'])])
-
-    # Add ignore rules if configured
     if ruff_config.get('ignore'):
         cmd.extend(['--ignore', ','.join(ruff_config['ignore'])])
-
-    # Add exclude patterns
     if ruff_config.get('exclude_patterns'):
         for pattern in ruff_config['exclude_patterns']:
             cmd.extend(['--exclude', pattern])
 
-    # Add path to analyze
     cmd.append(path)
 
-    print(f"Running: {' '.join(cmd)}\n")
+    logger.info(f"Running: {' '.join(cmd)}\n")
 
     try:
         result = subprocess.run(
@@ -123,20 +85,17 @@ def run_ruff_fix(path: str, ruff_config: dict, dry_run: bool = False) -> int:
             capture_output=True,
             encoding='utf-8',
             errors='replace',
-            check=False
+            check=False,
         )
 
-        # Print output
+        # External tool output forwarded verbatim — keep as print, not logger.
         if result.stdout:
             print(result.stdout)
         if result.stderr:
             print(result.stderr)
 
-        # Parse the "Found X errors" message
         output = result.stderr or result.stdout
         if 'Found' in output and 'error' in output:
-            # Extract number from "Found X errors (Y fixed, Z remaining)"
-            import re
             match = re.search(r'Found (\d+) errors?', output)
             if match:
                 return int(match.group(1))
@@ -144,15 +103,14 @@ def run_ruff_fix(path: str, ruff_config: dict, dry_run: bool = False) -> int:
         return 0
 
     except FileNotFoundError:
-        print(f"Error: Ruff executable not found: {ruff_path}")
+        logger.error(f"Error: Ruff executable not found: {ruff_path}")
         return -1
     except Exception as e:
-        print(f"Error running ruff: {e}")
+        logger.error(f"Error running ruff: {e}")
         return -1
 
 
 def main():
-    """Main entry point"""
     parser = argparse.ArgumentParser(
         description='Auto-fix Python code issues using Ruff with settings from rules JSON',
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -161,56 +119,39 @@ Examples:
   python ruff_fixer.py --path .
   python ruff_fixer.py --path src/ --rules code_analysis_rules.json
   python ruff_fixer.py --path . --dry-run
-        """
+        """,
     )
 
-    parser.add_argument(
-        '--path',
-        required=True,
-        help='Path to the code directory or file to fix'
-    )
-
-    parser.add_argument(
-        '--rules',
-        default='code_analysis_rules.json',
-        help='Path to the rules JSON file (default: code_analysis_rules.json)'
-    )
-
-    parser.add_argument(
-        '--dry-run',
-        action='store_true',
-        help='Show what would be fixed without making changes'
-    )
+    parser.add_argument('--path', required=True, help='Path to the code directory or file to fix')
+    parser.add_argument('--rules', default='code_analysis_rules.json', help='Path to the rules JSON file (default: code_analysis_rules.json)')
+    parser.add_argument('--dry-run', action='store_true', help='Show what would be fixed without making changes')
 
     args = parser.parse_args()
+    logger = Logger()
 
-    # Validate path exists
     if not Path(args.path).exists():
-        print(f"Error: Path '{args.path}' does not exist")
+        logger.error(f"Error: Path '{args.path}' does not exist")
         sys.exit(1)
 
-    # Load ruff config from rules file
-    ruff_config = load_ruff_config(args.rules)
+    ruff_config = load_ruff_config(args.rules, logger)
 
     if not ruff_config:
-        print("Warning: No ruff_analyze configuration found in rules file")
-        print("Using default ruff settings\n")
+        logger.warning("Warning: No ruff_analyze configuration found in rules file")
+        logger.info("Using default ruff settings\n")
 
-    # Run ruff fix
     if args.dry_run:
-        print("=== DRY RUN MODE - No changes will be made ===\n")
+        logger.info("=== DRY RUN MODE - No changes will be made ===\n")
 
-    result = run_ruff_fix(args.path, ruff_config, args.dry_run)
+    result = run_ruff_fix(args.path, ruff_config, logger, args.dry_run)
 
     if result < 0:
         sys.exit(1)
     elif result == 0:
-        print("\nNo issues to fix!")
+        logger.info("\nNo issues to fix!")
+    elif args.dry_run:
+        logger.info(f"\n{result} issue(s) would be fixed")
     else:
-        if args.dry_run:
-            print(f"\n{result} issue(s) would be fixed")
-        else:
-            print(f"\nFixed {result} issue(s)")
+        logger.info(f"\nFixed {result} issue(s)")
 
     sys.exit(0)
 

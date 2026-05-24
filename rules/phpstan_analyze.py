@@ -5,19 +5,12 @@ import json
 from pathlib import Path
 
 from models import LogLevel, Severity, Violation
-from rules.base import BaseRule
-from settings import Settings
+from rules.base import ProjectWideRule
+from rules.context import RuleContext
 
 
-class PHPStanAnalyzeRule(BaseRule):
+class PHPStanAnalyzeRule(ProjectWideRule):
     """Rule to analyze PHP code using PHPStan static analyzer"""
-
-    def __init__(self, config: dict, base_path: Path | None = None, output_folder: Path | None = None, log_level: LogLevel = LogLevel.ALL, max_errors: int | None = None, rules_file_path: str | None = None, logger=None):
-        super().__init__(config=config, base_path=base_path, log_level=log_level, max_errors=max_errors, rules_file_path=rules_file_path, logger=logger)
-        self.output_folder = output_folder
-        self.log_level = log_level
-        self.settings = Settings()
-        self._phpstan_executed = False
 
     def _get_bundled_phpstan_path(self) -> str | None:
         """Get PHPStan path from bundled php/vendor/bin folder."""
@@ -31,12 +24,7 @@ class PHPStanAnalyzeRule(BaseRule):
                 return str(p)
         return None
 
-    def check(self, _file_path: Path) -> list[Violation]:
-        """Run PHPStan check on the entire project (only once)."""
-        if self._phpstan_executed:
-            return []
-
-        self._phpstan_executed = True
+    def _run(self, _file_path: Path) -> list[Violation]:
         self.logger.info("\nRunning PHPStan check...")
 
         # First check bundled php/vendor/bin folder
