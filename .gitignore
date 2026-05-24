@@ -3,6 +3,9 @@ __pycache__/
 *.py[codz]
 *$py.class
 
+# Local cli-code-analyzer config (machine-specific paths)
+tools/analyze_code_config.bat
+
 # C extensions
 *.so
 
