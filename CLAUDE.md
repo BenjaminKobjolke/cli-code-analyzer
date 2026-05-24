@@ -117,3 +117,71 @@ External tools are optional per-analyzer: PMD (duplicate detection), Dart/Flutte
 - `docs/analyzers/` - Per-analyzer documentation (configuration, output format, examples)
 - `docs/setup/` - Per-language setup guides (FLUTTER.md, PYTHON.md, PHP.md, CSHARP.md, JAVASCRIPT_TYPESCRIPT.md, SVELTE.md)
 - `CREATING_NEW_ANALYZER.md` - Step-by-step guide for adding new analyzers
+
+## Code Analysis
+
+After implementing new features or making significant changes, run the code analysis:
+
+```bash
+powershell -Command "cd 'D:\GIT\BenjaminKobjolke\cli-code-analyzer'; cmd /c '.\tools\analyze_code.bat'"
+```
+
+Fix any reported issues before committing. Auto-fix what Ruff can fix:
+
+```bash
+powershell -Command "cd 'D:\GIT\BenjaminKobjolke\cli-code-analyzer'; cmd /c '.\tools\fix_ruff_issues.bat'"
+```
+
+Preview Ruff fixes without applying:
+
+```bash
+powershell -Command "cd 'D:\GIT\BenjaminKobjolke\cli-code-analyzer'; cmd /c '.\tools\fix_ruff_issues_dry_run.bat'"
+```
+
+Reports land in `code_analysis_results/`. Self-analysis: this project IS cli-code-analyzer, so `CLI_ANALYZER_PATH` in `tools/analyze_code_config.bat` points at the project root.
+
+## Coding Rules
+
+Source folder: `D:\GIT\BenjaminKobjolke\claude-code\coding-rules`
+- Common: `COMMON_RULES.md`
+- Python: `PYTHON_RULES.md`
+
+The rules below are extracted and filtered for this project (Python CLI tool — no web layer, no DB, no i18n). Web/Jinja2, localization, Pydantic/API-validation, SQLAlchemy, and `start.bat` rules from the source files do not apply here and are intentionally omitted.
+
+### Common Rules (all languages)
+
+- **Use Objects for Related Values**: Bundle related parameters into DTO/Settings/Config objects instead of long parameter lists.
+- **No Bag-of-Keys Returns at Module Boundaries**: Public methods on managers/repositories/services that cross a module boundary must return typed objects (DTO, value object, domain model) — never raw dicts/arrays indexed by string keys. Lists vs single must be obvious from the type/name. Distinguish absent (`None`) from empty (empty collection). JSON-decoded blobs that cross a boundary must be wrapped in a value object. Internal private helpers may stay as dicts.
+- **Reuse Existing Models Before Inventing Array Shapes**: Grep the codebase for an existing domain class that owns the same data before creating a new DTO.
+- **Tests Pin the Shape Before the Refactor**: When converting a bag-of-keys return to a typed object, write a characterization test against the existing API first, run it green, then refactor.
+- **Test-Driven Development**: For features and bug fixes: write tests first → confirm fail → implement → confirm pass.
+- **Integration Tests**: Every project must include integration tests in addition to unit tests.
+- **Test Runner Scripts**: Provide `tools/run_tests.bat` (unit) and `tools/run_integration_tests.bat` (integration).
+- **Prefer Type-Safe Values**: Use typed DTOs, enums, generics — not loosely typed strings/dicts.
+- **String Constants**: Centralize string constants in a dedicated module. Do not scatter raw strings.
+- **README.md is Mandatory**: Root `README.md` with name, description, install/setup, usage, dependencies.
+- **DRY**: Extract duplicated logic into helpers/base abstractions; use constants for repeated values.
+- **Confirm Dependency Versions**: Ask the user to verify latest stable version before adding any new package.
+- **Error Handling & Logging Strategy**: Centralized error handler; structured logging (not `print`); log levels (debug/info/warning/error); include context (module, operation, IDs).
+- **Input Validation at Boundaries**: Validate API inputs, user input, file uploads, external service responses. Fail fast with clear errors.
+- **Maximum File Length — 300 Lines**: Split files when they exceed 300 lines. Exceptions: generated files, config files, test files with many similar cases.
+- **Naming Conventions**: Python = `snake_case` files/functions/variables, `PascalCase` classes, `UPPER_SNAKE_CASE` constants.
+- **Security Baseline**: Never commit secrets; escape output; parameterized queries only; validate/sanitize all input; keep dependencies updated.
+- **No God Classes**: Warning signs = >5 public methods, >4 constructor deps, methods spanning unrelated domains. Split by responsibility. Avoid catch-all names like "Manager", "Handler", "Service", "Helper".
+- **Self-Describing Classes**: When behavior depends on which fields a class has (search, serialization, display, validation, auditing), the class itself declares those fields via a contract (Protocol, abstract method, attribute/annotation). Never hardcode field lists in consumers.
+
+### Python Rules (uv)
+
+- **`pyproject.toml` as single source of truth**: Pin Python version (`>=3.11,<3.13` baseline). Manage deps via `uv add`. Commit `uv.lock`. (Note: this project currently uses `requirements.txt` — migrating to `uv` is a known future task.)
+- **Formatting + linting + type checking in CI**: `uv add --dev ruff mypy`. CI runs `ruff check`, `ruff format --check`, `mypy`. Ruff replaces black/isort/flake8.
+- **Type hints on public APIs**: All public functions/classes/methods have typed params + return types. Use `Sequence`, `Mapping`, `Protocol`, `TypedDict`, `Literal` where helpful. Avoid `Any` except at I/O / third-party boundaries.
+- **Centralize configuration with env-driven settings**: One settings module reading `os.getenv`. No scattered `os.getenv` calls or magic values. Example: frozen `@dataclass Settings`.
+- **Tests are mandatory, fast, and isolated**: `uv add --dev pytest`. Unit tests for core logic. No network in unit tests. Use tmp dirs / fixtures; no reliance on developer machine state. CI runs tests on every push.
+- **Use `spec=` with MagicMock**: `MagicMock(spec=RealClass)` to validate against the real interface — without `spec`, typos and missing methods pass silently. If the real class exposes a method, mock the method (`mock.get_body.return_value = "x"`), not a fake attribute (`mock.body = "x"`).
+- **Required Batch Files**: `tools/run_tests.bat` for tests. (`start.bat` does not apply — this is a CLI tool invoked as `python main.py …`.)
+- **Async Patterns**: Use `asyncio` for I/O-bound work. Never block the event loop with `time.sleep` or sync HTTP inside `async` code.
+- **Structured Logging**: Use `structlog` or `logging` with a JSON formatter — never `print()`. Centralized logging config used by all modules. (Project already has a `Logger` propagated from `main.py` — extend that, do not introduce ad-hoc loggers.)
+- **Self-Describing Classes (Python implementation)**:
+  - **Option A — Protocol with abstract method**: define a `Protocol` (e.g. `Searchable`) with `get_searchable_fields() -> list[str]`; each class implements it.
+  - **Option B — Dataclass field metadata**: tag fields with `field(metadata={SEARCHABLE: True})`; iterate via `dataclasses.fields(obj)`.
+  - Prefer Protocol for simple cases; use dataclass metadata for declarative per-field control.

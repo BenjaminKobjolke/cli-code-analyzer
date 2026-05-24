@@ -1,2 +1,3 @@
 pyyaml>=6.0
 git+https://github.com/BenjaminKobjolke/intelephense-mpc-windows.git
+pytest>=8.0
