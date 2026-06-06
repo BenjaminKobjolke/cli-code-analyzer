@@ -183,7 +183,10 @@ return (new PhpCsFixer\\Config())
 
         # Use config file if available, otherwise use --rules
         if config_path:
-            cmd.extend(['--config', str(config_path)])
+            # --path-mode=intersection so the explicit analyze path does not
+            # override the config Finder's ->exclude([...]) (default override
+            # mode discards those excludes, e.g. cache/ would be scanned).
+            cmd.extend(['--config', str(config_path), '--path-mode=intersection'])
         else:
             rules = self._get_rules()
             if rules:

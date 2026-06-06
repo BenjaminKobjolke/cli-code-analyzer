@@ -62,6 +62,21 @@ def get_php_cs_fixer_path(logger: Logger) -> str | None:
     return None
 
 
+def find_fixer_config(path: str) -> Path | None:
+    """Locate a PHP-CS-Fixer config in the target path so its Finder excludes
+    (e.g. cache, vendor) are honored. Without a config the fixer only sees
+    --rules and would rewrite every file under the path, including excluded
+    dirs."""
+    base = Path(path)
+    if base.is_file():
+        base = base.parent
+    for config_name in ('.php-cs-fixer.dist.php', '.php-cs-fixer.php'):
+        candidate = base / config_name
+        if candidate.exists():
+            return candidate
+    return None
+
+
 def run_php_cs_fixer(path: str, fixer_config: dict, logger: Logger, dry_run: bool = False) -> int:
     fixer_path = get_php_cs_fixer_path(logger)
     if not fixer_path:
@@ -77,12 +92,19 @@ def run_php_cs_fixer(path: str, fixer_config: dict, logger: Logger, dry_run: boo
     cmd.append('--verbose')
     cmd.append('--no-interaction')
 
-    if isinstance(fixer_config, str):
-        rules = fixer_config
+    config_path = find_fixer_config(path)
+    if config_path:
+        # Use the project config so its ->exclude([...]) Finder applies, and
+        # intersection mode so the explicit path does not override those
+        # excludes (default override mode discards the config's path filter).
+        cmd.extend(['--config', str(config_path), '--path-mode=intersection'])
     else:
-        rules = fixer_config.get('rules', '@PSR12')
-    if rules:
-        cmd.extend(['--rules', rules])
+        if isinstance(fixer_config, str):
+            rules = fixer_config
+        else:
+            rules = fixer_config.get('rules', '@PSR12')
+        if rules:
+            cmd.extend(['--rules', rules])
 
     cmd.append(path)
 
