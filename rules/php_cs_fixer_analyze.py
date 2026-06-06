@@ -5,9 +5,8 @@ import json
 import re
 from pathlib import Path
 
-from models import LogLevel, Severity, Violation
+from models import Severity, Violation
 from rules.base import ProjectWideRule
-from rules.context import RuleContext
 
 # Default paths to exclude if none specified
 DEFAULT_EXCLUDE_PATHS = ['vendor', '.git']
@@ -207,8 +206,11 @@ return (new PhpCsFixer\\Config())
             # Show stderr for progress info (PHP-CS-Fixer outputs progress there)
             if result.stderr and 'legend:' not in result.stderr.lower():
                 # Filter out the legend and empty lines, show actual progress
-                stderr_lines = [l for l in result.stderr.strip().split('\n')
-                               if l.strip() and 'legend:' not in l.lower() and l.strip() != '.']
+                stderr_lines = [
+                    line
+                    for line in result.stderr.strip().split('\n')
+                    if line.strip() and 'legend:' not in line.lower() and line.strip() != '.'
+                ]
                 if stderr_lines:
                     for line in stderr_lines[:5]:  # Show first few lines of progress
                         self.logger.info(f"  {line}")
