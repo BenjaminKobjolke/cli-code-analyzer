@@ -5,7 +5,7 @@ Dart test coverage analyzer - runs tests and checks coverage against thresholds.
 import re
 from pathlib import Path
 
-from models import LogLevel, Severity, Violation
+from models import LogLevel, RuleResult, Severity, Violation
 from rules.base import ProjectWideRule
 from rules.context import RuleContext
 
@@ -13,13 +13,15 @@ from rules.context import RuleContext
 class DartTestCoverageRule(ProjectWideRule):
     """Run Flutter tests and check coverage against configurable thresholds."""
 
-    def _run(self, _file_path: Path) -> list[Violation]:
+    rule_name = 'dart_test_coverage'
+
+    def _run(self, _file_path: Path) -> RuleResult:
         self.logger.info("\nRunning dart test coverage check...")
 
         project_root = self._find_pubspec()
         if not project_root:
             self.logger.warning("Warning: pubspec.yaml not found, skipping dart_test_coverage")
-            return []
+            return self._skipped("pubspec.yaml not found")
 
         run_tests = self.config.get('run_tests', True)
         lcov_path = self.config.get('lcov_path', 'coverage/lcov.info')
@@ -40,13 +42,13 @@ class DartTestCoverageRule(ProjectWideRule):
             self.logger.warning(f"Warning: Coverage file not found at {lcov_file}")
             if run_tests:
                 self.logger.warning("Tests may have failed to produce coverage output")
-            return []
+            return self._skipped(f"coverage file not found at {lcov_file}")
 
         # Parse LCOV data
         coverage_data = self._parse_lcov(lcov_file, exclude_patterns)
         if not coverage_data:
             self.logger.info("No coverage data found")
-            return []
+            return self._skipped("no coverage data found")
 
         violations = []
 
@@ -103,7 +105,7 @@ class DartTestCoverageRule(ProjectWideRule):
         else:
             self.logger.info(f"Dart test coverage: All thresholds met (overall: {overall_pct:.1f}%)")
 
-        return violations
+        return self._ok(violations)
 
     def _run_flutter_test(self, project_root: Path, timeout: int) -> bool:
         """Run flutter test --coverage."""

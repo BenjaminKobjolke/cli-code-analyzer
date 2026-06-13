@@ -5,7 +5,7 @@ Dart unused files analyzer - finds .dart files never imported by any other file.
 from collections import deque
 from pathlib import Path
 
-from models import LogLevel, Severity, Violation
+from models import LogLevel, RuleResult, Severity, Violation
 from rules.base import ProjectWideRule
 from rules.context import RuleContext
 from rules.dart_utils import (
@@ -20,19 +20,21 @@ from rules.dart_utils import (
 class DartUnusedFilesRule(ProjectWideRule):
     """Find .dart files that are never imported/exported by any other file in the project."""
 
-    def _run(self, _file_path: Path) -> list[Violation]:
+    rule_name = 'dart_unused_files'
+
+    def _run(self, _file_path: Path) -> RuleResult:
         self.logger.info("\nRunning dart unused files check...")
 
         project_root = self._find_pubspec()
         if not project_root:
             self.logger.warning("Warning: pubspec.yaml not found, skipping dart_unused_files")
-            return []
+            return self._skipped("pubspec.yaml not found")
 
         analyze_path = self.config.get('analyze_path', 'lib')
         analyze_dir = project_root / analyze_path
         if not analyze_dir.exists():
             self.logger.warning(f"Warning: analyze path '{analyze_dir}' does not exist")
-            return []
+            return self._skipped(f"analyze path '{analyze_dir}' does not exist")
 
         exclude_patterns = self.config.get('exclude_patterns', ['*.g.dart', '*.freezed.dart'])
         entry_points_cfg = self.config.get('entry_points', ['lib/main.dart'])
@@ -43,7 +45,7 @@ class DartUnusedFilesRule(ProjectWideRule):
 
         if not all_dart_files:
             self.logger.info("No Dart files found to analyze")
-            return []
+            return self._skipped("no Dart files found to analyze")
 
         # Build import graph: file -> set of files it imports
         import_graph: dict[Path, set[Path]] = {}
@@ -90,7 +92,7 @@ class DartUnusedFilesRule(ProjectWideRule):
         # If no entry points exist, skip analysis
         if not entry_files:
             self.logger.warning("Warning: No entry points found, skipping unused files check")
-            return []
+            return self._skipped("no entry points found")
 
         reachable = set()
         queue = deque(entry_files)
@@ -136,4 +138,4 @@ class DartUnusedFilesRule(ProjectWideRule):
         else:
             self.logger.info("Dart unused files: No unused files found")
 
-        return violations
+        return self._ok(violations)

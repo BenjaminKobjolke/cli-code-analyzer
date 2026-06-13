@@ -6,7 +6,7 @@ import csv
 import json
 from pathlib import Path
 
-from models import LogLevel, Severity, Violation
+from models import LogLevel, RuleResult, Severity, Violation
 from rules.base import ProjectWideRule
 from rules.context import RuleContext
 
@@ -14,11 +14,13 @@ from rules.context import RuleContext
 class ESLintAnalyzeRule(ProjectWideRule):
     """Rule to analyze JavaScript/TypeScript code using ESLint linter"""
 
+    rule_name = 'eslint_analyze'
+
     def __init__(self, ctx: RuleContext):
         super().__init__(ctx)
         self._svelte_files_cache = None
 
-    def _run(self, _file_path: Path) -> list[Violation]:
+    def _run(self, _file_path: Path) -> RuleResult:
         self.logger.info("\nRunning ESLint check...")
 
         # Check for local node_modules eslint first
@@ -30,16 +32,14 @@ class ESLintAnalyzeRule(ProjectWideRule):
                 self.logger.info("Install with:")
                 self.logger.info("  npm install --save-dev eslint @typescript-eslint/parser @typescript-eslint/eslint-plugin")
                 self.logger.info("\nSkipping ESLint analysis.")
-                return []
+                return self._skipped("ESLint is not installed in this Node.js project")
             # Not a Node.js project — try global/settings path
             eslint_path = self._get_tool_path('eslint', self.settings.get_eslint_path, self.settings.prompt_and_save_eslint_path)
         if not eslint_path:
-            return []
+            return self._failed("ESLint executable not found")
 
         # Run eslint check
-        violations = self._run_eslint_check(eslint_path)
-
-        return violations
+        return self._run_eslint_check(eslint_path)
 
     def _find_local_eslint(self) -> str | None:
         """Check for ESLint installed locally in the project's node_modules.
@@ -56,14 +56,14 @@ class ESLintAnalyzeRule(ProjectWideRule):
             return str(local_eslint)
         return None
 
-    def _run_eslint_check(self, eslint_path: str) -> list[Violation]:
+    def _run_eslint_check(self, eslint_path: str) -> RuleResult:
         """Execute eslint check and parse results.
 
         Args:
             eslint_path: Path to eslint executable
 
         Returns:
-            List of violations
+            RuleResult
         """
         # Build command with JSON format
         cmd = [eslint_path, '--format', 'json']
@@ -88,7 +88,7 @@ class ESLintAnalyzeRule(ProjectWideRule):
             if not self._has_project_config():
                 self.logger.error("Error: config_mode is 'project' but no ESLint config found")
                 self.logger.error("Create eslint.config.js or .eslintrc.* in your project")
-                return []
+                return self._skipped("config_mode is 'project' but no ESLint config found")
         # config_mode == 'auto': ESLint will automatically detect project config or use defaults
 
         # Add exclude patterns as ignore patterns
@@ -142,15 +142,15 @@ class ESLintAnalyzeRule(ProjectWideRule):
                 output_file = self.output_folder / 'eslint_analyze.csv'
                 self._write_csv_output(output_file, output)
 
-            return violations
+            return self._ok(violations)
 
         except FileNotFoundError:
             self.logger.error(f"Error: ESLint executable not found: {eslint_path}")
             self.logger.error("Please ensure ESLint is installed: npm install -g eslint")
-            return []
+            return self._failed(f"ESLint executable not found: {eslint_path}")
         except Exception as e:
             self.logger.error(f"Error running eslint check: {e}")
-            return []
+            return self._failed(f"error running eslint check: {e}")
 
     def _has_project_config(self) -> bool:
         """Check if project has ESLint configuration.

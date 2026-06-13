@@ -6,7 +6,7 @@ import csv
 import re
 from pathlib import Path
 
-from models import LogLevel, Severity, Violation
+from models import LogLevel, RuleResult, Severity, Violation
 from rules.base import ProjectWideRule
 from rules.context import RuleContext
 
@@ -14,25 +14,25 @@ from rules.context import RuleContext
 class SvelteCheckRule(ProjectWideRule):
     """Rule to analyze Svelte/TypeScript code using svelte-check"""
 
-    def _run(self, _file_path: Path) -> list[Violation]:
+    rule_name = 'svelte_check'
+
+    def _run(self, _file_path: Path) -> RuleResult:
         self.logger.info("Running svelte-check...")
 
         svelte_check_path = self._get_tool_path('svelte-check', self.settings.get_svelte_check_path, self.settings.prompt_and_save_svelte_check_path)
         if not svelte_check_path:
-            return []
+            return self._failed("svelte-check executable not found")
 
-        violations = self._run_svelte_check(svelte_check_path)
+        return self._run_svelte_check(svelte_check_path)
 
-        return violations
-
-    def _run_svelte_check(self, svelte_check_path: str) -> list[Violation]:
+    def _run_svelte_check(self, svelte_check_path: str) -> RuleResult:
         """Execute svelte-check and parse results.
 
         Args:
             svelte_check_path: Path to svelte-check executable
 
         Returns:
-            List of violations
+            RuleResult
         """
         tsconfig = self.config.get('tsconfig', './tsconfig.json')
 
@@ -65,15 +65,15 @@ class SvelteCheckRule(ProjectWideRule):
                 output_file = self.output_folder / 'svelte_check.csv'
                 self._write_csv_output(output_file, violations)
 
-            return violations
+            return self._ok(violations)
 
         except FileNotFoundError:
             self.logger.error(f"Error: svelte-check executable not found: {svelte_check_path}")
             self.logger.error("Please ensure svelte-check is installed: npm install --save-dev svelte-check")
-            return []
+            return self._failed(f"svelte-check executable not found: {svelte_check_path}")
         except Exception as e:
             self.logger.error(f"Error running svelte-check: {e}")
-            return []
+            return self._failed(f"error running svelte-check: {e}")
 
     def _map_severity(self, severity_str: str) -> Severity:
         """Map svelte-check severity string to internal Severity.

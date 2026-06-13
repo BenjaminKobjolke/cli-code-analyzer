@@ -9,7 +9,7 @@ from analyzer_registry import get_analyzers_for_language
 from config import Config
 from file_discovery import FileDiscovery
 from logger import Logger
-from models import LogLevel, Violation
+from models import LogLevel, RuleResult, RuleStatus, Severity, Violation
 from path_utils import to_relative_posix
 from rules import (
     DartAnalyzeRule,
@@ -89,6 +89,7 @@ class CodeAnalyzer:
         self.config = Config(cfg.rules_file)
         self.rules_file = self.config.rules_file
         self.violations: list[Violation] = []
+        self.results: list[RuleResult] = []
         self.files: list[Path] = []
         self.output_folder = cfg.output_folder
         self.cli_log_level = cfg.cli_log_level
@@ -167,8 +168,7 @@ class CodeAnalyzer:
                     self._last_language_header = pmd_lang
                     self.logger.info(f"\n--- {pmd_lang} ---")
                 pmd_rule = PMDDuplicatesRule(self._make_ctx(rule_config, language=pmd_lang))
-                violations = pmd_rule.check(self.files[0])
-                self.violations.extend(violations)
+                self._run_and_record(pmd_rule, self.files[0])
 
         # Run PMD similar code check (once per language that has it registered)
         if self._should_run('pmd_similar_code'):
@@ -179,8 +179,7 @@ class CodeAnalyzer:
                     self._last_language_header = pmd_lang
                     self.logger.info(f"\n--- {pmd_lang} ---")
                 pmd_rule = PMDSimilarCodeRule(self._make_ctx(rule_config, language=pmd_lang))
-                violations = pmd_rule.check(self.files[0])
-                self.violations.extend(violations)
+                self._run_and_record(pmd_rule, self.files[0])
 
         # Run project-wide analyzers (each runs once, not per file)
         for analyzer_name, RuleClass in self._PROJECT_WIDE_ANALYZERS:
@@ -188,8 +187,7 @@ class CodeAnalyzer:
                 self._print_language_header(analyzer_name)
                 rule_config = self.config.get_rule(analyzer_name)
                 rule = RuleClass(self._make_ctx(rule_config))
-                violations = rule.check(self.files[0])
-                self.violations.extend(violations)
+                self._run_and_record(rule, self.files[0])
 
         # Run per-file rules on each file (skip files not in filter, if set)
         for file_path in self.files:
@@ -243,8 +241,42 @@ class CodeAnalyzer:
         if self._should_run('max_lines_per_file'):
             rule_config = self.config.get_rule('max_lines_per_file')
             rule = MaxLinesRule(self._make_ctx(rule_config))
-            violations = rule.check(file_path)
-            self.violations.extend(violations)
+            self._run_and_record(rule, file_path)
+
+    def _run_and_record(self, rule, file_path: Path) -> None:
+        """Run a rule and record its typed result.
+
+        Any unexpected exception is converted to a FAILED result so a broken
+        rule fails loudly instead of crashing the run or silently vanishing.
+        """
+        try:
+            result = rule.check(file_path)
+        except Exception as e:
+            name = getattr(rule, 'rule_name', '') or rule.__class__.__name__
+            self.logger.error(f"Error running {name}: {e}")
+            result = RuleResult(rule_name=name, status=RuleStatus.FAILED, message=f"unexpected error: {e}")
+        self._record(result)
+
+    def _record(self, result: RuleResult) -> None:
+        """Aggregate a rule result: collect its violations and surface failures.
+
+        A FAILED result is mirrored as an ERROR violation so existing
+        error-counting and exit-code paths treat an unrunnable/untrustworthy
+        tool as a hard failure rather than a clean pass.
+        """
+        self.results.append(result)
+        self.violations.extend(result.violations)
+        if result.status == RuleStatus.FAILED:
+            self.violations.append(Violation(
+                file_path="",
+                rule_name=f"{result.rule_name} (tool failure)",
+                severity=Severity.ERROR,
+                message=result.message or "tool failed to run",
+            ))
+
+    def get_failures(self) -> list[RuleResult]:
+        """Return rule results whose tool failed to run or produced untrusted output."""
+        return [r for r in self.results if r.status == RuleStatus.FAILED]
 
     def get_violations(self) -> list[Violation]:
         """Get all violations found"""

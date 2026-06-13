@@ -325,6 +325,9 @@ Examples:
     # Normal analysis flow
     # -----------------------------------------------------------
     try:
+        # Tool-run failures from this analysis (empty when results come from cache;
+        # a failure that occurred during a cached run survives as an ERROR violation).
+        failures = []
         # Check cache first for normal runs
         if cache and cache.is_valid(args.cache_max_age, rules_hash):
             logger.info("Using cached results")
@@ -367,6 +370,7 @@ Examples:
             all_violations = analyzer.get_violations()
             total_file_count = analyzer.get_file_count()
             all_file_paths = analyzer.get_analyzed_file_paths()
+            failures = analyzer.get_failures()
 
             # Save to cache whenever output folder is set (keeps cache fresh for --file queries)
             if cache:
@@ -383,6 +387,7 @@ Examples:
             output_folder,
             args.maxamountoferrors,
             logger=logger,
+            failures=failures,
         )
         if args.format == 'json':
             has_errors = reporter.report_json()

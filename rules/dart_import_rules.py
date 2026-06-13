@@ -5,7 +5,7 @@ Dart import rules analyzer - enforces architecture layer boundaries via configur
 from fnmatch import fnmatch
 from pathlib import Path
 
-from models import LogLevel, Severity, Violation
+from models import LogLevel, RuleResult, Severity, Violation
 from rules.base import ProjectWideRule
 from rules.context import RuleContext
 from rules.dart_utils import (
@@ -20,33 +20,35 @@ from rules.dart_utils import (
 class DartImportRulesRule(ProjectWideRule):
     """Enforce architecture layer boundaries via configurable forbidden import rules."""
 
-    def _run(self, _file_path: Path) -> list[Violation]:
+    rule_name = 'dart_import_rules'
+
+    def _run(self, _file_path: Path) -> RuleResult:
         self.logger.info("\nRunning dart import rules check...")
 
         project_root = self._find_pubspec()
         if not project_root:
             self.logger.warning("Warning: pubspec.yaml not found, skipping dart_import_rules")
-            return []
+            return self._skipped("pubspec.yaml not found")
 
         analyze_path = self.config.get('analyze_path', 'lib')
         analyze_dir = project_root / analyze_path
         if not analyze_dir.exists():
             self.logger.warning(f"Warning: analyze path '{analyze_dir}' does not exist")
-            return []
+            return self._skipped(f"analyze path '{analyze_dir}' does not exist")
 
         exclude_patterns = self.config.get('exclude_patterns', ['*.g.dart', '*.freezed.dart'])
         forbidden_imports = self.config.get('forbidden_imports', [])
 
         if not forbidden_imports:
             self.logger.info("No forbidden import rules configured")
-            return []
+            return self._skipped("no forbidden import rules configured")
 
         package_name = get_package_name(project_root)
         all_dart_files = collect_dart_files(analyze_dir, exclude_patterns)
 
         if not all_dart_files:
             self.logger.info("No Dart files found to analyze")
-            return []
+            return self._skipped("no Dart files found to analyze")
 
         violations = []
 
@@ -117,7 +119,7 @@ class DartImportRulesRule(ProjectWideRule):
         else:
             self.logger.info("Dart import rules: No violations found")
 
-        return violations
+        return self._ok(violations)
 
     @staticmethod
     def _extract_line(message: str) -> str:

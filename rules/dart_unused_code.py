@@ -4,7 +4,7 @@ Dart unused code analyzer - finds unused classes, functions, enums, etc. using d
 
 from pathlib import Path
 
-from models import LogLevel, Severity, Violation
+from models import LogLevel, RuleResult, Severity, Violation
 from rules.base import ProjectWideRule
 from rules.context import RuleContext
 from rules.dart_utils import collect_dart_files
@@ -20,24 +20,26 @@ except ImportError:
 class DartUnusedCodeRule(ProjectWideRule):
     """Find unused classes, functions, enums, mixins, typedefs, extensions across the project using LSP."""
 
-    def _run(self, _file_path: Path) -> list[Violation]:
+    rule_name = 'dart_unused_code'
+
+    def _run(self, _file_path: Path) -> RuleResult:
         self.logger.info("\nRunning dart unused code check...")
 
         if not HAS_DART_LSP:
             self.logger.warning("Warning: dart-lsp-mcp not installed. Skipping dart_unused_code analyzer.")
             self.logger.warning("Install from: D:\\GIT\\BenjaminKobjolke\\dart-lsp-mcp")
-            return []
+            return self._failed("dart-lsp-mcp not installed")
 
         project_root = self._find_pubspec()
         if not project_root:
             self.logger.warning("Warning: pubspec.yaml not found, skipping dart_unused_code")
-            return []
+            return self._skipped("pubspec.yaml not found")
 
         analyze_path = self.config.get('analyze_path', 'lib')
         analyze_dir = project_root / analyze_path
         if not analyze_dir.exists():
             self.logger.warning(f"Warning: analyze path '{analyze_dir}' does not exist")
-            return []
+            return self._skipped(f"analyze path '{analyze_dir}' does not exist")
 
         exclude_patterns = self.config.get('exclude_patterns', ['*.g.dart', '*.freezed.dart'])
         ignore_names = set(self.config.get('ignore_names', ['main', 'build']))
@@ -48,7 +50,7 @@ class DartUnusedCodeRule(ProjectWideRule):
         all_dart_files = collect_dart_files(analyze_dir, exclude_patterns)
         if not all_dart_files:
             self.logger.info("No Dart files found to analyze")
-            return []
+            return self._skipped("no Dart files found to analyze")
 
         violations = []
         total_symbols = 0
@@ -120,7 +122,7 @@ class DartUnusedCodeRule(ProjectWideRule):
         else:
             self.logger.info(f"Dart unused code: No unused declarations found (checked {checked_symbols}/{total_symbols} symbols)")
 
-        return violations
+        return self._ok(violations)
 
     @staticmethod
     def _extract_line(message: str) -> str:

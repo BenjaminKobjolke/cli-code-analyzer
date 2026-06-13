@@ -6,7 +6,7 @@ import csv
 import re
 from pathlib import Path
 
-from models import LogLevel, Severity, Violation
+from models import LogLevel, RuleResult, Severity, Violation
 from rules.base import ProjectWideRule
 from rules.context import RuleContext
 
@@ -14,25 +14,25 @@ from rules.context import RuleContext
 class TscAnalyzeRule(ProjectWideRule):
     """Rule to analyze TypeScript code using tsc --noEmit"""
 
-    def _run(self, _file_path: Path) -> list[Violation]:
+    rule_name = 'tsc_analyze'
+
+    def _run(self, _file_path: Path) -> RuleResult:
         self.logger.info("Running tsc type checking...")
 
         tsc_path = self._get_tool_path('tsc', self.settings.get_tsc_path, self.settings.prompt_and_save_tsc_path)
         if not tsc_path:
-            return []
+            return self._failed("tsc executable not found")
 
-        violations = self._run_tsc(tsc_path)
+        return self._run_tsc(tsc_path)
 
-        return violations
-
-    def _run_tsc(self, tsc_path: str) -> list[Violation]:
+    def _run_tsc(self, tsc_path: str) -> RuleResult:
         """Execute tsc --noEmit and parse results.
 
         Args:
             tsc_path: Path to tsc executable
 
         Returns:
-            List of violations
+            RuleResult
         """
         cmd = [tsc_path, '--noEmit', '--pretty', 'false']
 
@@ -72,15 +72,15 @@ class TscAnalyzeRule(ProjectWideRule):
                 output_file = self.output_folder / 'tsc_analyze.csv'
                 self._write_csv_output(output_file, violations)
 
-            return violations
+            return self._ok(violations)
 
         except FileNotFoundError:
             self.logger.error(f"Error: tsc executable not found: {tsc_path}")
             self.logger.error("Please ensure TypeScript is installed: npm install --save-dev typescript")
-            return []
+            return self._failed(f"tsc executable not found: {tsc_path}")
         except Exception as e:
             self.logger.error(f"Error running tsc: {e}")
-            return []
+            return self._failed(f"error running tsc: {e}")
 
     def _parse_tsc_output(self, output: str) -> list[Violation]:
         """Parse tsc output into violations.

@@ -15,7 +15,7 @@ from fnmatch import fnmatch
 from pathlib import Path
 from typing import Any
 
-from models import LogLevel, Severity, Violation
+from models import LogLevel, RuleResult, Severity, Violation
 from rules._crap import coverage_ratio, crap_score
 from rules.base import ProjectWideRule
 from rules.context import RuleContext
@@ -24,16 +24,28 @@ from rules.context import RuleContext
 class PythonCrapScoreRule(ProjectWideRule):
     """Per-function CRAP score for Python projects."""
 
-    def _run(self, _file_path: Path) -> list[Violation]:
+    rule_name = 'python_crap_score'
+
+    def _run(self, _file_path: Path) -> RuleResult:
         self.logger.info("\nRunning python_crap_score check...")
 
-        functions_by_file = self._collect_functions()
+        # Resolve pyscn up front so a missing tool reports FAILED rather than
+        # being collapsed into the "no functions" skip path below.
+        pyscn_path = self._get_tool_path(
+            'pyscn',
+            self.settings.get_pyscn_path,
+            self.settings.prompt_and_save_pyscn_path,
+        )
+        if not pyscn_path:
+            return self._failed("pyscn executable not found")
+
+        functions_by_file = self._collect_functions(pyscn_path)
         if not functions_by_file:
-            return []
+            return self._skipped("no functions with complexity data found")
 
         coverage_by_file = self._load_coverage()
         if coverage_by_file is None:
-            return []
+            return self._failed("coverage data unavailable")
 
         violations = self._build_violations(functions_by_file, coverage_by_file)
         violations = self._filter_violations_by_log_level(violations)
@@ -46,18 +58,11 @@ class PythonCrapScoreRule(ProjectWideRule):
         if self.output_folder and violations:
             self._write_csv(self.output_folder / 'python_crap_score.csv', violations)
 
-        return violations
+        return self._ok(violations)
 
     # ----- pyscn complexity --------------------------------------------------------
 
-    def _collect_functions(self) -> dict[str, list[dict]]:
-        pyscn_path = self._get_tool_path(
-            'pyscn',
-            self.settings.get_pyscn_path,
-            self.settings.prompt_and_save_pyscn_path,
-        )
-        if not pyscn_path:
-            return {}
+    def _collect_functions(self, pyscn_path: str) -> dict[str, list[dict]]:
 
         cmd = [pyscn_path, 'analyze', '--json', '--select', 'complexity', str(self.base_path)]
         try:

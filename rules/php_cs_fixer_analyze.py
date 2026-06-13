@@ -5,7 +5,7 @@ import json
 import re
 from pathlib import Path
 
-from models import Severity, Violation
+from models import RuleResult, Severity, Violation
 from rules.base import ProjectWideRule
 
 # Default paths to exclude if none specified
@@ -17,6 +17,8 @@ FIXER_CONFIG_FILES = ['.php-cs-fixer.dist.php', '.php-cs-fixer.php']
 
 class PHPCSFixerAnalyzeRule(ProjectWideRule):
     """Rule to analyze PHP code style using PHP-CS-Fixer in dry-run mode"""
+
+    rule_name = 'php_cs_fixer'
 
     def _get_bundled_fixer_path(self) -> str | None:
         """Get PHP-CS-Fixer path from bundled php/vendor/bin folder."""
@@ -150,7 +152,7 @@ return (new PhpCsFixer\\Config())
             # Create new config
             return self._create_fixer_config(exclude_paths, rules)
 
-    def _run(self, _file_path: Path) -> list[Violation]:
+    def _run(self, _file_path: Path) -> RuleResult:
         self.logger.info("\nRunning PHP-CS-Fixer check...")
 
         # First check bundled php/vendor/bin folder
@@ -158,12 +160,11 @@ return (new PhpCsFixer\\Config())
         if not fixer_path:
             fixer_path = self._get_tool_path('php-cs-fixer', self.settings.get_php_cs_fixer_path, self.settings.prompt_and_save_php_cs_fixer_path)
         if not fixer_path:
-            return []
+            return self._failed("PHP-CS-Fixer executable not found")
 
-        violations = self._run_fixer_check(fixer_path)
-        return violations
+        return self._run_fixer_check(fixer_path)
 
-    def _run_fixer_check(self, fixer_path: str) -> list[Violation]:
+    def _run_fixer_check(self, fixer_path: str) -> RuleResult:
         """Execute PHP-CS-Fixer in dry-run mode and parse results."""
         # Ensure config file exists with correct exclude paths
         config_path = self._ensure_fixer_config()
@@ -233,15 +234,15 @@ return (new PhpCsFixer\\Config())
                 output_file = self.output_folder / 'php_cs_fixer.csv'
                 self._write_csv_output(output_file, output)
 
-            return violations
+            return self._ok(violations)
 
         except FileNotFoundError:
             self.logger.error(f"Error: PHP-CS-Fixer executable not found: {fixer_path}")
             self.logger.error("Please ensure PHP-CS-Fixer is installed: composer require --dev friendsofphp/php-cs-fixer")
-            return []
+            return self._failed(f"PHP-CS-Fixer executable not found: {fixer_path}")
         except Exception as e:
             self.logger.error(f"Error running PHP-CS-Fixer check: {e}")
-            return []
+            return self._failed(f"error running PHP-CS-Fixer check: {e}")
 
     def _parse_fixer_json(self, output: str) -> list[Violation]:
         """Parse PHP-CS-Fixer JSON output into violations.

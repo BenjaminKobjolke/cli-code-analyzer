@@ -12,12 +12,16 @@ from pathlib import Path
 from typing import Any
 
 from logger import Logger
-from models import LogLevel, Severity, Violation
+from models import LogLevel, RuleResult, RuleStatus, Severity, Violation
 from rules.context import RuleContext
 
 
 class BaseRule(ABC):
     """Abstract base class for all rules"""
+
+    # Subclasses set this so RuleResults are stamped with a stable name. Falls
+    # back to the class name if a subclass forgets.
+    rule_name: str = ""
 
     def __init__(self, ctx: RuleContext):
         self.ctx = ctx
@@ -39,8 +43,23 @@ class BaseRule(ABC):
         return self._settings
 
     @abstractmethod
-    def check(self, file_path: Path) -> list[Violation]:
-        """Check the file against this rule and return list of violations."""
+    def check(self, file_path: Path) -> RuleResult:
+        """Check the file against this rule and return a typed RuleResult."""
+
+    def _result_name(self) -> str:
+        return self.rule_name or self.__class__.__name__
+
+    def _ok(self, violations: list[Violation]) -> RuleResult:
+        """Rule ran successfully; violations may be empty (genuinely clean)."""
+        return RuleResult(rule_name=self._result_name(), status=RuleStatus.OK, violations=violations)
+
+    def _failed(self, message: str) -> RuleResult:
+        """Rule could not run or its output could not be trusted."""
+        return RuleResult(rule_name=self._result_name(), status=RuleStatus.FAILED, message=message)
+
+    def _skipped(self, message: str) -> RuleResult:
+        """Rule is not applicable in this context (not a failure)."""
+        return RuleResult(rule_name=self._result_name(), status=RuleStatus.SKIPPED, message=message)
 
     def _get_relative_path(self, file_path: Path) -> str:
         """Get relative path from base path, or absolute path if not relative."""
@@ -253,12 +272,18 @@ class ProjectWideRule(BaseRule):
         super().__init__(ctx)
         self._executed = False
 
-    def check(self, file_path: Path) -> list[Violation]:
+    def check(self, file_path: Path) -> RuleResult:
         if self._executed:
-            return []
+            return self._ok([])
         self._executed = True
-        return self._run(file_path)
+        try:
+            return self._run(file_path)
+        except Exception as e:
+            # Safety net: a rule that forgets to catch an error fails loudly
+            # rather than crashing the run or silently returning nothing.
+            self.logger.error(f"Error running {self._result_name()}: {e}")
+            return self._failed(f"unexpected error: {e}")
 
     @abstractmethod
-    def _run(self, file_path: Path) -> list[Violation]:
+    def _run(self, file_path: Path) -> RuleResult:
         """Execute the project-wide analysis exactly once."""

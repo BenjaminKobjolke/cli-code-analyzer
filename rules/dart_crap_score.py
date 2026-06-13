@@ -18,7 +18,7 @@ from typing import Any
 
 import yaml
 
-from models import LogLevel, Severity, Violation
+from models import LogLevel, RuleResult, Severity, Violation
 from rules._crap import coverage_ratio, crap_score
 from rules.base import ProjectWideRule
 from rules.context import RuleContext
@@ -27,25 +27,27 @@ from rules.context import RuleContext
 class DartCrapScoreRule(ProjectWideRule):
     """Per-function CRAP score for Dart/Flutter projects."""
 
+    rule_name = 'dart_crap_score'
+
     def __init__(self, ctx: RuleContext):
         super().__init__(ctx)
         self.project_root: Path | None = None
 
-    def _run(self, _file_path: Path) -> list[Violation]:
+    def _run(self, _file_path: Path) -> RuleResult:
         self.logger.info("\nRunning dart_crap_score check...")
 
         self.project_root = self._find_pubspec()
         if not self.project_root:
             self.logger.warning("Warning: pubspec.yaml not found, skipping dart_crap_score")
-            return []
+            return self._skipped("pubspec.yaml not found")
 
         dart_cmd = self._get_dart_command(self.settings.get_dart_path, self.settings.prompt_and_save_dart_path)
         if not dart_cmd:
-            return []
+            return self._failed("dart executable not found")
 
         if not self._dart_code_linter_in_pubspec():
             self.logger.warning("Warning: dart_code_linter not in dev_dependencies. Run: dart pub add --dev dart_code_linter")
-            return []
+            return self._failed("dart_code_linter not in dev_dependencies")
 
         # 1. Get per-function complexity + line ranges from DCL JSON
         report_dir = (self.output_folder or self.project_root) / 'crap_report'
@@ -53,7 +55,7 @@ class DartCrapScoreRule(ProjectWideRule):
         report_json = self._run_dcl_metrics(dart_cmd, report_dir)
         if not report_json:
             self._cleanup_report_dir(report_dir)
-            return []
+            return self._failed("dart_code_linter did not produce a report")
 
         functions_by_file, file_metrics, ranges_supported = self._parse_dcl_functions(report_json)
         if not ranges_supported:
@@ -63,7 +65,7 @@ class DartCrapScoreRule(ProjectWideRule):
         lcov_file = self._ensure_lcov()
         if not lcov_file:
             self._cleanup_report_dir(report_dir)
-            return []
+            return self._skipped("no coverage data available")
 
         lcov_by_file = self._parse_lcov_per_line(lcov_file)
 
@@ -84,7 +86,7 @@ class DartCrapScoreRule(ProjectWideRule):
             self._write_csv(self.output_folder / 'dart_crap_score.csv', violations)
 
         self._cleanup_report_dir(report_dir)
-        return violations
+        return self._ok(violations)
 
     # ----- DCL invocation & parsing -------------------------------------------------
 

@@ -23,7 +23,7 @@ from fnmatch import fnmatch
 from pathlib import Path
 from typing import Any
 
-from models import LogLevel, Severity, Violation
+from models import LogLevel, RuleResult, Severity, Violation
 from rules.base import ProjectWideRule
 from rules.context import RuleContext
 
@@ -31,7 +31,9 @@ from rules.context import RuleContext
 class PythonTestCoverageRule(ProjectWideRule):
     """Run pytest + coverage.py and check coverage thresholds."""
 
-    def _run(self, _file_path: Path) -> list[Violation]:
+    rule_name = 'python_test_coverage'
+
+    def _run(self, _file_path: Path) -> RuleResult:
         self.logger.info("\nRunning python_test_coverage check...")
 
         json_path = self.config.get('coverage_json_path', 'coverage.json')
@@ -43,20 +45,20 @@ class PythonTestCoverageRule(ProjectWideRule):
             if not run_tests:
                 if not coverage_json.exists():
                     self.logger.warning(f"Warning: coverage JSON not found at {coverage_json} and run_tests=false; skipping")
-                    return []
+                    return self._skipped(f"coverage JSON not found at {coverage_json} and run_tests=false")
             else:
                 if not self._run_tests_with_coverage(coverage_json):
                     if not coverage_json.exists():
-                        return []
+                        return self._failed("coverage run failed and no coverage JSON available")
                     self.logger.warning("Test run failed; parsing existing coverage data")
 
         if not coverage_json.exists():
             self.logger.warning(f"Warning: coverage JSON not produced at {coverage_json}")
-            return []
+            return self._failed(f"coverage JSON not produced at {coverage_json}")
 
         coverage_data = self._parse_coverage_json(coverage_json)
         if not coverage_data:
-            return []
+            return self._failed("could not read/parse coverage JSON")
 
         violations = self._build_violations(coverage_data)
         violations = self._filter_violations_by_log_level(violations)
@@ -70,7 +72,7 @@ class PythonTestCoverageRule(ProjectWideRule):
         if self.output_folder and violations:
             self._write_csv(self.output_folder / 'python_test_coverage.csv', violations)
 
-        return violations
+        return self._ok(violations)
 
     def _run_tests_with_coverage(self, coverage_json: Path) -> bool:
         timeout = self.config.get('test_timeout', 600)

@@ -6,7 +6,7 @@ from pathlib import Path
 
 import yaml
 
-from models import LogLevel, Severity, Violation
+from models import LogLevel, RuleResult, Severity, Violation
 from rules.base import ProjectWideRule
 from rules.context import RuleContext
 from rules.dart_utils import collect_dart_files, parse_imports
@@ -15,13 +15,15 @@ from rules.dart_utils import collect_dart_files, parse_imports
 class DartUnusedDependenciesRule(ProjectWideRule):
     """Find packages listed in pubspec.yaml that are never imported in code."""
 
-    def _run(self, _file_path: Path) -> list[Violation]:
+    rule_name = 'dart_unused_dependencies'
+
+    def _run(self, _file_path: Path) -> RuleResult:
         self.logger.info("\nRunning dart unused dependencies check...")
 
         project_root = self._find_pubspec()
         if not project_root:
             self.logger.warning("Warning: pubspec.yaml not found, skipping dart_unused_dependencies")
-            return []
+            return self._skipped("pubspec.yaml not found")
 
         pubspec_path = project_root / 'pubspec.yaml'
         try:
@@ -29,10 +31,10 @@ class DartUnusedDependenciesRule(ProjectWideRule):
                 pubspec_data = yaml.safe_load(f)
         except Exception as e:
             self.logger.error(f"Error reading pubspec.yaml: {e}")
-            return []
+            return self._failed(f"error parsing pubspec.yaml: {e}")
 
         if not pubspec_data:
-            return []
+            return self._skipped("pubspec.yaml is empty")
 
         ignore_packages = set(self.config.get('ignore_packages', [
             'flutter', 'flutter_localizations', 'flutter_test', 'flutter_lints',
@@ -107,4 +109,4 @@ class DartUnusedDependenciesRule(ProjectWideRule):
         else:
             self.logger.info("Dart unused dependencies: No unused packages found")
 
-        return violations
+        return self._ok(violations)

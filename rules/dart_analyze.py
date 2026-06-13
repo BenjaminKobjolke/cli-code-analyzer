@@ -6,7 +6,7 @@ import csv
 import json
 from pathlib import Path
 
-from models import LogLevel, Severity, Violation
+from models import LogLevel, RuleResult, Severity, Violation
 from rules.base import ProjectWideRule
 from rules.context import RuleContext
 
@@ -14,27 +14,27 @@ from rules.context import RuleContext
 class DartAnalyzeRule(ProjectWideRule):
     """Rule to analyze Dart/Flutter code using dart analyze"""
 
-    def _run(self, _file_path: Path) -> list[Violation]:
+    rule_name = 'dart_analyze'
+
+    def _run(self, _file_path: Path) -> RuleResult:
         self.logger.info("\nRunning dart analyze...")
 
         # Get dart command using FVM-aware utility
         dart_cmd = self._get_dart_command(self.settings.get_dart_path, self.settings.prompt_and_save_dart_path)
         if not dart_cmd:
-            return []
+            return self._failed("Dart executable not found")
 
         # Run dart analyze
-        violations = self._run_dart_analyze(dart_cmd)
+        return self._run_dart_analyze(dart_cmd)
 
-        return violations
-
-    def _run_dart_analyze(self, dart_cmd: list[str]) -> list[Violation]:
+    def _run_dart_analyze(self, dart_cmd: list[str]) -> RuleResult:
         """Execute dart analyze and parse results.
 
         Args:
             dart_cmd: Dart command as list (e.g., ['dart'] or ['fvm', 'dart'])
 
         Returns:
-            List of violations
+            RuleResult
         """
         # Build command with JSON format
         cmd = dart_cmd + ['analyze', '--fatal-infos', '--format=json']
@@ -63,15 +63,15 @@ class DartAnalyzeRule(ProjectWideRule):
                 output_file = self.output_folder / 'dart_analyze.csv'
                 self._write_csv_output(output_file, output)
 
-            return violations
+            return self._ok(violations)
 
         except FileNotFoundError:
-            self.logger.error(f"Error: Dart executable not found: {dart_path}")
+            self.logger.error(f"Error: Dart executable not found: {dart_cmd}")
             self.logger.error("Please ensure Dart/Flutter SDK is installed and configured correctly")
-            return []
+            return self._failed(f"Dart executable not found: {dart_cmd}")
         except Exception as e:
             self.logger.error(f"Error running dart analyze: {e}")
-            return []
+            return self._failed(f"error running dart analyze: {e}")
 
     def _parse_dart_json(self, output: str) -> list[Violation]:
         """Parse dart analyze JSON output into violations.

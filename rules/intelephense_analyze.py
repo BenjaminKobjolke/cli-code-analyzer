@@ -3,13 +3,15 @@
 import csv
 from pathlib import Path
 
-from models import LogLevel, Severity, Violation
+from models import LogLevel, RuleResult, Severity, Violation
 from rules.base import ProjectWideRule
 from rules.context import RuleContext
 
 
 class IntelephenseAnalyzeRule(ProjectWideRule):
     """Rule to analyze PHP code using Intelephense LSP."""
+
+    rule_name = 'intelephense_analyze'
 
     def _map_severity(self, intelephense_severity: str) -> Severity:
         """Map Intelephense severity to cli-code-analyzer Severity.
@@ -28,7 +30,7 @@ class IntelephenseAnalyzeRule(ProjectWideRule):
         }
         return severity_map.get(intelephense_severity.lower(), Severity.WARNING)
 
-    def _run(self, _file_path: Path) -> list[Violation]:
+    def _run(self, _file_path: Path) -> RuleResult:
         self.logger.info("\nRunning Intelephense check...")
 
         try:
@@ -36,12 +38,11 @@ class IntelephenseAnalyzeRule(ProjectWideRule):
         except ImportError as e:
             self.logger.error(f"Error: Could not import intelephense_watcher: {e}")
             self.logger.error("Please run: pip install -r requirements.txt")
-            return []
+            return self._failed(f"could not import intelephense_watcher: {e}")
 
-        violations = self._run_intelephense_check(get_diagnostics)
-        return violations
+        return self._run_intelephense_check(get_diagnostics)
 
-    def _run_intelephense_check(self, get_diagnostics_func) -> list[Violation]:
+    def _run_intelephense_check(self, get_diagnostics_func) -> RuleResult:
         """Execute Intelephense check and parse results.
 
         Args:
@@ -92,14 +93,14 @@ class IntelephenseAnalyzeRule(ProjectWideRule):
                 output_file = self.output_folder / "intelephense_analyze.csv"
                 self._write_csv_output(output_file, diagnostics)
 
-            return violations
+            return self._ok(violations)
 
         except RuntimeError as e:
             self.logger.error(f"Error: {e}")
-            return []
+            return self._failed(f"error running Intelephense check: {e}")
         except Exception as e:
             self.logger.error(f"Error running Intelephense check: {e}")
-            return []
+            return self._failed(f"error running Intelephense check: {e}")
 
     def _write_csv_output(self, output_file: Path, diagnostics: list) -> bool:
         """Write Intelephense results to CSV file.

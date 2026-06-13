@@ -5,7 +5,7 @@ import tempfile
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
-from models import LogLevel, Severity, Violation
+from models import LogLevel, RuleResult, Severity, Violation
 from rules.base import ProjectWideRule
 from rules.context import RuleContext
 
@@ -44,17 +44,18 @@ WINDOWS_RESERVED_NAMES = {'nul', 'con', 'prn', 'aux'}
 class PMDDuplicatesRule(ProjectWideRule):
     """Rule to detect duplicate code using PMD CPD"""
 
-    def _run(self, _file_path: Path) -> list[Violation]:
+    rule_name = 'pmd_duplicates'
+
+    def _run(self, _file_path: Path) -> RuleResult:
         self.logger.info("\nChecking for duplicate code...")
 
         pmd_path = self._get_tool_path('pmd', self.settings.get_pmd_path, self.settings.prompt_and_save_pmd_path)
         if not pmd_path:
-            return []
+            return self._failed("PMD executable not found")
 
         pmd_language = self._get_pmd_language()
         if not pmd_language:
-            self.logger.warning(f"Warning: Language '{self.language}' not supported by PMD CPD")
-            return []
+            return self._skipped(f"language '{self.language}' not supported by PMD CPD")
 
         minimum_tokens = self.config.get('minimum_tokens', 100)
         max_results = self.config.get('max_results', None)
@@ -63,9 +64,8 @@ class PMDDuplicatesRule(ProjectWideRule):
         exclude_paths = self._get_exclude_paths()
         exclude_patterns = self._get_exclude_patterns()
 
-        violations = self._run_pmd_cpd(pmd_path, pmd_language, self.base_path, minimum_tokens,
-                                        exclude_paths, exclude_patterns)
-        return self._filter_violations_by_log_level(violations)
+        return self._run_pmd_cpd(pmd_path, pmd_language, self.base_path, minimum_tokens,
+                                 exclude_paths, exclude_patterns)
 
     def _get_pmd_language(self) -> str | None:
         """Map analyzer language to PMD language code."""
@@ -138,8 +138,8 @@ class PMDDuplicatesRule(ProjectWideRule):
         return '\n'.join(filtered)
 
     def _run_pmd_cpd(self, pmd_path: str, language: str, directory: Path, minimum_tokens: int,
-                      exclude_paths: list[str], exclude_patterns: list[str]) -> list[Violation]:
-        """Execute PMD CPD and return parsed violations."""
+                      exclude_paths: list[str], exclude_patterns: list[str]) -> RuleResult:
+        """Execute PMD CPD and return a typed result."""
         exclude_file_list = self._generate_exclude_file_list(exclude_patterns)
         cmd = [pmd_path, 'cpd', '-l', language, '-d', str(directory), '-f', 'xml',
                '--minimum-tokens', str(minimum_tokens), '--encoding', 'utf-8']
@@ -160,17 +160,33 @@ class PMDDuplicatesRule(ProjectWideRule):
                 if filtered_stderr:
                     self.logger.warning(f"PMD CPD warning: {filtered_stderr}")
 
-            if self._has_duplicates_in_xml(result.stdout):
-                return self._parse_xml_output(result.stdout)
-            self.logger.info("No duplicate code found.")
-            return []
+            return self._result_from_pmd_stdout(result.stdout)
         except Exception as e:
             self.logger.error(f"Error running PMD CPD: {e}")
-            return []
+            return self._failed(f"error running PMD CPD: {e}")
         finally:
             if exclude_file_list and exclude_file_list.exists():
                 with contextlib.suppress(Exception):
                     exclude_file_list.unlink()
+
+    def _result_from_pmd_stdout(self, stdout: str) -> RuleResult:
+        """Turn PMD CPD XML stdout into a RuleResult.
+
+        Invariant guard: if the output clearly contains <duplication markers but
+        none parse into violations, the result is NOT clean — it's a parser/schema
+        mismatch (the exact failure mode of the original namespace bug). Surface it
+        as FAILED instead of a false "no duplicates".
+        """
+        if not self._has_duplicates_in_xml(stdout):
+            self.logger.info("No duplicate code found.")
+            return self._ok([])
+
+        violations = self._parse_xml_output(stdout)
+        if not violations:
+            return self._failed(
+                "PMD reported duplications but none parsed — likely XML schema/namespace mismatch"
+            )
+        return self._ok(self._filter_violations_by_log_level(violations))
 
     def _has_duplicates_in_xml(self, xml_content: str) -> bool:
         """Check if XML output contains duplication elements."""
@@ -183,7 +199,9 @@ class PMDDuplicatesRule(ProjectWideRule):
         violations = []
         try:
             root = ET.fromstring(xml_content)
-            duplications = root.findall('duplication')
+            # PMD 7.x emits a default namespace on the report; match tags
+            # namespace-agnostically so findall does not silently return nothing.
+            duplications = root.findall('{*}duplication')
 
             if duplications:
                 total_lines = sum(int(d.get('lines', 0)) for d in duplications)
@@ -194,7 +212,7 @@ class PMDDuplicatesRule(ProjectWideRule):
             for dup in duplications:
                 lines = dup.get('lines', 'N/A')
                 tokens = dup.get('tokens', 'N/A')
-                files = dup.findall('file')
+                files = dup.findall('{*}file')
                 occurrences = len(files)
 
                 for i, file_elem in enumerate(files):

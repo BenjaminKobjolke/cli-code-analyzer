@@ -4,13 +4,15 @@ import csv
 import json
 from pathlib import Path
 
-from models import LogLevel, Severity, Violation
+from models import LogLevel, RuleResult, Severity, Violation
 from rules.base import ProjectWideRule
 from rules.context import RuleContext
 
 
 class PHPStanAnalyzeRule(ProjectWideRule):
     """Rule to analyze PHP code using PHPStan static analyzer"""
+
+    rule_name = 'phpstan_analyze'
 
     def _get_bundled_phpstan_path(self) -> str | None:
         """Get PHPStan path from bundled php/vendor/bin folder."""
@@ -24,7 +26,7 @@ class PHPStanAnalyzeRule(ProjectWideRule):
                 return str(p)
         return None
 
-    def _run(self, _file_path: Path) -> list[Violation]:
+    def _run(self, _file_path: Path) -> RuleResult:
         self.logger.info("\nRunning PHPStan check...")
 
         # First check bundled php/vendor/bin folder
@@ -32,12 +34,11 @@ class PHPStanAnalyzeRule(ProjectWideRule):
         if not phpstan_path:
             phpstan_path = self._get_tool_path('phpstan', self.settings.get_phpstan_path, self.settings.prompt_and_save_phpstan_path)
         if not phpstan_path:
-            return []
+            return self._failed("PHPStan executable not found")
 
-        violations = self._run_phpstan_check(phpstan_path)
-        return violations
+        return self._run_phpstan_check(phpstan_path)
 
-    def _run_phpstan_check(self, phpstan_path: str) -> list[Violation]:
+    def _run_phpstan_check(self, phpstan_path: str) -> RuleResult:
         """Execute PHPStan check and parse results."""
         cmd = [phpstan_path, 'analyse', '--error-format=json', '--no-progress']
 
@@ -62,32 +63,41 @@ class PHPStanAnalyzeRule(ProjectWideRule):
         try:
             result = self._run_subprocess(cmd, self.base_path)
             output = result.stdout
-
-            violations = self._parse_phpstan_json(output)
-            violations = self._filter_violations_by_log_level(violations)
-
-            if self.max_errors and len(violations) > self.max_errors:
-                violations = violations[:self.max_errors]
-
-            if violations:
-                self.logger.info(f"PHPStan found {len(violations)} issue(s)")
-            else:
-                self.logger.info("PHPStan: No issues found")
-
-            if self.output_folder and violations:
-                output_file = self.output_folder / 'phpstan_analyze.csv'
-                if self._write_csv_output(output_file, output):
-                    self.logger.info(f"PHPStan report saved to: {output_file}")
-
-            return violations
-
         except FileNotFoundError:
             self.logger.error(f"Error: PHPStan executable not found: {phpstan_path}")
             self.logger.error("Please ensure PHPStan is installed: composer require --dev phpstan/phpstan")
-            return []
+            return self._failed(f"PHPStan executable not found: {phpstan_path}")
         except Exception as e:
             self.logger.error(f"Error running PHPStan check: {e}")
-            return []
+            return self._failed(f"error running PHPStan check: {e}")
+
+        # Conservative guard: non-empty output that is not valid JSON means PHPStan
+        # emitted a fatal/non-JSON message — treat as a failure, not "clean".
+        if output and output.strip():
+            try:
+                json.loads(output)
+            except json.JSONDecodeError as e:
+                self.logger.error(f"Error parsing PHPStan JSON output: {e}")
+                self.logger.error(f"Output was: {output[:200]}...")
+                return self._failed(f"could not parse PHPStan JSON output: {e}")
+
+        violations = self._parse_phpstan_json(output)
+        violations = self._filter_violations_by_log_level(violations)
+
+        if self.max_errors and len(violations) > self.max_errors:
+            violations = violations[:self.max_errors]
+
+        if violations:
+            self.logger.info(f"PHPStan found {len(violations)} issue(s)")
+        else:
+            self.logger.info("PHPStan: No issues found")
+
+        if self.output_folder and violations:
+            output_file = self.output_folder / 'phpstan_analyze.csv'
+            if self._write_csv_output(output_file, output):
+                self.logger.info(f"PHPStan report saved to: {output_file}")
+
+        return self._ok(violations)
 
     def _map_phpstan_severity(self, level: str | int) -> Severity:
         """Map PHPStan error level to severity."""

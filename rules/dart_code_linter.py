@@ -11,7 +11,7 @@ from typing import Any, ClassVar
 
 import yaml
 
-from models import LogLevel, Severity, Violation
+from models import LogLevel, RuleResult, Severity, Violation
 from rules.base import ProjectWideRule
 from rules.context import RuleContext
 
@@ -19,24 +19,26 @@ from rules.context import RuleContext
 class DartCodeLinterRule(ProjectWideRule):
     """Rule to analyze Dart/Flutter code metrics using dart_code_linter"""
 
+    rule_name = 'dart_code_linter'
+
     def __init__(self, ctx: RuleContext):
         super().__init__(ctx)
         self.project_root = None
 
-    def _run(self, _file_path: Path) -> list[Violation]:
+    def _run(self, _file_path: Path) -> RuleResult:
         self.logger.info("\nChecking dart_code_linter metrics...")
 
         dart_cmd = self._get_dart_command(self.settings.get_dart_path, self.settings.prompt_and_save_dart_path)
         if not dart_cmd:
-            return []
+            return self._failed("Dart executable not found")
 
         if not self._check_dart_code_linter_installed():
             if self.config.get('auto_install', False):
                 if not self._install_dart_code_linter(dart_cmd):
-                    return []
+                    return self._failed("could not install dart_code_linter")
             else:
                 self.logger.warning("Warning: dart_code_linter is not installed. Run: dart pub add --dev dart_code_linter")
-                return []
+                return self._failed("dart_code_linter is not installed (run: dart pub add --dev dart_code_linter)")
 
         return self._run_dart_code_linter(dart_cmd)
 
@@ -71,7 +73,7 @@ class DartCodeLinterRule(ProjectWideRule):
             self.logger.error(f"Error installing dart_code_linter: {e}")
             return False
 
-    def _run_dart_code_linter(self, dart_cmd: list[str]) -> list[Violation]:
+    def _run_dart_code_linter(self, dart_cmd: list[str]) -> RuleResult:
         """Execute dart_code_linter and return parsed violations."""
         analyze_path = self.config.get('analyze_path', 'lib')
         self.logger.info(f"Running dart_code_linter analysis on '{analyze_path}'...")
@@ -94,7 +96,7 @@ class DartCodeLinterRule(ProjectWideRule):
                     self.logger.info(f"Stdout: {result.stdout}")
                 if result.stderr:
                     self.logger.info(f"Stderr: {result.stderr}")
-                return []
+                return self._failed(f"dart_code_linter did not generate report.json (rc={result.returncode})")
 
             self.logger.info(f"Metrics report saved to: {report_json}")
             violations = self._filter_violations_by_log_level(self._parse_metrics_json(report_json))
@@ -111,10 +113,10 @@ class DartCodeLinterRule(ProjectWideRule):
                 except Exception as e:
                     self.logger.warning(f"Warning: Could not delete report directory: {e}")
 
-            return violations
+            return self._ok(violations)
         except Exception as e:
             self.logger.error(f"Error running dart_code_linter: {e}")
-            return []
+            return self._failed(f"error running dart_code_linter: {e}")
 
     def _parse_metrics_json(self, report_path: Path) -> list[Violation]:
         """Parse dart_code_linter JSON report into violations."""

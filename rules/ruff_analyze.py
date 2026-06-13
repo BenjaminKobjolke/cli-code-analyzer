@@ -6,7 +6,7 @@ import csv
 import json
 from pathlib import Path
 
-from models import LogLevel, Severity, Violation
+from models import LogLevel, RuleResult, Severity, Violation
 from rules.base import ProjectWideRule
 from rules.context import RuleContext
 
@@ -14,27 +14,27 @@ from rules.context import RuleContext
 class RuffAnalyzeRule(ProjectWideRule):
     """Rule to analyze Python code using Ruff linter"""
 
-    def _run(self, _file_path: Path) -> list[Violation]:
+    rule_name = 'ruff_analyze'
+
+    def _run(self, _file_path: Path) -> RuleResult:
         self.logger.info("\nRunning ruff check...")
 
         # Get ruff path using base utility
         ruff_path = self._get_tool_path('ruff', self.settings.get_ruff_path, self.settings.prompt_and_save_ruff_path)
         if not ruff_path:
-            return []
+            return self._failed("Ruff executable not found")
 
         # Run ruff check
-        violations = self._run_ruff_check(ruff_path)
+        return self._run_ruff_check(ruff_path)
 
-        return violations
-
-    def _run_ruff_check(self, ruff_path: str) -> list[Violation]:
+    def _run_ruff_check(self, ruff_path: str) -> RuleResult:
         """Execute ruff check and parse results.
 
         Args:
             ruff_path: Path to ruff executable
 
         Returns:
-            List of violations
+            RuleResult
         """
         # Build command with JSON format
         cmd = [ruff_path, 'check', '--output-format', 'json']
@@ -83,15 +83,15 @@ class RuffAnalyzeRule(ProjectWideRule):
                 output_file = self.output_folder / 'ruff_analyze.csv'
                 self._write_csv_output(output_file, output)
 
-            return violations
+            return self._ok(violations)
 
         except FileNotFoundError:
             self.logger.error(f"Error: Ruff executable not found: {ruff_path}")
             self.logger.error("Please ensure Ruff is installed: pip install ruff")
-            return []
+            return self._failed(f"Ruff executable not found: {ruff_path}")
         except Exception as e:
             self.logger.error(f"Error running ruff check: {e}")
-            return []
+            return self._failed(f"error running ruff check: {e}")
 
     def _map_ruff_severity(self, code: str) -> Severity:
         """Map Ruff rule code to severity.

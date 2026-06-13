@@ -14,7 +14,7 @@ import json
 from pathlib import Path
 from typing import Any
 
-from models import LogLevel, Severity, Violation
+from models import LogLevel, RuleResult, Severity, Violation
 from rules.base import ProjectWideRule
 from rules.context import RuleContext
 
@@ -31,7 +31,9 @@ class PyscnAnalyzeRule(ProjectWideRule):
     """Project-wide rule that runs pyscn and emits Violations for
     complexity, dead code, coupling (CBO), and circular dependencies."""
 
-    def _run(self, _file_path: Path) -> list[Violation]:
+    rule_name = 'pyscn_analyze'
+
+    def _run(self, _file_path: Path) -> RuleResult:
         self.logger.info("\nRunning pyscn analyze...")
 
         pyscn_path = self._get_tool_path(
@@ -40,7 +42,7 @@ class PyscnAnalyzeRule(ProjectWideRule):
             self.settings.prompt_and_save_pyscn_path,
         )
         if not pyscn_path:
-            return []
+            return self._failed("pyscn executable not found")
 
         select = self.config.get('select', ['complexity', 'deadcode', 'deps'])
         cmd = [pyscn_path, 'analyze', '--json', '--select', ','.join(select),
@@ -51,23 +53,23 @@ class PyscnAnalyzeRule(ProjectWideRule):
         except FileNotFoundError:
             self.logger.error(f"Error: pyscn executable not found: {pyscn_path}")
             self.logger.error("Install with: pipx install pyscn")
-            return []
+            return self._failed(f"pyscn executable not found: {pyscn_path}")
         except Exception as e:
             self.logger.error(f"Error running pyscn: {e}")
-            return []
+            return self._failed(f"error running pyscn: {e}")
 
         if not result.stdout or not result.stdout.strip():
             if result.stderr:
                 self.logger.warning(f"pyscn stderr: {result.stderr.strip()}")
             self.logger.info("pyscn: no output.")
-            return []
+            return self._ok([])
 
         try:
             data = json.loads(result.stdout)
         except json.JSONDecodeError as e:
             self.logger.error(f"Error parsing pyscn JSON: {e}")
             self.logger.error(f"Output snippet: {result.stdout[:200]}")
-            return []
+            return self._failed(f"error parsing pyscn JSON: {e}")
 
         violations: list[Violation] = []
         if 'complexity' in select:
@@ -94,7 +96,7 @@ class PyscnAnalyzeRule(ProjectWideRule):
             output_file = self.output_folder / 'pyscn_analyze.csv'
             self._write_csv(output_file, violations)
 
-        return violations
+        return self._ok(violations)
 
     def _check_metric_threshold(self, file_path: Path, metric_name: str,
                                 metric_value: float,

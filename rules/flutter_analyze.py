@@ -9,7 +9,7 @@ from typing import Any
 
 import yaml
 
-from models import LogLevel, Severity, Violation
+from models import LogLevel, RuleResult, Severity, Violation
 from rules.base import ProjectWideRule
 from rules.context import RuleContext
 
@@ -17,20 +17,22 @@ from rules.context import RuleContext
 class FlutterAnalyzeRule(ProjectWideRule):
     """Rule to analyze Flutter code using flutter analyze"""
 
+    rule_name = 'flutter_analyze'
+
     def __init__(self, ctx: RuleContext):
         super().__init__(ctx)
         self.project_root = None
 
-    def _run(self, _file_path: Path) -> list[Violation]:
+    def _run(self, _file_path: Path) -> RuleResult:
         self.logger.info("\nRunning flutter analyze...")
 
         if not self._is_flutter_project():
             self.logger.info("Not a Flutter project (no flutter dependency in pubspec.yaml)")
-            return []
+            return self._skipped("not a Flutter project (no flutter dependency in pubspec.yaml)")
 
         flutter_cmd = self._get_flutter_command(self.settings.get_flutter_path, self.settings.prompt_and_save_flutter_path)
         if not flutter_cmd:
-            return []
+            return self._failed("Flutter executable not found")
 
         return self._run_flutter_analyze(flutter_cmd)
 
@@ -53,7 +55,7 @@ class FlutterAnalyzeRule(ProjectWideRule):
             self.logger.warning(f"Warning: Could not parse pubspec.yaml: {e}")
             return False
 
-    def _run_flutter_analyze(self, flutter_cmd: list[str]) -> list[Violation]:
+    def _run_flutter_analyze(self, flutter_cmd: list[str]) -> RuleResult:
         """Execute flutter analyze and return parsed violations."""
         try:
             result = self._run_subprocess(flutter_cmd + ['analyze'], self.project_root or self.base_path)
@@ -65,11 +67,11 @@ class FlutterAnalyzeRule(ProjectWideRule):
             if self.output_folder and violations:
                 self._write_csv_output(self.output_folder / 'flutter_analyze.csv', violations)
 
-            return violations
+            return self._ok(violations)
         except Exception as e:
             err_msg = "Flutter executable not found" if isinstance(e, FileNotFoundError) else str(e)
             self.logger.error(f"Error running flutter analyze: {err_msg}")
-            return []
+            return self._failed(f"error running flutter analyze: {err_msg}")
 
     def _parse_flutter_text_output(self, output: str) -> list[Violation]:
         """Parse flutter analyze text output (severity - message - path:line:col - code) into violations."""

@@ -4,13 +4,15 @@ import csv
 import re
 from pathlib import Path
 
-from models import LogLevel, Severity, Violation
+from models import LogLevel, RuleResult, Severity, Violation
 from rules.base import ProjectWideRule
 from rules.context import RuleContext
 
 
 class DotnetAnalyzeRule(ProjectWideRule):
     """Rule to analyze C# code using dotnet build with Roslyn analyzers"""
+
+    rule_name = 'dotnet_analyze'
 
     # Regex to parse MSBuild diagnostic output
     # Example: D:\path\file.cs(10,5): warning CS0168: The variable 'x' is declared but never used
@@ -20,19 +22,18 @@ class DotnetAnalyzeRule(ProjectWideRule):
         re.IGNORECASE
     )
 
-    def _run(self, _file_path: Path) -> list[Violation]:
+    def _run(self, _file_path: Path) -> RuleResult:
         self.logger.info("\nRunning dotnet build analysis...")
 
         # Get dotnet path using base utility
         dotnet_path = self._get_tool_path('dotnet', self.settings.get_dotnet_path,
                                            self.settings.prompt_and_save_dotnet_path)
         if not dotnet_path:
-            return []
+            return self._failed("dotnet executable not found")
 
-        violations = self._run_dotnet_build(dotnet_path)
-        return violations
+        return self._run_dotnet_build(dotnet_path)
 
-    def _run_dotnet_build(self, dotnet_path: str) -> list[Violation]:
+    def _run_dotnet_build(self, dotnet_path: str) -> RuleResult:
         """Execute dotnet build and parse results."""
         # Build command - use build with no-restore for speed
         cmd = [dotnet_path, 'build', '--no-incremental']
@@ -78,15 +79,15 @@ class DotnetAnalyzeRule(ProjectWideRule):
                 output_file = self.output_folder / 'dotnet_analyze.csv'
                 self._write_csv_output(output_file, violations)
 
-            return violations
+            return self._ok(violations)
 
         except FileNotFoundError:
             self.logger.error(f"Error: dotnet executable not found: {dotnet_path}")
             self.logger.error("Please ensure .NET SDK is installed: https://dotnet.microsoft.com/download")
-            return []
+            return self._failed(f"dotnet executable not found: {dotnet_path}")
         except Exception as e:
             self.logger.error(f"Error running dotnet build: {e}")
-            return []
+            return self._failed(f"error running dotnet build: {e}")
 
     def _map_severity(self, severity_str: str) -> Severity:
         """Map MSBuild severity to Severity enum."""

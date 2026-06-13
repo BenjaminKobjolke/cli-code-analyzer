@@ -8,7 +8,7 @@ from collections import defaultdict
 from pathlib import Path
 
 from logger import Logger
-from models import LogLevel, OutputLevel, Severity, Violation
+from models import LogLevel, OutputLevel, RuleResult, Severity, Violation
 
 
 class Reporter:
@@ -20,7 +20,7 @@ class Reporter:
         'php_cs_fixer_analyze': 'php_cs_fixer.csv',
     }
 
-    def __init__(self, violations: list[Violation], file_count: int, output_level: OutputLevel, log_level: LogLevel = LogLevel.ALL, output_folder: Path | None = None, max_errors: int | None = None, logger: Logger | None = None):
+    def __init__(self, violations: list[Violation], file_count: int, output_level: OutputLevel, log_level: LogLevel = LogLevel.ALL, output_folder: Path | None = None, max_errors: int | None = None, logger: Logger | None = None, failures: list[RuleResult] | None = None):
         self.all_violations = violations
         self.violations = self._filter_violations(violations, log_level)
         self.file_count = file_count
@@ -29,6 +29,7 @@ class Reporter:
         self.output_folder = output_folder
         self.max_errors = max_errors
         self.logger = logger or Logger()
+        self.failures = failures or []
 
     def _filter_violations(self, violations: list[Violation], log_level: LogLevel) -> list[Violation]:
         """Filter violations based on log level"""
@@ -72,17 +73,31 @@ class Reporter:
         Returns:
             True if errors were found, False otherwise
         """
+        # Surface tool failures first — an unrunnable/untrusted tool is a hard
+        # error regardless of how many violations were (or weren't) collected.
+        self._report_failures()
+
         # If output folder is specified, write to files instead of console
         if self.output_folder:
-            return self._report_to_file()
-
-        # Otherwise, print to console
-        if self.output_level == OutputLevel.MINIMAL:
-            return self._report_minimal()
+            base = self._report_to_file()
+        elif self.output_level == OutputLevel.MINIMAL:
+            base = self._report_minimal()
         elif self.output_level == OutputLevel.VERBOSE:
-            return self._report_verbose()
+            base = self._report_verbose()
         else:
-            return self._report_normal()
+            base = self._report_normal()
+
+        return base or bool(self.failures)
+
+    def _report_failures(self) -> None:
+        """Print a dedicated section listing rules whose tool failed to run."""
+        if not self.failures:
+            return
+        self.logger.error(f"\nTool execution failures ({len(self.failures)}):")
+        self.logger.error("=" * 80)
+        for f in self.failures:
+            self.logger.error(f"  {f.rule_name}: {f.message or 'tool failed to run'}")
+        self.logger.error("")
 
     def report_json(self) -> bool:
         """Output violations as JSON to stdout.
@@ -115,11 +130,15 @@ class Reporter:
 
         output = {
             "violations": violation_dicts,
+            "failures": [
+                {"rule_name": f.rule_name, "message": f.message} for f in self.failures
+            ],
             "summary": {
                 "total": len(self.violations),
                 "errors": len(errors),
                 "warnings": len(warnings),
                 "infos": len(infos),
+                "failures": len(self.failures),
             },
         }
 
@@ -130,7 +149,7 @@ class Reporter:
         if self.output_folder:
             self._report_to_file()
 
-        return len(errors) > 0
+        return len(errors) > 0 or bool(self.failures)
 
     def _report_minimal(self) -> bool:
         """Generate minimal output format"""
