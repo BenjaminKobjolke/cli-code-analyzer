@@ -3,156 +3,19 @@
 CLI Code Analyzer - Analyze code files based on configurable rules
 """
 
-import argparse
 import sys
 from pathlib import Path
 
 from analyzer_registry import LANGUAGE_ALIASES, list_analyzers
+from cli_parser import build_parser
+from cli_support import clean_report_files, resolve_reporter_log_level
 from file_discovery import FileDiscovery
 from logger import Logger
 
 
-def _clean_report_files(output_folder: Path) -> None:
-    """Remove all CSV and TXT report files from the output folder."""
-    for f in output_folder.iterdir():
-        if f.is_file() and f.suffix in ('.csv', '.txt'):
-            f.unlink()
-
-
-def _resolve_reporter_log_level(cli_log_level, rules_file: str):
-    """Resolve the log level for the reporter.
-
-    Uses CLI flag if provided, otherwise falls back to the global log_level
-    from rules.json, defaulting to ALL.
-    """
-    from config import Config
-    from models import LogLevel
-
-    if cli_log_level:
-        return cli_log_level
-    config = Config(rules_file)
-    global_ll = config.get_global_log_level()
-    if global_ll:
-        try:
-            return LogLevel(global_ll)
-        except ValueError:
-            pass
-    return LogLevel.ALL
-
-
 def main():
     """Main entry point"""
-    parser = argparse.ArgumentParser(
-        description='Analyze code files based on configurable rules',
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog="""
-Examples:
-  python main.py --language flutter --path src/ --rules rules.json
-  python main.py --language flutter --path . --rules rules.json --verbosity minimal
-  python main.py --language python javascript --path ./src --verbosity verbose
-  python main.py --language python,javascript --path ./src --loglevel error
-  python main.py --language flutter --path lib/ --output reports/
-  python main.py --language python --path ./src --format json
-  python main.py --language python --path ./src --output reports/ --build-cache
-  python main.py --language python --path ./src --output reports/ --file src/app.py
-        """
-    )
-
-    parser.add_argument(
-        '-a', '--list-analyzers',
-        metavar='LANGUAGE',
-        nargs='?',
-        const='all',
-        help='List available analyzers for a language (or all languages if not specified)'
-    )
-
-    parser.add_argument(
-        '-l', '--language',
-        required=False,
-        nargs='+',
-        help='Programming language(s) to analyze (space-separated or comma-separated). Supported: flutter, python, php, csharp, javascript, svelte. Aliases: typescript/ts/js -> javascript, dart -> flutter, cs -> csharp, py -> python'
-    )
-
-    parser.add_argument(
-        '-p', '--path',
-        required=False,
-        help='Path to the code directory (analyzes recursively) or single file to analyze'
-    )
-
-    parser.add_argument(
-        '-r', '--rules',
-        default='rules.json',
-        help='Path to the rules JSON file (default: rules.json)'
-    )
-
-    parser.add_argument(
-        '-v', '--verbosity',
-        default='normal',
-        choices=['minimal', 'normal', 'verbose'],
-        help='Output verbosity level (default: normal)'
-    )
-
-    parser.add_argument(
-        '-o', '--output',
-        default=None,
-        help='Path to output folder for reports (if set, saves reports to files instead of console)'
-    )
-
-    parser.add_argument(
-        '-L', '--loglevel',
-        default='all',
-        choices=['error', 'warning', 'all'],
-        help='Filter violations by severity level (default: all)'
-    )
-
-    parser.add_argument(
-        '-m', '--maxamountoferrors',
-        type=int,
-        default=None,
-        help='Maximum number of violations to include in CSV reports (default: unlimited)'
-    )
-
-    parser.add_argument(
-        '-F', '--file',
-        default=None,
-        help='Filter violations to a single file (requires --path for project root). Defaults --maxamountoferrors to 5.'
-    )
-
-    parser.add_argument(
-        '--only-changed',
-        action='store_true',
-        default=False,
-        help='Analyze only files new or modified in git (vs HEAD, includes untracked, skips deletes). Mutually exclusive with --file.'
-    )
-
-    parser.add_argument(
-        '-f', '--list-files',
-        action='store_true',
-        default=False,
-        help='List all analyzed file paths after analysis completes'
-    )
-
-    parser.add_argument(
-        '--format',
-        default='text',
-        choices=['text', 'json'],
-        help='Output format for the report (default: text)'
-    )
-
-    parser.add_argument(
-        '--build-cache',
-        action='store_true',
-        default=False,
-        help='Build a violation cache in the output folder. Requires --output.'
-    )
-
-    parser.add_argument(
-        '--cache-max-age',
-        type=int,
-        default=60,
-        help='Maximum cache age in minutes before it is considered stale (default: 60)'
-    )
-
+    parser = build_parser()
     args = parser.parse_args()
 
     # Handle --list-analyzers before other validation
@@ -180,7 +43,7 @@ Examples:
         languages.extend(part.strip() for part in lang.split(',') if part.strip())
 
     # Resolve language aliases
-    languages = [LANGUAGE_ALIASES.get(l.lower(), l) for l in languages]
+    languages = [LANGUAGE_ALIASES.get(lang.lower(), lang) for lang in languages]
     languages = list(dict.fromkeys(languages))  # deduplicate, preserve order
 
     # Validate path exists
@@ -201,9 +64,6 @@ Examples:
         if not file_path.is_relative_to(base_path):
             logger.error(f"Error: File '{args.file}' is not inside path '{args.path}'")
             sys.exit(1)
-        # Default max_errors to 5 when --file is used, unless explicitly provided
-        if args.maxamountoferrors is None and '-m' not in sys.argv and '--maxamountoferrors' not in sys.argv:
-            args.maxamountoferrors = 5
 
     # Validate --build-cache requires --output
     if args.build_cache and not args.output:
@@ -245,8 +105,20 @@ Examples:
             sys.exit(0)
 
         filter_files = {to_relative_posix(p, base_path_resolved) for p in matching}
-        # Default max_errors to 5 when filtering, unless explicitly provided
-        if args.maxamountoferrors is None and '-m' not in sys.argv and '--maxamountoferrors' not in sys.argv:
+
+    # -----------------------------------------------------------
+    # Resolve the max-errors cap (violations reported per rule/analyzer).
+    # Precedence: CLI --maxamountoferrors > rules.json "max_errors"
+    #             > filter-mode default (5 for --file / --only-changed) > unlimited.
+    # -----------------------------------------------------------
+    cli_max_provided = '-m' in sys.argv or '--maxamountoferrors' in sys.argv
+    if not cli_max_provided:
+        from config import Config
+
+        rules_max = Config(args.rules).get_global_max_errors()
+        if rules_max is not None:
+            args.maxamountoferrors = rules_max
+        elif filter_files is not None:
             args.maxamountoferrors = 5
 
     # Import analysis modules (deferred to avoid loading when using --list-analyzers)
@@ -269,7 +141,7 @@ Examples:
     if args.output:
         output_folder = Path(args.output)
         output_folder.mkdir(parents=True, exist_ok=True)
-        _clean_report_files(output_folder)
+        clean_report_files(output_folder)
 
     # -----------------------------------------------------------
     # Cache support
@@ -305,7 +177,7 @@ Examples:
     if filter_files and cache and cache.is_valid(args.cache_max_age, rules_hash):
         all_violations = cache.load_for_files(filter_files)
 
-        reporter_log_level = _resolve_reporter_log_level(cli_log_level, args.rules)
+        reporter_log_level = resolve_reporter_log_level(cli_log_level, args.rules)
         reporter = Reporter(
             all_violations,
             0,
@@ -378,7 +250,7 @@ Examples:
                 cache.save(all_violations, rules_hash, languages, args.path, all_file_paths)
 
         # Generate report
-        reporter_log_level = _resolve_reporter_log_level(cli_log_level, args.rules)
+        reporter_log_level = resolve_reporter_log_level(cli_log_level, args.rules)
         reporter = Reporter(
             all_violations,
             total_file_count,

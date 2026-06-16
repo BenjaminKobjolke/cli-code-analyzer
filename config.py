@@ -46,6 +46,20 @@ class Config:
         """
         return self.rules.get('log_level')
 
+    def get_global_max_errors(self) -> int | None:
+        """Get the global max-errors cap from rules configuration.
+
+        Caps the number of violations reported per rule/analyzer. The CLI
+        flag --maxamountoferrors overrides this when provided.
+
+        Returns:
+            Positive integer cap, or None if unset/invalid/non-positive.
+        """
+        value = self.rules.get('max_errors')
+        if isinstance(value, bool) or not isinstance(value, int):
+            return None
+        return value if value > 0 else None
+
     def get_rule_log_level(self, rule_name: str) -> str:
         """Get log level for a specific rule.
 
