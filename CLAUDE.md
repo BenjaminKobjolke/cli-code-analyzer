@@ -168,10 +168,19 @@ Reports land in `code_analysis_results/`. Self-analysis: this project IS cli-cod
 ## Coding Rules
 
 Source folder: `D:\GIT\BenjaminKobjolke\claude-code\coding-rules`
+- AI workflow: `AI_RULES.md` (language-independent, always applies — never filtered)
 - Common: `COMMON_RULES.md`
 - Python: `PYTHON_RULES.md`
 
-The rules below are extracted and filtered for this project (Python CLI tool — no web layer, no DB, no i18n). Web/Jinja2, localization, Pydantic/API-validation, SQLAlchemy, and `start.bat` rules from the source files do not apply here and are intentionally omitted.
+The Common/Python rules below are extracted and filtered for this project (Python CLI tool — no web layer, no DB, no i18n). Web/Jinja2, localization, Pydantic/API-validation, SQLAlchemy, and `start.bat` rules from the source files do not apply here and are intentionally omitted. The AI Workflow Rules are language-independent and apply in full.
+
+### AI Workflow Rules (all languages, always applies)
+
+Run each step as its existing skill — do not reimplement its behavior.
+
+- **Feature / Change Workflow** (after the user approves a plan):
+  `/plan:dry` (check approved plan for DRY/consolidation **before writing code**) → `/plan:dry-checked` (reload + review the DRY-adjusted plan) → `/convention:check` (reuse existing patterns/components **before implementing**) → implement → `/dry:check` (post-implementation DRY audit on changed files) → `/verify:after-change` (run tests + code analysis).
+- **Bug-Fix Workflow** (shorter, no plan-DRY phase): `bugs:fix` → `/verify:after-change`.
 
 ### Common Rules (all languages)
 
@@ -186,8 +195,11 @@ The rules below are extracted and filtered for this project (Python CLI tool —
 - **String Constants**: Centralize string constants in a dedicated module. Do not scatter raw strings.
 - **README.md is Mandatory**: Root `README.md` with name, description, install/setup, usage, dependencies.
 - **DRY**: Extract duplicated logic into helpers/base abstractions; use constants for repeated values.
+- **Derive, Don't Duplicate — One Value Owns the Derivation**: When one value strictly determines another, pass only the determinant and derive the rest — never thread both through call sites/constructors/events. Keep the derivation cheap and pure (getter/match, no IO); keep the mapping exhaustive (enum + exhaustive match) so a new case can't skip its derived value. Apply only to true functional dependencies, not many-to-many. Pairs with Prefer Type-Safe Values + Self-Describing Classes.
+- **Reusable Tooling**: Before building project-specific infra scripts (audits, codemods, build/lint helpers), check the matching language's `*_setup_files/` folder in the coding-rules repo for an existing equivalent and reuse it. If you build a new one, prove it on real data, copy it back into `*_setup_files/tools/`, and document it in that language's `*_RULES.md`. (This project already follows the pattern via `tools/` bats — keep consistent.)
 - **Confirm Dependency Versions**: Ask the user to verify latest stable version before adding any new package.
 - **Error Handling & Logging Strategy**: Centralized error handler; structured logging (not `print`); log levels (debug/info/warning/error); include context (module, operation, IDs).
+- **Centralized Logger — Single Off Switch**: Route all logging through one logger class; never call `print()`/built-in output directly outside it. Callers pass a level (debug/info/warning/error); the logger decides emission from central config, giving one toggle for enable/level/redirect without touching call sites. Per-language fixed name — Python = `AppLogger` (`app_logger.py`). (This project already centralizes via the `Logger` propagated from `main.py` — that is the single off switch here; see the Python Structured Logging note for the naming divergence.)
 - **Input Validation at Boundaries**: Validate API inputs, user input, file uploads, external service responses. Fail fast with clear errors.
 - **Maximum File Length — 300 Lines**: Split files when they exceed 300 lines. Exceptions: generated files, config files, test files with many similar cases.
 - **Naming Conventions**: Python = `snake_case` files/functions/variables, `PascalCase` classes, `UPPER_SNAKE_CASE` constants.
@@ -205,7 +217,7 @@ The rules below are extracted and filtered for this project (Python CLI tool —
 - **Use `spec=` with MagicMock**: `MagicMock(spec=RealClass)` to validate against the real interface — without `spec`, typos and missing methods pass silently. If the real class exposes a method, mock the method (`mock.get_body.return_value = "x"`), not a fake attribute (`mock.body = "x"`).
 - **Required Batch Files**: `tools/run_tests.bat` for tests. (`start.bat` does not apply — this is a CLI tool invoked as `python main.py …`.)
 - **Async Patterns**: Use `asyncio` for I/O-bound work. Never block the event loop with `time.sleep` or sync HTTP inside `async` code.
-- **Structured Logging**: Use `structlog` or `logging` with a JSON formatter — never `print()`. Centralized logging config used by all modules. (Project already has a `Logger` propagated from `main.py` — extend that, do not introduce ad-hoc loggers.)
+- **Structured Logging**: Use `structlog` or `logging` with a JSON formatter — never `print()`. Centralized logging config used by all modules. The rules pin the Python logger name as `AppLogger` (`app_logger.py`). (Known divergence: this project already centralizes via a `Logger` propagated from `main.py` — extend that, do not introduce ad-hoc loggers; renaming to `AppLogger` is out of scope here.)
 - **Self-Describing Classes (Python implementation)**:
   - **Option A — Protocol with abstract method**: define a `Protocol` (e.g. `Searchable`) with `get_searchable_fields() -> list[str]`; each class implements it.
   - **Option B — Dataclass field metadata**: tag fields with `field(metadata={SEARCHABLE: True})`; iterate via `dataclasses.fields(obj)`.
