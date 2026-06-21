@@ -211,6 +211,7 @@ bin
 settings.ini
 
 # Test output folders
+tmp/
 minimal/
 reports/
 PLAN.md
