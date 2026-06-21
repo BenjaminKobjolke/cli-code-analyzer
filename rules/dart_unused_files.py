@@ -5,9 +5,8 @@ Dart unused files analyzer - finds .dart files never imported by any other file.
 from collections import deque
 from pathlib import Path
 
-from models import LogLevel, RuleResult, Severity, Violation
+from models import RuleResult, Severity, Violation
 from rules.base import ProjectWideRule
-from rules.context import RuleContext
 from rules.dart_utils import (
     collect_dart_files,
     get_package_name,

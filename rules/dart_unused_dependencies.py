@@ -6,9 +6,8 @@ from pathlib import Path
 
 import yaml
 
-from models import LogLevel, RuleResult, Severity, Violation
+from models import RuleResult, Violation
 from rules.base import ProjectWideRule
-from rules.context import RuleContext
 from rules.dart_utils import collect_dart_files, parse_imports
 
 

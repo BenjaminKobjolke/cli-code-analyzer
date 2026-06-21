@@ -14,9 +14,10 @@ from typing import Any
 from logger import Logger
 from models import LogLevel, RuleResult, RuleStatus, Severity, Violation
 from rules.context import RuleContext
+from rules.filter_scope import FilterScopeMixin
 
 
-class BaseRule(ABC):
+class BaseRule(FilterScopeMixin, ABC):
     """Abstract base class for all rules"""
 
     # Subclasses set this so RuleResults are stamped with a stable name. Falls
@@ -33,6 +34,7 @@ class BaseRule(ABC):
         self.rules_file_path = ctx.rules_file_path
         self.logger = ctx.logger or Logger()
         self.language = ctx.language
+        self.filter_files = ctx.filter_files
         self._settings = None
 
     @property

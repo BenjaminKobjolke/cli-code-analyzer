@@ -18,14 +18,13 @@ coverage.json structure (https://coverage.readthedocs.io/):
 """
 
 import json
-import shutil
 from fnmatch import fnmatch
 from pathlib import Path
 from typing import Any
 
-from models import LogLevel, RuleResult, Severity, Violation
+from models import RuleResult, Severity, Violation
 from rules.base import ProjectWideRule
-from rules.context import RuleContext
+from rules.python_coverage_io import run_tests_with_coverage
 
 
 class PythonTestCoverageRule(ProjectWideRule):
@@ -75,34 +74,7 @@ class PythonTestCoverageRule(ProjectWideRule):
         return self._ok(violations)
 
     def _run_tests_with_coverage(self, coverage_json: Path) -> bool:
-        timeout = self.config.get('test_timeout', 600)
-        run_cmd = self.config.get('run_command') or ['python', '-m', 'coverage', 'run', '-m', 'pytest']
-        json_cmd = self.config.get('json_command') or ['python', '-m', 'coverage', 'json', '-o', str(coverage_json)]
-
-        if not shutil.which(run_cmd[0]):
-            self.logger.warning(f"Warning: '{run_cmd[0]}' not in PATH; install with: pip install coverage pytest")
-            return False
-
-        self.logger.info(f"Running: {' '.join(run_cmd)} (this may take a while)...")
-        try:
-            run_result = self._run_subprocess(run_cmd, self.base_path, timeout=timeout)
-            if run_result.returncode != 0 and run_result.stderr:
-                self.logger.info(f"Coverage run stderr: {run_result.stderr.strip()[:500]}")
-        except Exception as e:
-            self.logger.error(f"Error running coverage: {e}")
-            return False
-
-        self.logger.info(f"Exporting coverage to {coverage_json}...")
-        try:
-            json_result = self._run_subprocess(json_cmd, self.base_path, timeout=timeout)
-            if json_result.returncode != 0:
-                if json_result.stderr:
-                    self.logger.warning(f"coverage json stderr: {json_result.stderr.strip()[:500]}")
-                return False
-            return True
-        except Exception as e:
-            self.logger.error(f"Error exporting coverage JSON: {e}")
-            return False
+        return run_tests_with_coverage(self, coverage_json)
 
     def _parse_coverage_json(self, coverage_json: Path) -> dict | None:
         try:

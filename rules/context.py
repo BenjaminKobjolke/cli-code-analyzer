@@ -16,3 +16,4 @@ class RuleContext:
     rules_file_path: str | None = None
     logger: Logger | None = None
     language: str | None = None
+    filter_files: set[str] | None = None  # base-relative posix paths, or None for whole-project

@@ -4,7 +4,7 @@ Max lines per file rule
 
 from pathlib import Path
 
-from models import LogLevel, RuleResult, Severity, Violation
+from models import RuleResult, Severity, Violation
 from rules.base import BaseRule
 from rules.context import RuleContext
 

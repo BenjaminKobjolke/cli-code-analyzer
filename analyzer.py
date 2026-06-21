@@ -11,32 +11,8 @@ from file_discovery import FileDiscovery
 from logger import Logger
 from models import LogLevel, RuleResult, RuleStatus, Severity, Violation
 from path_utils import to_relative_posix
-from rules import (
-    DartAnalyzeRule,
-    DartCodeLinterRule,
-    DartCrapScoreRule,
-    DartImportRulesRule,
-    DartMissingDisposeRule,
-    DartTestCoverageRule,
-    DartUnusedCodeRule,
-    DartUnusedDependenciesRule,
-    DartUnusedFilesRule,
-    DotnetAnalyzeRule,
-    ESLintAnalyzeRule,
-    FlutterAnalyzeRule,
-    IntelephenseAnalyzeRule,
-    MaxLinesRule,
-    PHPCSFixerAnalyzeRule,
-    PHPStanAnalyzeRule,
-    PMDDuplicatesRule,
-    PMDSimilarCodeRule,
-    PyscnAnalyzeRule,
-    PythonCrapScoreRule,
-    PythonTestCoverageRule,
-    RuffAnalyzeRule,
-    SvelteCheckRule,
-    TscAnalyzeRule,
-)
+from project_wide_rules import FILTER_INCAPABLE, PROJECT_WIDE_ANALYZERS
+from rules import MaxLinesRule, PMDDuplicatesRule, PMDSimilarCodeRule
 from rules.context import RuleContext
 
 
@@ -55,29 +31,8 @@ class AnalyzerConfig:
 class CodeAnalyzer:
     """Main analyzer that orchestrates the analysis workflow"""
 
-    _PROJECT_WIDE_ANALYZERS = [
-        ('dart_analyze', DartAnalyzeRule),
-        ('dart_code_linter', DartCodeLinterRule),
-        ('flutter_analyze', FlutterAnalyzeRule),
-        ('ruff_analyze', RuffAnalyzeRule),
-        ('pyscn_analyze', PyscnAnalyzeRule),
-        ('eslint_analyze', ESLintAnalyzeRule),
-        ('svelte_check', SvelteCheckRule),
-        ('tsc_analyze', TscAnalyzeRule),
-        ('phpstan_analyze', PHPStanAnalyzeRule),
-        ('php_cs_fixer', PHPCSFixerAnalyzeRule),
-        ('intelephense_analyze', IntelephenseAnalyzeRule),
-        ('dotnet_analyze', DotnetAnalyzeRule),
-        ('dart_unused_files', DartUnusedFilesRule),
-        ('dart_unused_dependencies', DartUnusedDependenciesRule),
-        ('dart_import_rules', DartImportRulesRule),
-        ('dart_unused_code', DartUnusedCodeRule),
-        ('dart_missing_dispose', DartMissingDisposeRule),
-        ('dart_test_coverage', DartTestCoverageRule),
-        ('dart_crap_score', DartCrapScoreRule),
-        ('python_test_coverage', PythonTestCoverageRule),
-        ('python_crap_score', PythonCrapScoreRule),
-    ]
+    _PROJECT_WIDE_ANALYZERS = PROJECT_WIDE_ANALYZERS
+    _FILTER_INCAPABLE = FILTER_INCAPABLE
 
     def __init__(self, cfg: AnalyzerConfig):
         languages = cfg.languages
@@ -184,6 +139,9 @@ class CodeAnalyzer:
         # Run project-wide analyzers (each runs once, not per file)
         for analyzer_name, RuleClass in self._PROJECT_WIDE_ANALYZERS:
             if self._should_run(analyzer_name):
+                # Skip whole-project-only analyzers when filtering to a file subset.
+                if self.filter_files is not None and analyzer_name in self._FILTER_INCAPABLE:
+                    continue
                 self._print_language_header(analyzer_name)
                 rule_config = self.config.get_rule(analyzer_name)
                 rule = RuleClass(self._make_ctx(rule_config))
@@ -234,6 +192,7 @@ class CodeAnalyzer:
             rules_file_path=self.rules_file,
             logger=self.logger,
             language=language,
+            filter_files=self.filter_files,
         )
 
     def _check_file(self, file_path: Path):

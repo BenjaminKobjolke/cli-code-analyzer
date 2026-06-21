@@ -8,7 +8,6 @@ from pathlib import Path
 
 from models import LogLevel, RuleResult, Severity, Violation
 from rules.base import ProjectWideRule
-from rules.context import RuleContext
 
 
 class DartAnalyzeRule(ProjectWideRule):
@@ -37,7 +36,13 @@ class DartAnalyzeRule(ProjectWideRule):
             RuleResult
         """
         # Build command with JSON format
-        cmd = dart_cmd + ['analyze', '--fatal-infos', '--format=json']
+        cmd = [*dart_cmd, 'analyze', '--fatal-infos', '--format=json']
+
+        # Scope to changed files when filtering; cwd stays base_path for package context.
+        scope = self._scope_args(('.dart',))
+        if scope is None:
+            return self._ok([])
+        cmd += scope
 
         # Execute dart analyze using base utility
         try:

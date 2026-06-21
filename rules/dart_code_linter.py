@@ -11,7 +11,7 @@ from typing import Any, ClassVar
 
 import yaml
 
-from models import LogLevel, RuleResult, Severity, Violation
+from models import RuleResult, Severity, Violation
 from rules.base import ProjectWideRule
 from rules.context import RuleContext
 
@@ -63,7 +63,7 @@ class DartCodeLinterRule(ProjectWideRule):
         self.logger.info("dart_code_linter not found. Installing...")
         install_dir = self.project_root or self.base_path
         try:
-            result = self._run_subprocess(dart_cmd + ['pub', 'add', '--dev', 'dart_code_linter'], install_dir)
+            result = self._run_subprocess([*dart_cmd, 'pub', 'add', '--dev', 'dart_code_linter'], install_dir)
             if result.returncode == 0:
                 self.logger.info("dart_code_linter installed successfully\n")
                 return True
@@ -83,9 +83,11 @@ class DartCodeLinterRule(ProjectWideRule):
         report_dir.mkdir(exist_ok=True)
         report_json = report_dir / 'report.json'
 
-        cmd = dart_cmd + ['run', 'dart_code_linter:metrics', 'analyze',
-               '--fatal-warnings', '--fatal-style', '--reporter=json',
-               f'--json-path={report_dir / "report"}', analyze_path]
+        cmd = [
+            *dart_cmd, 'run', 'dart_code_linter:metrics', 'analyze',
+            '--fatal-warnings', '--fatal-style', '--reporter=json',
+            f'--json-path={report_dir / "report"}', analyze_path,
+        ]
 
         try:
             result = self._run_subprocess(cmd, working_dir)

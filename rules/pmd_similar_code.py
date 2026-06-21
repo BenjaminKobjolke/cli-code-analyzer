@@ -1,150 +1,42 @@
 """PMD similar code detection rule"""
 
-import contextlib
-import tempfile
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
-from models import LogLevel, RuleResult, Severity, Violation
-from rules.base import ProjectWideRule
-from rules.context import RuleContext
-from rules.pmd_duplicates import DEFAULT_EXCLUDE_PATTERNS, LANGUAGE_TO_PMD, WINDOWS_RESERVED_NAMES
+from models import RuleResult, Severity, Violation
+from rules.pmd_base import PMDCpdRule, run_cpd
 
 
-class PMDSimilarCodeRule(ProjectWideRule):
+class PMDSimilarCodeRule(PMDCpdRule):
     """Rule to detect structurally similar code using PMD CPD with identifier/literal normalization"""
 
     rule_name = 'pmd_similar_code'
 
     def _run(self, _file_path: Path) -> RuleResult:
-        self.logger.info("\nChecking for similar code patterns...")
-
-        pmd_path = self._get_tool_path('pmd', self.settings.get_pmd_path, self.settings.prompt_and_save_pmd_path)
-        if not pmd_path:
-            return self._failed("PMD executable not found")
-
-        pmd_language = self._get_pmd_language()
-        if not pmd_language:
-            return self._skipped(f"language '{self.language}' not supported by PMD CPD")
-
-        minimum_tokens = self.config.get('minimum_tokens', 100)
-        max_results = self.config.get('max_results', None)
-        if max_results and not self.max_errors:
-            self.max_errors = max_results
-        exclude_paths = self._get_exclude_paths()
-        exclude_patterns = self._get_exclude_patterns()
-
-        ignore_identifiers = self.config.get('ignore_identifiers', True)
-        ignore_literals = self.config.get('ignore_literals', True)
-        ignore_annotations = self.config.get('ignore_annotations', False)
-
-        return self._run_pmd_cpd(pmd_path, pmd_language, self.base_path, minimum_tokens,
-                                 exclude_paths, exclude_patterns,
-                                 ignore_identifiers, ignore_literals, ignore_annotations)
-
-    def _get_pmd_language(self) -> str | None:
-        """Map analyzer language to PMD language code."""
-        return LANGUAGE_TO_PMD.get(self.language.lower())
-
-    def _get_exclude_paths(self) -> list[str]:
-        """Get directory paths to exclude from config."""
-        return self.config.get('exclude_paths', [])
-
-    def _get_exclude_patterns(self) -> list[str]:
-        """Get file patterns to exclude from config or defaults for current language."""
-        lang = self.language.lower() if self.language else None
-        pmd_lang = self._get_pmd_language()
-        if 'exclude_patterns' in self.config:
-            exclude_config = self.config['exclude_patterns']
-            if isinstance(exclude_config, dict):
-                return exclude_config.get(lang, exclude_config.get(pmd_lang, []))
-            if isinstance(exclude_config, list):
-                return exclude_config
-        return DEFAULT_EXCLUDE_PATTERNS.get(lang, DEFAULT_EXCLUDE_PATTERNS.get(pmd_lang, []))
-
-    def _generate_exclude_file_list(self, exclude_patterns: list[str]) -> Path | None:
-        """Generate temp file with paths matching exclude patterns."""
-        if not exclude_patterns or not self.base_path:
-            return None
-
-        excluded_files = set()
-        for pattern in exclude_patterns:
-            if pattern.endswith('/**'):
-                pattern = pattern + '/*'
-            try:
-                for file_path in self.base_path.rglob(pattern):
-                    if file_path.is_file():
-                        excluded_files.add(file_path.resolve())
-            except Exception as e:
-                self.logger.warning(f"Warning: Could not process pattern '{pattern}': {e}")
-
-        if not excluded_files:
-            return None
-
-        try:
-            fd, temp_path = tempfile.mkstemp(suffix='.txt', prefix='pmd_exclude_')
-            with open(fd, 'w', encoding='utf-8') as f:
-                for file_path in sorted(excluded_files):
-                    f.write(f"{file_path}\n")
-            return Path(temp_path)
-        except Exception as e:
-            self.logger.warning(f"Warning: Could not create exclude file list: {e}")
-            return None
-
-    def _filter_pmd_stderr(self, stderr: str) -> str:
-        """Filter out stderr lines about Windows reserved device names."""
-        if not stderr:
-            return stderr
-        filtered = []
-        for line in stderr.strip().splitlines():
-            line_lower = line.lower()
-            should_filter = False
-            for name in WINDOWS_RESERVED_NAMES:
-                if f'\\{name}' in line_lower or line_lower.endswith(name):
-                    should_filter = True
-                    break
-            if not should_filter:
-                filtered.append(line)
-        return '\n'.join(filtered)
+        prep = self._prepare_cpd("\nChecking for similar code patterns...")
+        if isinstance(prep, RuleResult):
+            return prep
+        return self._run_pmd_cpd(prep.pmd_path, prep.pmd_language, self.base_path, prep.minimum_tokens,
+                                 prep.exclude_paths, prep.exclude_patterns,
+                                 self.config.get('ignore_identifiers', True),
+                                 self.config.get('ignore_literals', True),
+                                 self.config.get('ignore_annotations', False),
+                                 prep.filtered)
 
     def _run_pmd_cpd(self, pmd_path: str, language: str, directory: Path, minimum_tokens: int,
                       exclude_paths: list[str], exclude_patterns: list[str],
-                      ignore_identifiers: bool, ignore_literals: bool, ignore_annotations: bool) -> RuleResult:
-        """Execute PMD CPD with similarity flags and return a typed result."""
-        exclude_file_list = self._generate_exclude_file_list(exclude_patterns)
-        cmd = [pmd_path, 'cpd', '-l', language, '-d', str(directory), '-f', 'xml',
-               '--minimum-tokens', str(minimum_tokens), '--encoding', 'utf-8']
-
+                      ignore_identifiers: bool, ignore_literals: bool, ignore_annotations: bool,
+                      filtered: list[Path] | None = None) -> RuleResult:
+        """Execute PMD CPD with similarity flags and return a typed result (see pmd_base.run_cpd)."""
+        cmd_base = [pmd_path, 'cpd', '-l', language, '-f', 'xml',
+                    '--minimum-tokens', str(minimum_tokens), '--encoding', 'utf-8']
         if ignore_identifiers:
-            cmd.append('--ignore-identifiers')
+            cmd_base.append('--ignore-identifiers')
         if ignore_literals:
-            cmd.append('--ignore-literals')
+            cmd_base.append('--ignore-literals')
         if ignore_annotations:
-            cmd.append('--ignore-annotations')
-
-        for path in exclude_paths:
-            exclude_dir = directory / path
-            if exclude_dir.exists():
-                cmd.extend(['--exclude', str(exclude_dir)])
-
-        if exclude_file_list:
-            cmd.extend(['--exclude-file-list', str(exclude_file_list)])
-
-        try:
-            result = self._run_subprocess(cmd)
-            if result.returncode != 0 and result.stderr:
-                filtered_stderr = self._filter_pmd_stderr(result.stderr)
-                if filtered_stderr:
-                    self.logger.warning(f"PMD CPD warning: {filtered_stderr}")
-
-            return self._result_from_pmd_stdout(result.stdout)
-        except Exception as e:
-            self.logger.error(f"Error running PMD CPD: {e}")
-            return self._failed(f"error running PMD CPD: {e}")
-        finally:
-            if exclude_file_list and exclude_file_list.exists():
-                with contextlib.suppress(Exception):
-                    exclude_file_list.unlink()
+            cmd_base.append('--ignore-annotations')
+        return run_cpd(self, cmd_base, directory, exclude_paths, exclude_patterns, filtered)
 
     def _result_from_pmd_stdout(self, stdout: str) -> RuleResult:
         """Turn PMD CPD XML stdout into a RuleResult, guarding the parse invariant.

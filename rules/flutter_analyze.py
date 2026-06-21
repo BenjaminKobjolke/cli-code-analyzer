@@ -9,7 +9,7 @@ from typing import Any
 
 import yaml
 
-from models import LogLevel, RuleResult, Severity, Violation
+from models import RuleResult, Severity, Violation
 from rules.base import ProjectWideRule
 from rules.context import RuleContext
 
@@ -58,7 +58,10 @@ class FlutterAnalyzeRule(ProjectWideRule):
     def _run_flutter_analyze(self, flutter_cmd: list[str]) -> RuleResult:
         """Execute flutter analyze and return parsed violations."""
         try:
-            result = self._run_subprocess(flutter_cmd + ['analyze'], self.project_root or self.base_path)
+            scope = self._scope_args(('.dart',))
+            if scope is None:
+                return self._ok([])
+            result = self._run_subprocess([*flutter_cmd, 'analyze', *scope], self.project_root or self.base_path)
             output = result.stdout if result.stdout.strip() else result.stderr
             violations = self._filter_violations_by_log_level(self._parse_flutter_text_output(output))
 

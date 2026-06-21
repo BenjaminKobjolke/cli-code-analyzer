@@ -2,13 +2,13 @@
 ESLint analyze rule for JavaScript/TypeScript code analysis
 """
 
-import csv
 import json
 from pathlib import Path
 
-from models import LogLevel, RuleResult, Severity, Violation
+from models import RuleResult
 from rules.base import ProjectWideRule
 from rules.context import RuleContext
+from rules.eslint_report import parse_eslint_json, write_eslint_csv
 
 
 class ESLintAnalyzeRule(ProjectWideRule):
@@ -111,8 +111,11 @@ class ESLintAnalyzeRule(ProjectWideRule):
                 self.logger.warning("  Then configure your eslint.config.js to use the Svelte parser (see CLI Code Analyzer README)")
         cmd.extend(['--ext', ','.join(extensions)])
 
-        # Add base path to analyze
-        cmd.append(str(self.base_path))
+        # Add paths to analyze: changed files when filtering, else the whole base path.
+        scope = self._scope_args(('.js', '.mjs', '.cjs', '.ts', '.tsx', '.jsx', '.svelte'), [str(self.base_path)])
+        if scope is None:
+            return self._ok([])
+        cmd += scope
 
         # Execute eslint using base utility
         try:
@@ -122,7 +125,7 @@ class ESLintAnalyzeRule(ProjectWideRule):
             output = result.stdout
 
             # Parse JSON output
-            violations = self._parse_eslint_json(output)
+            violations = parse_eslint_json(output, self._get_relative_path, self.logger)
 
             # Apply log level filter to violations
             violations = self._filter_violations_by_log_level(violations)
@@ -140,7 +143,8 @@ class ESLintAnalyzeRule(ProjectWideRule):
             # Write to CSV file if output folder is specified and violations found
             if self.output_folder and violations:
                 output_file = self.output_folder / 'eslint_analyze.csv'
-                self._write_csv_output(output_file, output)
+                write_eslint_csv(output_file, output, self.log_level, self.max_errors,
+                                 self._get_relative_path, self.logger)
 
             return self._ok(violations)
 
@@ -211,179 +215,3 @@ class ESLintAnalyzeRule(ProjectWideRule):
                     self._svelte_files_cache = True
                     break
         return self._svelte_files_cache
-
-    def _map_eslint_severity(self, severity: int) -> Severity:
-        """Map ESLint severity to internal Severity.
-
-        ESLint severity levels:
-        - 2 = error
-        - 1 = warning
-
-        Args:
-            severity: ESLint severity number
-
-        Returns:
-            Severity enum value
-        """
-        if severity == 2:
-            return Severity.ERROR
-        elif severity == 1:
-            return Severity.WARNING
-        else:
-            return Severity.INFO
-
-    def _parse_eslint_json(self, output: str) -> list[Violation]:
-        """Parse eslint check JSON output into violations.
-
-        ESLint JSON format:
-        [
-            {
-                "filePath": "/path/to/file.js",
-                "messages": [
-                    {
-                        "ruleId": "no-unused-vars",
-                        "severity": 2,
-                        "message": "'x' is defined but never used",
-                        "line": 10,
-                        "column": 5
-                    }
-                ],
-                "errorCount": 1,
-                "warningCount": 0
-            }
-        ]
-
-        Args:
-            output: JSON output from eslint check
-
-        Returns:
-            List of violations
-        """
-        violations = []
-
-        if not output or not output.strip():
-            return violations
-
-        try:
-            data = json.loads(output)
-
-            # ESLint returns an array of file results
-            for file_result in data:
-                file_path = file_result.get('filePath', 'unknown')
-
-                for message in file_result.get('messages', []):
-                    rule_id = message.get('ruleId', 'unknown')
-                    msg = message.get('message', '')
-                    line_num = message.get('line', 0)
-                    col_num = message.get('column', 0)
-                    severity_num = message.get('severity', 1)
-
-                    # Map severity
-                    severity = self._map_eslint_severity(severity_num)
-
-                    # Create relative path
-                    try:
-                        rel_path = self._get_relative_path(Path(file_path))
-                    except Exception:
-                        rel_path = file_path
-
-                    # Build detailed message
-                    detailed_message = f"{msg} ({rule_id}) at line {line_num}, column {col_num}"
-
-                    violation = Violation(
-                        file_path=rel_path,
-                        rule_name='eslint_analyze',
-                        severity=severity,
-                        message=detailed_message,
-                        line=line_num,
-                        column=col_num
-                    )
-                    violations.append(violation)
-
-        except json.JSONDecodeError as e:
-            self.logger.error(f"Error parsing eslint JSON output: {e}")
-            self.logger.error(f"Output was: {output[:200]}...")
-        except Exception as e:
-            self.logger.error(f"Error processing eslint results: {e}")
-
-        return violations
-
-    def _write_csv_output(self, output_file: Path, json_content: str):
-        """Write eslint results to CSV file, filtered by log level.
-
-        Args:
-            output_file: Path to CSV output file
-            json_content: JSON content from eslint check
-        """
-        try:
-            data = json.loads(json_content)
-
-            if not data:
-                return
-
-            # Collect all messages with filtering
-            filtered_messages = []
-            for file_result in data:
-                file_path = file_result.get('filePath', 'unknown')
-
-                for message in file_result.get('messages', []):
-                    severity_num = message.get('severity', 1)
-                    severity = self._map_eslint_severity(severity_num)
-
-                    # Apply log level filter
-                    if (self.log_level == LogLevel.ERROR and severity != Severity.ERROR) or \
-                       (self.log_level == LogLevel.WARNING and severity not in (Severity.ERROR, Severity.WARNING)):
-                        continue
-
-                    filtered_messages.append({
-                        'file_path': file_path,
-                        'message': message,
-                        'severity': severity
-                    })
-
-            # Apply max_errors limit
-            if self.max_errors and len(filtered_messages) > self.max_errors:
-                # Sort by severity (ERROR first)
-                def message_sort_key(m):
-                    severity_order = {Severity.ERROR: 0, Severity.WARNING: 1, Severity.INFO: 2}
-                    return severity_order.get(m['severity'], 3)
-
-                filtered_messages.sort(key=message_sort_key)
-                filtered_messages = filtered_messages[:self.max_errors]
-
-            # Don't create CSV if no violations match the filter
-            if not filtered_messages:
-                return
-
-            # Write CSV
-            with open(output_file, 'w', encoding='utf-8', newline='') as f:
-                writer = csv.writer(f)
-
-                # Write header
-                writer.writerow(['file', 'line', 'column', 'severity', 'rule', 'message'])
-
-                # Write data rows
-                for item in filtered_messages:
-                    file_path = item['file_path']
-                    message = item['message']
-                    severity = item['severity']
-
-                    # Get relative path
-                    try:
-                        rel_path = self._get_relative_path(Path(file_path))
-                    except Exception:
-                        rel_path = file_path
-
-                    line_num = message.get('line', 0)
-                    col_num = message.get('column', 0)
-                    rule_id = message.get('ruleId', 'unknown')
-                    msg = message.get('message', '')
-
-                    writer.writerow([rel_path, line_num, col_num, severity.value, rule_id, msg])
-
-            self.logger.info(f"ESLint report saved to: {output_file}")
-
-        except json.JSONDecodeError as e:
-            self.logger.error(f"Error parsing JSON for CSV output: {e}")
-        except Exception as e:
-            self.logger.error(f"Error writing eslint CSV file: {e}")

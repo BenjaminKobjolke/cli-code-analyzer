@@ -14,10 +14,8 @@ import json
 from pathlib import Path
 from typing import Any
 
-from models import LogLevel, RuleResult, Severity, Violation
+from models import RuleResult, Severity, Violation
 from rules.base import ProjectWideRule
-from rules.context import RuleContext
-
 
 # Mapping pyscn dead-code severity strings to our Severity enum
 _DEAD_CODE_SEVERITY_MAP = {

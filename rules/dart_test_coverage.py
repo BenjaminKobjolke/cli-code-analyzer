@@ -5,9 +5,8 @@ Dart test coverage analyzer - runs tests and checks coverage against thresholds.
 import re
 from pathlib import Path
 
-from models import LogLevel, RuleResult, Severity, Violation
+from models import RuleResult, Severity, Violation
 from rules.base import ProjectWideRule
-from rules.context import RuleContext
 
 
 class DartTestCoverageRule(ProjectWideRule):
@@ -117,7 +116,7 @@ class DartTestCoverageRule(ProjectWideRule):
 
         try:
             result = self._run_subprocess(
-                flutter_cmd + ['test', '--coverage'],
+                [*flutter_cmd, 'test', '--coverage'],
                 project_root,
                 timeout=timeout
             )

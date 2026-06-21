@@ -9,7 +9,7 @@ import configparser
 from pathlib import Path
 
 from logger import Logger
-from tool_descriptors import TOOLS, TOOLS_BY_NAME, ToolDescriptor
+from tool_descriptors import TOOLS_BY_NAME, ToolDescriptor
 
 
 class Settings:

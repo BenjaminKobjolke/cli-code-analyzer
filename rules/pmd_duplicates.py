@@ -1,173 +1,31 @@
 """PMD duplicate code detection rule"""
 
-import contextlib
-import tempfile
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
-from models import LogLevel, RuleResult, Severity, Violation
-from rules.base import ProjectWideRule
-from rules.context import RuleContext
-
-# Default exclude patterns per language (glob patterns)
-DEFAULT_EXCLUDE_PATTERNS = {
-    'dart': ['*.g.dart', '*.freezed.dart'],
-    'python': ['**/__pycache__/**', '*.pyc'],
-    'java': ['**/target/**', '**/build/**'],
-    'javascript': ['**/node_modules/**', '**/dist/**', '**/build/**'],
-    'typescript': ['**/node_modules/**', '**/dist/**', '**/build/**'],
-    'php': ['**/vendor/**', '**/node_modules/**', '**/.phpstan-cache/**'],
-    'cs': ['**/bin/**', '**/obj/**', '**/.vs/**', '**/packages/**'],
-}
+from models import RuleResult, Severity, Violation
+from rules.pmd_base import PMDCpdRule, run_cpd
 
 
-# Language mapping from analyzer to PMD
-LANGUAGE_TO_PMD = {
-    'flutter': 'dart',
-    'dart': 'dart',
-    'python': 'python',
-    'java': 'java',
-    'javascript': 'ecmascript',
-    'js': 'ecmascript',
-    'typescript': 'typescript',
-    'ts': 'typescript',
-    'php': 'php',
-    'csharp': 'cs',
-    'svelte': 'ecmascript',
-    'cs': 'cs',
-}
-
-# Windows reserved device names that cause errors when PMD tries to scan them
-WINDOWS_RESERVED_NAMES = {'nul', 'con', 'prn', 'aux'}
-
-
-class PMDDuplicatesRule(ProjectWideRule):
+class PMDDuplicatesRule(PMDCpdRule):
     """Rule to detect duplicate code using PMD CPD"""
 
     rule_name = 'pmd_duplicates'
 
     def _run(self, _file_path: Path) -> RuleResult:
-        self.logger.info("\nChecking for duplicate code...")
-
-        pmd_path = self._get_tool_path('pmd', self.settings.get_pmd_path, self.settings.prompt_and_save_pmd_path)
-        if not pmd_path:
-            return self._failed("PMD executable not found")
-
-        pmd_language = self._get_pmd_language()
-        if not pmd_language:
-            return self._skipped(f"language '{self.language}' not supported by PMD CPD")
-
-        minimum_tokens = self.config.get('minimum_tokens', 100)
-        max_results = self.config.get('max_results', None)
-        if max_results and not self.max_errors:
-            self.max_errors = max_results
-        exclude_paths = self._get_exclude_paths()
-        exclude_patterns = self._get_exclude_patterns()
-
-        return self._run_pmd_cpd(pmd_path, pmd_language, self.base_path, minimum_tokens,
-                                 exclude_paths, exclude_patterns)
-
-    def _get_pmd_language(self) -> str | None:
-        """Map analyzer language to PMD language code."""
-        return LANGUAGE_TO_PMD.get(self.language.lower())
-
-    def _get_exclude_paths(self) -> list[str]:
-        """Get directory paths to exclude from config."""
-        return self.config.get('exclude_paths', [])
-
-    def _get_exclude_patterns(self) -> list[str]:
-        """Get file patterns to exclude from config or defaults for current language."""
-        lang = self.language.lower() if self.language else None
-        pmd_lang = self._get_pmd_language()
-        if 'exclude_patterns' in self.config:
-            exclude_config = self.config['exclude_patterns']
-            if isinstance(exclude_config, dict):
-                return exclude_config.get(lang, exclude_config.get(pmd_lang, []))
-            if isinstance(exclude_config, list):
-                return exclude_config
-        return DEFAULT_EXCLUDE_PATTERNS.get(lang, DEFAULT_EXCLUDE_PATTERNS.get(pmd_lang, []))
-
-    def _generate_exclude_file_list(self, exclude_patterns: list[str]) -> Path | None:
-        """Generate temp file with paths matching exclude patterns."""
-        if not exclude_patterns or not self.base_path:
-            return None
-
-        excluded_files = set()
-        for pattern in exclude_patterns:
-            if pattern.endswith('/**'):
-                pattern = pattern + '/*'
-            try:
-                for file_path in self.base_path.rglob(pattern):
-                    if file_path.is_file():
-                        excluded_files.add(file_path.resolve())
-            except Exception as e:
-                self.logger.warning(f"Warning: Could not process pattern '{pattern}': {e}")
-
-        if not excluded_files:
-            return None
-
-        try:
-            fd, temp_path = tempfile.mkstemp(suffix='.txt', prefix='pmd_exclude_')
-            with open(fd, 'w', encoding='utf-8') as f:
-                for file_path in sorted(excluded_files):
-                    f.write(f"{file_path}\n")
-            return Path(temp_path)
-        except Exception as e:
-            self.logger.warning(f"Warning: Could not create exclude file list: {e}")
-            return None
-
-    def _filter_pmd_stderr(self, stderr: str) -> str:
-        """Filter out stderr lines about Windows reserved device names (nul, con, etc.).
-
-        PMD emits warnings when it encounters files at paths containing Windows
-        reserved names like NUL, CON, PRN, AUX. These are harmless and noisy,
-        so we suppress them.
-        """
-        if not stderr:
-            return stderr
-        filtered = []
-        for line in stderr.strip().splitlines():
-            line_lower = line.lower()
-            should_filter = False
-            for name in WINDOWS_RESERVED_NAMES:
-                if f'\\{name}' in line_lower or line_lower.endswith(name):
-                    should_filter = True
-                    break
-            if not should_filter:
-                filtered.append(line)
-        return '\n'.join(filtered)
+        prep = self._prepare_cpd("\nChecking for duplicate code...")
+        if isinstance(prep, RuleResult):
+            return prep
+        return self._run_pmd_cpd(prep.pmd_path, prep.pmd_language, self.base_path, prep.minimum_tokens,
+                                 prep.exclude_paths, prep.exclude_patterns, prep.filtered)
 
     def _run_pmd_cpd(self, pmd_path: str, language: str, directory: Path, minimum_tokens: int,
-                      exclude_paths: list[str], exclude_patterns: list[str]) -> RuleResult:
-        """Execute PMD CPD and return a typed result."""
-        exclude_file_list = self._generate_exclude_file_list(exclude_patterns)
-        cmd = [pmd_path, 'cpd', '-l', language, '-d', str(directory), '-f', 'xml',
-               '--minimum-tokens', str(minimum_tokens), '--encoding', 'utf-8']
-
-        # Add directory exclusions using --exclude flag
-        for path in exclude_paths:
-            exclude_dir = directory / path
-            if exclude_dir.exists():
-                cmd.extend(['--exclude', str(exclude_dir)])
-
-        if exclude_file_list:
-            cmd.extend(['--exclude-file-list', str(exclude_file_list)])
-
-        try:
-            result = self._run_subprocess(cmd)
-            if result.returncode != 0 and result.stderr:
-                filtered_stderr = self._filter_pmd_stderr(result.stderr)
-                if filtered_stderr:
-                    self.logger.warning(f"PMD CPD warning: {filtered_stderr}")
-
-            return self._result_from_pmd_stdout(result.stdout)
-        except Exception as e:
-            self.logger.error(f"Error running PMD CPD: {e}")
-            return self._failed(f"error running PMD CPD: {e}")
-        finally:
-            if exclude_file_list and exclude_file_list.exists():
-                with contextlib.suppress(Exception):
-                    exclude_file_list.unlink()
+                      exclude_paths: list[str], exclude_patterns: list[str],
+                      filtered: list[Path] | None = None) -> RuleResult:
+        """Execute PMD CPD and return a typed result (see pmd_base.run_cpd)."""
+        cmd_base = [pmd_path, 'cpd', '-l', language, '-f', 'xml',
+                    '--minimum-tokens', str(minimum_tokens), '--encoding', 'utf-8']
+        return run_cpd(self, cmd_base, directory, exclude_paths, exclude_patterns, filtered)
 
     def _result_from_pmd_stdout(self, stdout: str) -> RuleResult:
         """Turn PMD CPD XML stdout into a RuleResult.
@@ -195,61 +53,85 @@ class PMDDuplicatesRule(ProjectWideRule):
         return '<duplication' in xml_content
 
     def _parse_xml_output(self, xml_content: str) -> list[Violation]:
-        """Parse PMD CPD XML output string into violations with actual file paths."""
-        violations = []
+        """Parse PMD CPD XML output string into violations with actual file paths.
+
+        Applies configured per-pair / per-file ``exceptions`` (see
+        :meth:`_load_exceptions`): an occurrence is suppressed when an exception
+        matches its file and — for pair-scoped exceptions — one of its partner
+        files. Detection still runs for everything else, so a brand new
+        duplication involving an excepted file is still reported.
+        """
+        violations: list[Violation] = []
         try:
             root = ET.fromstring(xml_content)
             # PMD 7.x emits a default namespace on the report; match tags
             # namespace-agnostically so findall does not silently return nothing.
             duplications = root.findall('{*}duplication')
-
-            if duplications:
-                total_lines = sum(int(d.get('lines', 0)) for d in duplications)
-                self.logger.info(f"\n{'='*80}\nDUPLICATE CODE DETECTION RESULTS\n{'='*80}")
-                self.logger.info(f"Total CSV lines (duplicates found): {len(duplications)}")
-                self.logger.info(f"Total duplicate code lines: {total_lines}\n{'='*80}\n")
-
-            for dup in duplications:
-                lines = dup.get('lines', 'N/A')
-                tokens = dup.get('tokens', 'N/A')
-                files = dup.findall('{*}file')
-                occurrences = len(files)
-
-                for i, file_elem in enumerate(files):
-                    file_path = file_elem.get('path', 'unknown')
-                    line_num = int(file_elem.get('line', 0)) or None
-
-                    # Make path relative to base_path
-                    try:
-                        rel_path = str(Path(file_path).relative_to(self.base_path))
-                    except ValueError:
-                        rel_path = file_path
-
-                    # Build list of other files in this duplication
-                    other_files = []
-                    for j, other in enumerate(files):
-                        if i != j:
-                            other_path = other.get('path', 'unknown')
-                            other_line = other.get('line', '?')
-                            try:
-                                other_rel = str(Path(other_path).relative_to(self.base_path))
-                            except ValueError:
-                                other_rel = other_path
-                            other_files.append(f"{other_rel}:{other_line}")
-
-                    also_in = ', '.join(other_files)
-                    msg = f"Duplicate code found: {lines} lines, {tokens} tokens, {occurrences} occurrences — also in: {also_in}"
-                    violations.append(Violation(
-                        file_path=rel_path,
-                        rule_name='pmd_duplicates',
-                        severity=Severity.WARNING,
-                        message=msg,
-                        line=line_num,
-                    ))
         except ET.ParseError as e:
             self.logger.error(f"Error parsing PMD XML output: {e}")
+            return violations
         except Exception as e:
             self.logger.error(f"Error parsing PMD XML output: {e}")
+            return violations
+
+        exceptions = self._load_exceptions()
+        suppressed_reasons: list[str] = []
+        # Each survivor: (lines, tokens, occurrences, [(rel_raw, line, [(other_raw, other_line)])])
+        survivors: list[tuple] = []
+
+        for dup in duplications:
+            lines = dup.get('lines', 'N/A')
+            tokens = dup.get('tokens', 'N/A')
+            files = dup.findall('{*}file')
+            occurrences = len(files)
+
+            # (raw OS-sep path for display, forward-slash path for matching, line)
+            rels = []
+            for file_elem in files:
+                raw = self._to_relative_raw(file_elem.get('path', 'unknown'))
+                rels.append((raw, raw.replace('\\', '/'), int(file_elem.get('line', 0)) or None))
+
+            emit = []
+            for i, (raw, norm, line_num) in enumerate(rels):
+                other_norms = [rels[j][1] for j in range(len(rels)) if j != i]
+                exc = self._exception_for(norm, other_norms, exceptions)
+                if exc is None:
+                    others_display = [(rels[j][0], rels[j][2]) for j in range(len(rels)) if j != i]
+                    emit.append((raw, line_num, others_display))
+                else:
+                    suppressed_reasons.append(exc['reason'])
+            if emit:
+                survivors.append((lines, tokens, occurrences, emit))
+
+        if survivors:
+            total_lines = sum(self._safe_int(s[0]) for s in survivors)
+            self.logger.info(f"\n{'='*80}\nDUPLICATE CODE DETECTION RESULTS\n{'='*80}")
+            self.logger.info(f"Total CSV lines (duplicates found): {len(survivors)}")
+            self.logger.info(f"Total duplicate code lines: {total_lines}\n{'='*80}\n")
+
+        if suppressed_reasons:
+            unique = sorted(set(suppressed_reasons))
+            self.logger.info(
+                f"Suppressed {len(suppressed_reasons)} duplicate finding(s) via exceptions "
+                f"({len(unique)} reason(s)):"
+            )
+            for reason in unique:
+                self.logger.info(f"  - {reason}")
+
+        for lines, tokens, occurrences, emit in survivors:
+            for raw, line_num, others_display in emit:
+                also_in = ', '.join(
+                    f"{other_raw}:{other_line if other_line is not None else '?'}"
+                    for other_raw, other_line in others_display
+                )
+                msg = f"Duplicate code found: {lines} lines, {tokens} tokens, {occurrences} occurrences — also in: {also_in}"
+                violations.append(Violation(
+                    file_path=raw,
+                    rule_name='pmd_duplicates',
+                    severity=Severity.WARNING,
+                    message=msg,
+                    line=line_num,
+                ))
 
         if self.max_errors and len(violations) > self.max_errors:
             def get_lines(v):
@@ -259,4 +141,92 @@ class PMDDuplicatesRule(ProjectWideRule):
             violations = violations[:self.max_errors]
 
         return violations
+
+    def _to_relative_raw(self, file_path_str: str) -> str:
+        """Path relative to base_path (OS separators), or the input unchanged."""
+        if self.base_path:
+            try:
+                return str(Path(file_path_str).relative_to(self.base_path))
+            except (ValueError, TypeError):
+                pass
+        return str(file_path_str)
+
+    @staticmethod
+    def _safe_int(value) -> int:
+        try:
+            return int(value)
+        except (ValueError, TypeError):
+            return 0
+
+    def _load_exceptions(self) -> list[dict]:
+        """Normalize the configured ``exceptions`` into matchable entries.
+
+        Each entry yields ``{'file': <glob>, 'duplicate_of': [<glob>...],
+        'reason': <str>}``. ``duplicate_of`` may be omitted (file-level
+        suppression) or a string / list of globs (pair-scoped). Entries missing
+        ``file`` or ``reason`` are dropped with a warning so suppression is never
+        silent or undocumented.
+        """
+        raw = self.config.get('exceptions', [])
+        if isinstance(raw, dict):
+            raw = [{'file': k, **(v if isinstance(v, dict) else {})} for k, v in raw.items()]
+        if not isinstance(raw, list):
+            return []
+
+        result: list[dict] = []
+        for exc in raw:
+            if not isinstance(exc, dict):
+                continue
+            file_pat = exc.get('file')
+            reason = exc.get('reason')
+            if not file_pat:
+                self.logger.warning("pmd_duplicates exception ignored: missing 'file'")
+                continue
+            if not reason:
+                self.logger.warning(
+                    f"pmd_duplicates exception for '{file_pat}' ignored: missing 'reason'"
+                )
+                continue
+            dup_of = exc.get('duplicate_of')
+            if dup_of is None:
+                dup_list = []
+            elif isinstance(dup_of, str):
+                dup_list = [dup_of]
+            else:
+                dup_list = [str(d) for d in dup_of]
+            result.append({
+                'file': file_pat.replace('\\', '/'),
+                'duplicate_of': [d.replace('\\', '/') for d in dup_list],
+                'reason': reason,
+            })
+        return result
+
+    def _exception_for(self, rel_path: str, other_paths: list[str], exceptions: list[dict]) -> dict | None:
+        """Return the first exception that suppresses this occurrence, else None.
+
+        Matches both directions so a single pair-scoped entry silences both
+        occurrences of an A<->B duplication.
+        """
+        if not exceptions:
+            return None
+        for exc in exceptions:
+            file_pat = exc['file']
+            dup_of = exc['duplicate_of']
+            if self._path_matches(rel_path, file_pat) and (
+                not dup_of or any(self._matches_any(o, dup_of) for o in other_paths)
+            ):
+                return exc
+            if dup_of and self._matches_any(rel_path, dup_of) and any(
+                self._path_matches(o, file_pat) for o in other_paths
+            ):
+                return exc
+        return None
+
+    def _matches_any(self, rel_path: str, patterns: list[str]) -> bool:
+        return any(self._path_matches(rel_path, pattern) for pattern in patterns)
+
+    def _path_matches(self, rel_path: str, pattern: str) -> bool:
+        """Match a forward-slash relative path (or its basename) against a glob."""
+        name = rel_path.rsplit('/', 1)[-1]
+        return self._match_file_path(rel_path, pattern) or self._match_file_path(name, pattern)
 

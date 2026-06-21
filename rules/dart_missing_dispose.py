@@ -5,9 +5,8 @@ Uses dart-lsp-mcp for accurate type analysis.
 
 from pathlib import Path
 
-from models import LogLevel, RuleResult, Severity, Violation
+from models import RuleResult, Violation
 from rules.base import ProjectWideRule
-from rules.context import RuleContext
 from rules.dart_utils import collect_dart_files
 
 # Optional dependency: dart-lsp-mcp

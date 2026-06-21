@@ -8,7 +8,6 @@ from pathlib import Path
 
 from models import LogLevel, RuleResult, Severity, Violation
 from rules.base import ProjectWideRule
-from rules.context import RuleContext
 
 
 class RuffAnalyzeRule(ProjectWideRule):
@@ -52,8 +51,11 @@ class RuffAnalyzeRule(ProjectWideRule):
             for pattern in self.config['exclude_patterns']:
                 cmd.extend(['--exclude', pattern])
 
-        # Add base path to analyze
-        cmd.append(str(self.base_path))
+        # Add paths to analyze: changed files when filtering, else the whole base path.
+        scope = self._scope_args(('.py',), [str(self.base_path)])
+        if scope is None:
+            return self._ok([])
+        cmd += scope
 
         # Execute ruff using base utility
         try:

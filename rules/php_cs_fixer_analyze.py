@@ -1,12 +1,11 @@
 """PHP-CS-Fixer analyze rule for PHP code style checking"""
 
-import csv
-import json
 import re
 from pathlib import Path
 
-from models import RuleResult, Severity, Violation
+from models import RuleResult
 from rules.base import ProjectWideRule
+from rules.php_cs_fixer_report import parse_fixer_json, write_fixer_csv
 
 # Default paths to exclude if none specified
 DEFAULT_EXCLUDE_PATHS = ['vendor', '.git']
@@ -219,7 +218,7 @@ return (new PhpCsFixer\\Config())
                     for line in stderr_lines[:5]:  # Show first few lines of progress
                         self.logger.info(f"  {line}")
 
-            violations = self._parse_fixer_json(output)
+            violations = parse_fixer_json(output, self._get_relative_path, self.logger)
             violations = self._filter_violations_by_log_level(violations)
 
             if self.max_errors and len(violations) > self.max_errors:
@@ -232,7 +231,7 @@ return (new PhpCsFixer\\Config())
 
             if self.output_folder and violations:
                 output_file = self.output_folder / 'php_cs_fixer.csv'
-                self._write_csv_output(output_file, output)
+                write_fixer_csv(output_file, output, self.max_errors, self._get_relative_path, self.logger)
 
             return self._ok(violations)
 
@@ -243,104 +242,3 @@ return (new PhpCsFixer\\Config())
         except Exception as e:
             self.logger.error(f"Error running PHP-CS-Fixer check: {e}")
             return self._failed(f"error running PHP-CS-Fixer check: {e}")
-
-    def _parse_fixer_json(self, output: str) -> list[Violation]:
-        """Parse PHP-CS-Fixer JSON output into violations.
-
-        PHP-CS-Fixer JSON format:
-        {
-            "files": [
-                {
-                    "name": "path/to/file.php",
-                    "appliedFixers": ["braces", "indentation_type", ...]
-                }
-            ]
-        }
-        """
-        violations = []
-
-        if not output or not output.strip():
-            return violations
-
-        try:
-            data = json.loads(output)
-            files = data.get('files', [])
-
-            for file_info in files:
-                file_path = file_info.get('name', 'unknown')
-                fixers = file_info.get('appliedFixers', [])
-
-                try:
-                    rel_path = self._get_relative_path(Path(file_path))
-                except Exception:
-                    rel_path = file_path
-
-                # Create one violation per file listing all fixers that would be applied
-                if fixers:
-                    fixer_list = ', '.join(fixers)
-                    message = f"Code style issues found. Would apply fixers: {fixer_list}"
-
-                    violation = Violation(
-                        file_path=rel_path,
-                        rule_name='php_cs_fixer',
-                        severity=Severity.WARNING,
-                        message=message
-                    )
-                    violations.append(violation)
-
-        except json.JSONDecodeError as e:
-            self.logger.error(f"Error parsing PHP-CS-Fixer JSON output: {e}")
-            self.logger.error(f"Output was: {output[:200]}...")
-        except Exception as e:
-            self.logger.error(f"Error processing PHP-CS-Fixer results: {e}")
-
-        return violations
-
-    def _write_csv_output(self, output_file: Path, json_content: str):
-        """Write PHP-CS-Fixer results to CSV file."""
-        try:
-            data = json.loads(json_content)
-            files = data.get('files', [])
-
-            if not files:
-                return
-
-            all_violations = []
-
-            for file_info in files:
-                file_path = file_info.get('name', 'unknown')
-                fixers = file_info.get('appliedFixers', [])
-
-                try:
-                    rel_path = self._get_relative_path(Path(file_path))
-                except Exception:
-                    rel_path = file_path
-
-                if fixers:
-                    all_violations.append({
-                        'file': rel_path,
-                        'severity': 'warning',
-                        'fixers': ', '.join(fixers),
-                        'fixer_count': len(fixers)
-                    })
-
-            # Apply max_errors limit
-            if self.max_errors and len(all_violations) > self.max_errors:
-                all_violations = all_violations[:self.max_errors]
-
-            if not all_violations:
-                return
-
-            with open(output_file, 'w', encoding='utf-8', newline='') as f:
-                writer = csv.writer(f)
-                writer.writerow(['file', 'severity', 'fixers', 'fixer_count'])
-
-                for v in all_violations:
-                    writer.writerow([v['file'], v['severity'], v['fixers'], v['fixer_count']])
-
-            self.logger.info(f"PHP-CS-Fixer report saved to: {output_file}")
-
-        except json.JSONDecodeError as e:
-            self.logger.error(f"Error parsing JSON for CSV output: {e}")
-        except Exception as e:
-            self.logger.error(f"Error writing PHP-CS-Fixer CSV file: {e}")

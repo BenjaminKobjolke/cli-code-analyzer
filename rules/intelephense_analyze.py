@@ -3,9 +3,8 @@
 import csv
 from pathlib import Path
 
-from models import LogLevel, RuleResult, Severity, Violation
+from models import RuleResult, Severity, Violation
 from rules.base import ProjectWideRule
-from rules.context import RuleContext
 
 
 class IntelephenseAnalyzeRule(ProjectWideRule):

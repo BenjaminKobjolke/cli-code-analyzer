@@ -44,6 +44,7 @@ The PMD Duplicates analyzer detects copy-paste code (duplicate code blocks) acro
 | `enabled` | boolean | true | Enable/disable this analyzer |
 | `minimum_tokens` | integer | 100 | Minimum token count for duplicate detection |
 | `exclude_patterns` | object/array | {} | Exclusion patterns (per-language or global) |
+| `exceptions` | array | [] | Per-pair / per-file suppression of known, accepted duplicates (with a required reason) |
 
 ### Minimum Tokens
 
@@ -71,6 +72,52 @@ Patterns can be configured per-language or globally:
 {
   "exclude_patterns": ["**/generated/**", "**/vendor/**"]
 }
+```
+
+### Exceptions
+
+Use `exceptions` to suppress a **specific, known** duplication that you have reviewed and
+accepted (e.g. data-model classes that naturally share column declarations, or thin CRUD
+boilerplate) — while keeping duplicate detection active for everything else. This is the
+duplicate-code counterpart to `max_lines_per_file`'s `exceptions`.
+
+Prefer `exceptions` over `exclude_patterns` when you want to keep a file under detection: an
+exception silences only the **named pair**, so a brand new duplication involving that file
+(against some other file) is still reported. `exclude_patterns` removes the file from CPD
+entirely.
+
+```json
+{
+  "pmd_duplicates": {
+    "enabled": true,
+    "minimum_tokens": 100,
+    "exceptions": [
+      {
+        "file": "src/Entity/InvoiceTemplate.php",
+        "duplicate_of": "src/Entity/OfferingTemplate.php",
+        "reason": "Cycle ORM data models — shared builder_config column block, intentionally parallel"
+      },
+      {
+        "file": "src/Controller/Bank*Controller.php",
+        "reason": "Thin CRUD controller boilerplate (file-level)"
+      }
+    ]
+  }
+}
+```
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `file` | yes | Glob / exact / ends-with pattern for the file (matched against the project-relative path and its basename) |
+| `duplicate_of` | no | Glob, or list of globs, for the partner file(s). Makes the exception **pair-scoped** and **symmetric** — one entry silences both sides of an A↔B duplication. Omit for **file-level** suppression (any duplication involving `file`) |
+| `reason` | yes | Why the duplicate is accepted. Surfaced in a suppression summary line. Entries without a reason are **ignored** (with a warning) so suppression is never silent or undocumented |
+
+When duplicates are suppressed, the console prints a summary, e.g.:
+
+```
+Suppressed 4 duplicate finding(s) via exceptions (2 reason(s)):
+  - Cycle ORM data models — shared builder_config column block, intentionally parallel
+  - Thin CRUD controller boilerplate (file-level)
 ```
 
 ### Default Exclusions

@@ -10,18 +10,15 @@ without sharing runtime state with pyscn_analyze or python_test_coverage.
 """
 
 import json
-import shutil
-from fnmatch import fnmatch
 from pathlib import Path
-from typing import Any
 
-from models import LogLevel, RuleResult, Severity, Violation
-from rules._crap import coverage_ratio, crap_score
+from models import RuleResult
+from rules._crap import CrapScoreMixin
 from rules.base import ProjectWideRule
-from rules.context import RuleContext
+from rules.python_coverage_io import run_tests_with_coverage
 
 
-class PythonCrapScoreRule(ProjectWideRule):
+class PythonCrapScoreRule(CrapScoreMixin, ProjectWideRule):
     """Per-function CRAP score for Python projects."""
 
     rule_name = 'python_crap_score'
@@ -47,7 +44,9 @@ class PythonCrapScoreRule(ProjectWideRule):
         if coverage_by_file is None:
             return self._failed("coverage data unavailable")
 
-        violations = self._build_violations(functions_by_file, coverage_by_file)
+        exclude_patterns = self.config.get('exclude_patterns',
+                                           ['**/__pycache__/**', '*.pyc', '**/.venv/**', '**/venv/**'])
+        violations = self._build_function_violations(functions_by_file, coverage_by_file, exclude_patterns)
         violations = self._filter_violations_by_log_level(violations)
 
         if violations:
@@ -160,128 +159,4 @@ class PythonCrapScoreRule(ProjectWideRule):
         return coverage_by_file
 
     def _run_tests_with_coverage(self, coverage_json: Path) -> bool:
-        timeout = self.config.get('test_timeout', 600)
-        run_cmd = self.config.get('run_command') or ['python', '-m', 'coverage', 'run', '-m', 'pytest']
-        json_cmd = self.config.get('json_command') or ['python', '-m', 'coverage', 'json', '-o', str(coverage_json)]
-
-        if not shutil.which(run_cmd[0]):
-            self.logger.warning(f"Warning: '{run_cmd[0]}' not in PATH; install with: pip install coverage pytest")
-            return False
-
-        self.logger.info(f"Running: {' '.join(run_cmd)} (this may take a while)...")
-        try:
-            run_result = self._run_subprocess(run_cmd, self.base_path, timeout=timeout)
-            if run_result.returncode != 0 and run_result.stderr:
-                self.logger.info(f"Coverage run stderr: {run_result.stderr.strip()[:500]}")
-        except Exception as e:
-            self.logger.error(f"Error running coverage: {e}")
-            return False
-
-        try:
-            json_result = self._run_subprocess(json_cmd, self.base_path, timeout=timeout)
-            if json_result.returncode != 0:
-                if json_result.stderr:
-                    self.logger.warning(f"coverage json stderr: {json_result.stderr.strip()[:500]}")
-                return False
-            return True
-        except Exception as e:
-            self.logger.error(f"Error exporting coverage JSON: {e}")
-            return False
-
-    # ----- Violations -------------------------------------------------------------
-
-    def _build_violations(self, functions_by_file: dict[str, list[dict]],
-                          coverage_by_file: dict[str, dict[int, int]]) -> list[Violation]:
-        violations: list[Violation] = []
-        exclude_patterns = self.config.get('exclude_patterns',
-                                           ['**/__pycache__/**', '*.pyc', '**/.venv/**', '**/venv/**'])
-
-        for file_abs, funcs in functions_by_file.items():
-            rel_path = self._get_relative_path(Path(file_abs))
-            if self._is_excluded(rel_path, exclude_patterns):
-                continue
-            line_hits = self._lookup_coverage(file_abs, coverage_by_file)
-            if not line_hits:
-                continue
-            for fn in funcs:
-                total, covered = self._count_function_coverage(fn['first_line'], fn['last_line'], line_hits)
-                if total == 0:
-                    continue
-                crap = crap_score(fn['complexity'], covered, total)
-                v = self._maybe_emit(rel_path, Path(file_abs), fn['name'], fn['first_line'],
-                                     fn['complexity'], covered, total, crap)
-                if v is not None:
-                    violations.append(v)
-        return violations
-
-    def _lookup_coverage(self, file_abs: str,
-                         coverage_by_file: dict[str, dict[int, int]]) -> dict[int, int]:
-        if file_abs in coverage_by_file:
-            return coverage_by_file[file_abs]
-        rel = self._get_relative_path(Path(file_abs)).replace('\\', '/')
-        for key, lines in coverage_by_file.items():
-            keyn = key.replace('\\', '/')
-            if keyn.endswith('/' + rel) or rel.endswith('/' + keyn):
-                return lines
-        return {}
-
-    @staticmethod
-    def _count_function_coverage(first_line: int, last_line: int,
-                                 line_hits: dict[int, int]) -> tuple[int, int]:
-        total = 0
-        covered = 0
-        for ln in range(first_line, last_line + 1):
-            if ln in line_hits:
-                total += 1
-                if line_hits[ln] > 0:
-                    covered += 1
-        return total, covered
-
-    @staticmethod
-    def _is_excluded(rel_path: str, patterns: list[str]) -> bool:
-        rel_norm = rel_path.replace('\\', '/')
-        for pat in patterns:
-            if fnmatch(rel_norm, pat) or fnmatch(Path(rel_norm).name, pat):
-                return True
-        return False
-
-    def _maybe_emit(self, rel_path: str, file_abs: Path, name: str, line: int,
-                    complexity: float, covered: int, total: int, crap: float) -> Violation | None:
-        thresholds = self._get_threshold_for_file(file_abs, self.config)
-        warn_t = thresholds.get('warning')
-        err_t = thresholds.get('error')
-
-        severity: Severity | None = None
-        if err_t is not None and crap >= err_t:
-            severity = Severity.ERROR
-        elif warn_t is not None and crap >= warn_t:
-            severity = Severity.WARNING
-        if severity is None:
-            return None
-
-        cov_pct = coverage_ratio(covered, total) * 100
-        cc_disp = int(complexity) if float(complexity).is_integer() else complexity
-        return Violation(
-            file_path=rel_path,
-            rule_name='python_crap_score',
-            severity=severity,
-            message=f"CRAP={crap:.1f} (complexity={cc_disp}, coverage={cov_pct:.0f}%) in '{name}' (line {line})",
-            line=line,
-        )
-
-    def _write_csv(self, output_file: Path, violations: list[Violation]) -> None:
-        import re
-        pattern = re.compile(r"^CRAP=([\d.]+) \(complexity=([\d.]+), coverage=(\d+)%\) in '([^']*)' \(line (\d+)\)$")
-
-        def row_mapper(v: Violation) -> list[Any]:
-            m = pattern.match(v.message)
-            if not m:
-                return [v.file_path, v.line or '', '', '', '', '', v.severity.value]
-            crap, cc, cov_pct, name, line = m.groups()
-            return [v.file_path, line, name, cc, f"{cov_pct}%", crap, v.severity.value]
-
-        self._write_violations_csv(
-            output_file, violations,
-            headers=['file', 'line', 'function', 'complexity', 'coverage', 'crap', 'severity'],
-            row_mapper=row_mapper,
-        )
+        return run_tests_with_coverage(self, coverage_json)

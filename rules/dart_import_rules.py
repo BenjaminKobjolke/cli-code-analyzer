@@ -2,17 +2,16 @@
 Dart import rules analyzer - enforces architecture layer boundaries via configurable forbidden import rules.
 """
 
+import contextlib
 from fnmatch import fnmatch
 from pathlib import Path
 
-from models import LogLevel, RuleResult, Severity, Violation
+from models import RuleResult, Violation
 from rules.base import ProjectWideRule
-from rules.context import RuleContext
 from rules.dart_utils import (
     collect_dart_files,
     get_package_name,
     parse_imports,
-    resolve_package_import,
     resolve_relative_import,
 )
 
@@ -86,17 +85,15 @@ class DartImportRulesRule(ProjectWideRule):
                     elif not uri.startswith('dart:') and not uri.startswith('package:'):
                         resolved = resolve_relative_import(uri, dart_file)
                         if resolved:
-                            try:
+                            with contextlib.suppress(ValueError):
                                 import_rel_path = str(resolved.relative_to(analyze_dir.resolve())).replace('\\', '/')
-                            except ValueError:
-                                pass
 
                     # Check against forbidden patterns
                     for pattern in cannot_import:
                         matched = False
-                        if import_rel_path and fnmatch(import_rel_path, pattern):
-                            matched = True
-                        elif uri.startswith('package:') and fnmatch(uri, pattern):
+                        if (import_rel_path and fnmatch(import_rel_path, pattern)) or (
+                            uri.startswith('package:') and fnmatch(uri, pattern)
+                        ):
                             matched = True
 
                         if matched:

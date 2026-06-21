@@ -4,9 +4,8 @@ Dart unused code analyzer - finds unused classes, functions, enums, etc. using d
 
 from pathlib import Path
 
-from models import LogLevel, RuleResult, Severity, Violation
+from models import RuleResult, Violation
 from rules.base import ProjectWideRule
-from rules.context import RuleContext
 from rules.dart_utils import collect_dart_files
 
 # Optional dependency: dart-lsp-mcp
@@ -43,7 +42,6 @@ class DartUnusedCodeRule(ProjectWideRule):
 
         exclude_patterns = self.config.get('exclude_patterns', ['*.g.dart', '*.freezed.dart'])
         ignore_names = set(self.config.get('ignore_names', ['main', 'build']))
-        scan_test_refs = self.config.get('scan_test_references', True)
         severity_str = self.config.get('severity', 'warning')
         severity = self._map_severity(severity_str)
 

@@ -4,9 +4,8 @@ import csv
 import json
 from pathlib import Path
 
-from models import LogLevel, RuleResult, Severity, Violation
+from models import RuleResult, Severity, Violation
 from rules.base import ProjectWideRule
-from rules.context import RuleContext
 
 
 class PHPStanAnalyzeRule(ProjectWideRule):
@@ -54,11 +53,14 @@ class PHPStanAnalyzeRule(ProjectWideRule):
                     pattern = pattern.replace('/**', '').replace('**/', '')
                 cmd.extend(['--exclude', pattern])
 
-        # Add path to analyze
+        # Add path to analyze: changed files when filtering, else the configured analyze_path.
         analyze_path = self.config.get('analyze_path', str(self.base_path))
         if not Path(analyze_path).is_absolute():
             analyze_path = str(self.base_path / analyze_path)
-        cmd.append(analyze_path)
+        scope = self._scope_args(('.php',), [analyze_path])
+        if scope is None:
+            return self._ok([])
+        cmd += scope
 
         try:
             result = self._run_subprocess(cmd, self.base_path)
@@ -99,7 +101,7 @@ class PHPStanAnalyzeRule(ProjectWideRule):
 
         return self._ok(violations)
 
-    def _map_phpstan_severity(self, level: str | int) -> Severity:
+    def _map_phpstan_severity(self, _level: str | int) -> Severity:
         """Map PHPStan error level to severity."""
         # PHPStan doesn't have explicit severity levels in output,
         # but we can use the configured analysis level as a hint
