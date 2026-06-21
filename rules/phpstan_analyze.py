@@ -31,7 +31,7 @@ class PHPStanAnalyzeRule(ProjectWideRule):
         # First check bundled php/vendor/bin folder
         phpstan_path = self._get_bundled_phpstan_path()
         if not phpstan_path:
-            phpstan_path = self._get_tool_path('phpstan', self.settings.get_phpstan_path, self.settings.prompt_and_save_phpstan_path)
+            phpstan_path = self._get_tool_path('phpstan')
         if not phpstan_path:
             return self._failed("PHPStan executable not found")
 

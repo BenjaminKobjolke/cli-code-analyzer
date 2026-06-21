@@ -18,7 +18,7 @@ class SvelteCheckRule(ProjectWideRule):
     def _run(self, _file_path: Path) -> RuleResult:
         self.logger.info("Running svelte-check...")
 
-        svelte_check_path = self._get_tool_path('svelte-check', self.settings.get_svelte_check_path, self.settings.prompt_and_save_svelte_check_path)
+        svelte_check_path = self._get_tool_path('svelte-check', 'svelte_check')
         if not svelte_check_path:
             return self._failed("svelte-check executable not found")
 

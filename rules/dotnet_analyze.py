@@ -25,8 +25,7 @@ class DotnetAnalyzeRule(ProjectWideRule):
         self.logger.info("\nRunning dotnet build analysis...")
 
         # Get dotnet path using base utility
-        dotnet_path = self._get_tool_path('dotnet', self.settings.get_dotnet_path,
-                                           self.settings.prompt_and_save_dotnet_path)
+        dotnet_path = self._get_tool_path('dotnet')
         if not dotnet_path:
             return self._failed("dotnet executable not found")
 

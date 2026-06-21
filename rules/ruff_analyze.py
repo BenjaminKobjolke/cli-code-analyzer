@@ -19,7 +19,7 @@ class RuffAnalyzeRule(ProjectWideRule):
         self.logger.info("\nRunning ruff check...")
 
         # Get ruff path using base utility
-        ruff_path = self._get_tool_path('ruff', self.settings.get_ruff_path, self.settings.prompt_and_save_ruff_path)
+        ruff_path = self._get_tool_path('ruff')
         if not ruff_path:
             return self._failed("Ruff executable not found")
 

@@ -147,7 +147,7 @@ class DartCrapIOMixin:
         return lcov_file
 
     def _run_flutter_coverage(self) -> bool:
-        flutter_cmd = self._get_flutter_command(self.settings.get_flutter_path, self.settings.prompt_and_save_flutter_path)
+        flutter_cmd = self._get_flutter_command()
         if not flutter_cmd:
             return False
         timeout = self.config.get('test_timeout', 600)

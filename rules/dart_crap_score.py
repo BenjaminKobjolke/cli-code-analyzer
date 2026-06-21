@@ -43,7 +43,7 @@ class DartCrapScoreRule(CrapScoreMixin, DartCrapIOMixin, ProjectWideRule):
             self.logger.warning("Warning: pubspec.yaml not found, skipping dart_crap_score")
             return self._skipped("pubspec.yaml not found")
 
-        dart_cmd = self._get_dart_command(self.settings.get_dart_path, self.settings.prompt_and_save_dart_path)
+        dart_cmd = self._get_dart_command()
         if not dart_cmd:
             return self._failed("dart executable not found")
 

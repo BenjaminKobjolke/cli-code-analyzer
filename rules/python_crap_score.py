@@ -28,11 +28,7 @@ class PythonCrapScoreRule(CrapScoreMixin, ProjectWideRule):
 
         # Resolve pyscn up front so a missing tool reports FAILED rather than
         # being collapsed into the "no functions" skip path below.
-        pyscn_path = self._get_tool_path(
-            'pyscn',
-            self.settings.get_pyscn_path,
-            self.settings.prompt_and_save_pyscn_path,
-        )
+        pyscn_path = self._get_tool_path('pyscn')
         if not pyscn_path:
             return self._failed("pyscn executable not found")
 

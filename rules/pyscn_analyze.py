@@ -34,11 +34,7 @@ class PyscnAnalyzeRule(ProjectWideRule):
     def _run(self, _file_path: Path) -> RuleResult:
         self.logger.info("\nRunning pyscn analyze...")
 
-        pyscn_path = self._get_tool_path(
-            'pyscn',
-            self.settings.get_pyscn_path,
-            self.settings.prompt_and_save_pyscn_path,
-        )
+        pyscn_path = self._get_tool_path('pyscn')
         if not pyscn_path:
             return self._failed("pyscn executable not found")
 

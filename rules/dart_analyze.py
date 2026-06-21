@@ -19,7 +19,7 @@ class DartAnalyzeRule(ProjectWideRule):
         self.logger.info("\nRunning dart analyze...")
 
         # Get dart command using FVM-aware utility
-        dart_cmd = self._get_dart_command(self.settings.get_dart_path, self.settings.prompt_and_save_dart_path)
+        dart_cmd = self._get_dart_command()
         if not dart_cmd:
             return self._failed("Dart executable not found")
 

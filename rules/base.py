@@ -177,8 +177,13 @@ class BaseRule(FilterScopeMixin, ABC):
             stdin=subprocess.DEVNULL, timeout=timeout
         )
 
-    def _get_tool_path(self, tool_name: str, get_method: Callable, prompt_method: Callable) -> str | None:
-        """Get tool path from PATH, local node_modules, settings, or prompt user."""
+    def _get_tool_path(self, tool_name: str, settings_name: str | None = None) -> str | None:
+        """Get tool path from PATH, local node_modules, settings, or prompt user.
+
+        `tool_name` is the executable name (PATH/node_modules lookup). `settings_name`
+        is the Settings key; defaults to `tool_name` when they match (most tools).
+        """
+        settings_name = settings_name or tool_name
         tool_in_path = shutil.which(tool_name)
         if tool_in_path:
             return tool_in_path
@@ -190,9 +195,9 @@ class BaseRule(FilterScopeMixin, ABC):
                 if local_bin.exists():
                     return str(local_bin)
 
-        tool_path = get_method()
+        tool_path = self.settings.get_path(settings_name)
         if not tool_path:
-            tool_path = prompt_method()
+            tool_path = self.settings.prompt_and_save(settings_name)
             if not tool_path:
                 return None
 
@@ -225,18 +230,18 @@ class BaseRule(FilterScopeMixin, ABC):
             return False
         return (project_root / '.fvmrc').exists() or (project_root / '.fvm').is_dir()
 
-    def _get_flutter_command(self, settings_getter: Callable, settings_prompter: Callable) -> list[str]:
+    def _get_flutter_command(self) -> list[str]:
         """Get flutter command, using FVM prefix if detected."""
         if self._is_fvm_project() and shutil.which('fvm'):
             return ['fvm', 'flutter']
-        path = self._get_tool_path('flutter', settings_getter, settings_prompter)
+        path = self._get_tool_path('flutter')
         return [path] if path else []
 
-    def _get_dart_command(self, settings_getter: Callable, settings_prompter: Callable) -> list[str]:
+    def _get_dart_command(self) -> list[str]:
         """Get dart command, using FVM prefix if detected."""
         if self._is_fvm_project() and shutil.which('fvm'):
             return ['fvm', 'dart']
-        path = self._get_tool_path('dart', settings_getter, settings_prompter)
+        path = self._get_tool_path('dart')
         return [path] if path else []
 
     def _write_violations_csv(self, output_file: Path, violations: list[Violation],

@@ -18,7 +18,7 @@ class TscAnalyzeRule(ProjectWideRule):
     def _run(self, _file_path: Path) -> RuleResult:
         self.logger.info("Running tsc type checking...")
 
-        tsc_path = self._get_tool_path('tsc', self.settings.get_tsc_path, self.settings.prompt_and_save_tsc_path)
+        tsc_path = self._get_tool_path('tsc')
         if not tsc_path:
             return self._failed("tsc executable not found")
 

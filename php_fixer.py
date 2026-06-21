@@ -51,12 +51,12 @@ def get_php_cs_fixer_path(logger: Logger) -> str | None:
             return str(vendor_fixer)
 
     settings = Settings(logger=logger)
-    fixer_path = settings.get_php_cs_fixer_path()
+    fixer_path = settings.get_path("php_cs_fixer")
     if fixer_path and Path(fixer_path).exists():
         return fixer_path
 
     if sys.stdin.isatty():
-        return settings.prompt_and_save_php_cs_fixer_path()
+        return settings.prompt_and_save("php_cs_fixer")
 
     logger.error("Error: PHP-CS-Fixer not found. Please install with: composer require --dev friendsofphp/php-cs-fixer")
     return None
@@ -120,11 +120,11 @@ def run_php_cs_fixer(path: str, fixer_config: dict, logger: Logger, dry_run: boo
             cwd=path,
         )
 
-        # External tool output forwarded verbatim — keep as print, not logger.
+        # Forward the fixer's output through the logger (single off switch).
         if result.stdout:
-            print(result.stdout)
+            logger.info(result.stdout)
         if result.stderr:
-            print(result.stderr)
+            logger.error(result.stderr)
 
         output = result.stdout or ''
         file_count = len(re.findall(r'^\s*\d+\)', output, re.MULTILINE))

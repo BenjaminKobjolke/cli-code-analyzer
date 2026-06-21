@@ -110,7 +110,7 @@ class DartTestCoverageRule(ProjectWideRule):
         """Run flutter test --coverage."""
         self.logger.info("Running flutter test --coverage (this may take a while)...")
 
-        flutter_cmd = self._get_flutter_command(self.settings.get_flutter_path, self.settings.prompt_and_save_flutter_path)
+        flutter_cmd = self._get_flutter_command()
         if not flutter_cmd:
             return False
 

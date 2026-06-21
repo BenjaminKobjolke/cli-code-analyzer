@@ -30,7 +30,7 @@ class FlutterAnalyzeRule(ProjectWideRule):
             self.logger.info("Not a Flutter project (no flutter dependency in pubspec.yaml)")
             return self._skipped("not a Flutter project (no flutter dependency in pubspec.yaml)")
 
-        flutter_cmd = self._get_flutter_command(self.settings.get_flutter_path, self.settings.prompt_and_save_flutter_path)
+        flutter_cmd = self._get_flutter_command()
         if not flutter_cmd:
             return self._failed("Flutter executable not found")
 

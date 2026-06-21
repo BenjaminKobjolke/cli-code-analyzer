@@ -34,7 +34,7 @@ class ESLintAnalyzeRule(ProjectWideRule):
                 self.logger.info("\nSkipping ESLint analysis.")
                 return self._skipped("ESLint is not installed in this Node.js project")
             # Not a Node.js project — try global/settings path
-            eslint_path = self._get_tool_path('eslint', self.settings.get_eslint_path, self.settings.prompt_and_save_eslint_path)
+            eslint_path = self._get_tool_path('eslint')
         if not eslint_path:
             return self._failed("ESLint executable not found")
 

@@ -30,7 +30,7 @@ def _pmd_available() -> bool:
     if shutil.which("pmd"):
         return True
     from settings import Settings
-    p = Settings().get_pmd_path()
+    p = Settings().get_path("pmd")
     if not p:
         return False
     pp = Path(p)

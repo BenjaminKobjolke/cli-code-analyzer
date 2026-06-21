@@ -157,7 +157,7 @@ return (new PhpCsFixer\\Config())
         # First check bundled php/vendor/bin folder
         fixer_path = self._get_bundled_fixer_path()
         if not fixer_path:
-            fixer_path = self._get_tool_path('php-cs-fixer', self.settings.get_php_cs_fixer_path, self.settings.prompt_and_save_php_cs_fixer_path)
+            fixer_path = self._get_tool_path('php-cs-fixer', 'php_cs_fixer')
         if not fixer_path:
             return self._failed("PHP-CS-Fixer executable not found")
 

@@ -124,6 +124,7 @@ def main():
     # Import analysis modules (deferred to avoid loading when using --list-analyzers)
     from analyzer import AnalyzerConfig, CodeAnalyzer
     from models import LogLevel, OutputLevel
+    from report_config import ReportConfig
     from reporter import Reporter
     from violation_cache import ViolationCache
 
@@ -178,15 +179,15 @@ def main():
         all_violations = cache.load_for_files(filter_files)
 
         reporter_log_level = resolve_reporter_log_level(cli_log_level, args.rules)
-        reporter = Reporter(
-            all_violations,
-            0,
-            output_level,
-            reporter_log_level,
-            output_folder,
-            args.maxamountoferrors,
+        reporter = Reporter(ReportConfig(
+            violations=all_violations,
+            file_count=0,
+            output_level=output_level,
+            log_level=reporter_log_level,
+            output_folder=output_folder,
+            max_errors=args.maxamountoferrors,
             logger=logger,
-        )
+        ))
         if args.format == 'json':
             has_errors = reporter.report_json()
         else:
@@ -251,16 +252,16 @@ def main():
 
         # Generate report
         reporter_log_level = resolve_reporter_log_level(cli_log_level, args.rules)
-        reporter = Reporter(
-            all_violations,
-            total_file_count,
-            output_level,
-            reporter_log_level,
-            output_folder,
-            args.maxamountoferrors,
+        reporter = Reporter(ReportConfig(
+            violations=all_violations,
+            file_count=total_file_count,
+            output_level=output_level,
+            log_level=reporter_log_level,
+            output_folder=output_folder,
+            max_errors=args.maxamountoferrors,
             logger=logger,
             failures=failures,
-        )
+        ))
         if args.format == 'json':
             has_errors = reporter.report_json()
         else:

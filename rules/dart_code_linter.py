@@ -28,7 +28,7 @@ class DartCodeLinterRule(ProjectWideRule):
     def _run(self, _file_path: Path) -> RuleResult:
         self.logger.info("\nChecking dart_code_linter metrics...")
 
-        dart_cmd = self._get_dart_command(self.settings.get_dart_path, self.settings.prompt_and_save_dart_path)
+        dart_cmd = self._get_dart_command()
         if not dart_cmd:
             return self._failed("Dart executable not found")
 

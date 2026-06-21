@@ -47,12 +47,12 @@ def get_ruff_path(logger: Logger) -> str | None:
             return str(venv_ruff)
 
     settings = Settings(logger=logger)
-    ruff_path = settings.get_ruff_path()
+    ruff_path = settings.get_path("ruff")
     if ruff_path and Path(ruff_path).exists():
         return ruff_path
 
     if sys.stdin.isatty():
-        return settings.prompt_and_save_ruff_path()
+        return settings.prompt_and_save("ruff")
 
     logger.error("Error: Ruff not found. Please install with: pip install ruff")
     return None
@@ -88,11 +88,11 @@ def run_ruff_fix(path: str, ruff_config: dict, logger: Logger, dry_run: bool = F
             check=False,
         )
 
-        # External tool output forwarded verbatim — keep as print, not logger.
+        # Forward the fixer's output through the logger (single off switch).
         if result.stdout:
-            print(result.stdout)
+            logger.info(result.stdout)
         if result.stderr:
-            print(result.stderr)
+            logger.error(result.stderr)
 
         output = result.stderr or result.stdout
         if 'Found' in output and 'error' in output:

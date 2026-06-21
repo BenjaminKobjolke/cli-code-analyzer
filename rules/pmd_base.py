@@ -213,7 +213,7 @@ class PMDCpdRule(ProjectWideRule):
         """
         self.logger.info(start_message)
 
-        pmd_path = self._get_tool_path('pmd', self.settings.get_pmd_path, self.settings.prompt_and_save_pmd_path)
+        pmd_path = self._get_tool_path('pmd')
         if not pmd_path:
             return self._failed("PMD executable not found")
 
