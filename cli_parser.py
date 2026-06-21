@@ -36,8 +36,8 @@ Examples:
         nargs='+',
         help=(
             'Programming language(s) to analyze (space-separated or comma-separated). '
-            'Supported: flutter, python, php, csharp, javascript, svelte. Aliases: '
-            'typescript/ts/js -> javascript, dart -> flutter, cs -> csharp, py -> python'
+            'Supported: flutter, python, php, csharp, javascript, svelte, autohotkey. Aliases: '
+            'typescript/ts/js -> javascript, dart -> flutter, cs -> csharp, py -> python, ahk -> autohotkey'
         ),
     )
     parser.add_argument(

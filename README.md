@@ -4,9 +4,9 @@ A flexible command-line tool for analyzing code files based on configurable rule
 
 ## Features
 
-- **Multi-language support**: Supports Flutter/Dart, Python, PHP, C#, JavaScript/TypeScript, and Svelte
+- **Multi-language support**: Supports Flutter/Dart, Python, PHP, C#, JavaScript/TypeScript, Svelte, and AutoHotkey
 - **Multi-language analysis**: Analyze multiple languages in a single run via space-separated or comma-separated arguments
-- **Language aliases**: Shorthand aliases for convenience (`dart` for flutter, `ts`/`js` for javascript, `py` for python, `cs` for csharp)
+- **Language aliases**: Shorthand aliases for convenience (`dart` for flutter, `ts`/`js` for javascript, `py` for python, `cs` for csharp, `ahk` for autohotkey)
 - **Configurable rules**: Define custom rules via JSON configuration
 - **Multiple output formats**: Minimal, normal, and verbose output modes
 - **File export capability**: Save analysis reports to files for CI/CD integration
@@ -86,7 +86,7 @@ python main.py --language <language> --path <path> [options]
 
 | Argument | Short | Required | Default | Description |
 |----------|-------|----------|---------|-------------|
-| `--language` | `-l` | Yes | - | Language(s) to analyze: `flutter`, `python`, `php`, `csharp`, `javascript`, `svelte`. Supports multiple languages (space-separated or comma-separated). Aliases: `dart`, `ts`, `js`, `py`, `cs` |
+| `--language` | `-l` | Yes | - | Language(s) to analyze: `flutter`, `python`, `php`, `csharp`, `javascript`, `svelte`, `autohotkey`. Supports multiple languages (space-separated or comma-separated). Aliases: `dart`, `ts`, `js`, `py`, `cs`, `ahk` |
 | `--path` | `-p` | Yes | - | Path to the code directory (analyzes recursively) or single file to analyze |
 | `--rules` | `-r` | No | `rules.json` | Path to the rules JSON configuration file |
 | `--verbosity` | `-v` | No | `normal` | Output verbosity level: `minimal`, `normal`, or `verbose` |
@@ -1385,6 +1385,53 @@ This creates `reports/tsc_analyze.csv` with all TypeScript violations.
 
 If `tsc` is not found in your PATH, you'll be prompted to enter the path to the executable (e.g., `node_modules/.bin/tsc`). The path will be saved to `settings.ini` for future use.
 
+### AutoHotkey Validation (v1 & v2)
+
+The analyzer validates AutoHotkey scripts by running the **real AHK interpreter**
+in load-but-don't-execute mode and parsing its syntax/load errors. No standalone
+AHK linter is required. Both AutoHotkey v1 and v2 are supported, chosen per script
+(a `#Requires AutoHotkey v2` line selects v2, otherwise v1).
+
+AutoHotkey projects are `#Include`-based, so only **root** scripts (entry points
+not included by any other file) are validated; validating a root pulls in its whole
+include tree and errors map back to the correct sub-file. Scripts are never executed
+(no GUI / app launch).
+
+#### Enabling AutoHotkey Validation
+
+```json
+{
+  "autohotkey_analyze": {
+    "enabled": true
+  }
+}
+```
+
+#### Using AutoHotkey Validation
+
+```bash
+python main.py --language autohotkey --path ./src
+python main.py --language ahk --path ./src --output reports/
+```
+
+This creates `reports/autohotkey_analyze.csv` with any syntax/load errors.
+
+#### First-Time Setup
+
+AutoHotkey is not on PATH by default, so on first run you are prompted for the
+interpreter path(s), saved to `settings.ini`:
+
+```ini
+[autohotkey]
+autohotkey_v2_path = C:\Program Files\AutoHotkey\v2\AutoHotkey64.exe
+autohotkey_v1_path = C:\Program Files\AutoHotkey\AutoHotkeyU64.exe
+```
+
+Only the version(s) your scripts use are required. If a needed interpreter is not
+configured, validation for those scripts is skipped (not a failure). See
+[docs/analyzers/autohotkey_analyze.md](docs/analyzers/autohotkey_analyze.md) and
+[docs/setup/AUTOHOTKEY.md](docs/setup/AUTOHOTKEY.md) for details.
+
 ## Project Structure
 
 ```
@@ -1401,6 +1448,7 @@ cli-code-analyzer/
 │   ├── __init__.py            # Rules module
 │   ├── base.py                # Base rule class
 │   ├── max_lines.py           # Max lines per file rule
+│   ├── autohotkey_analyze.py  # AutoHotkey syntax/load validation rule (v1/v2)
 │   ├── pmd_duplicates.py      # PMD duplicate code detection rule
 │   ├── pmd_similar_code.py    # PMD similar code detection rule
 │   ├── dart_analyze.py        # Dart static analysis rule

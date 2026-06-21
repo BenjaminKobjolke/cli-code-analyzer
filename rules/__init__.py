@@ -2,6 +2,7 @@
 Rules module
 """
 
+from rules.autohotkey_analyze import AutoHotkeyAnalyzeRule
 from rules.base import BaseRule, ProjectWideRule
 from rules.dart_analyze import DartAnalyzeRule
 from rules.dart_code_linter import DartCodeLinterRule
@@ -31,6 +32,7 @@ from rules.tsc_analyze import TscAnalyzeRule
 __all__ = [
     'BaseRule',
     'ProjectWideRule',
+    'AutoHotkeyAnalyzeRule',
     'DartAnalyzeRule',
     'DartCodeLinterRule',
     'DartCrapScoreRule',

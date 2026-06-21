@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-CLI Code Analyzer is a multi-language command-line tool that analyzes code quality using configurable rules. It supports Flutter/Dart, Python, JavaScript/TypeScript, Svelte, PHP, and C#. Optimized for ensuring quality of AI-generated code.
+CLI Code Analyzer is a multi-language command-line tool that analyzes code quality using configurable rules. It supports Flutter/Dart, Python, JavaScript/TypeScript, Svelte, PHP, C#, and AutoHotkey. Optimized for ensuring quality of AI-generated code.
 
 ## Running the Tool
 
@@ -45,7 +45,7 @@ python main.py --language python --path ./src --output ./reports --file src/app.
 python main.py --language flutter --path ./lib --only-changed --rules rules.json
 ```
 
-**Arguments:** `-l`/`--language` (flutter|python|php|csharp|javascript|svelte; supports multiple), `-p`/`--path`, `-F`/`--file` (filter violations to single file; defaults max errors to 5; suppresses progress output), `--only-changed` (filter to files new/modified in git vs HEAD; includes untracked, skips deletes; mutually exclusive with `--file`; defaults max errors to 5), `-r`/`--rules` (default: rules.json), `-v`/`--verbosity` (minimal|normal|verbose), `-o`/`--output` (folder for CSV; previous reports are auto-cleaned), `-L`/`--loglevel` (error|warning|all), `-m`/`--maxamountoferrors`, `-f`/`--list-files` (show analyzed file paths), `-a`/`--list-analyzers`, `--format` (text|json; default: text), `--build-cache` (build violation cache in output folder; requires --output), `--cache-max-age` (cache staleness in minutes; default: 60)
+**Arguments:** `-l`/`--language` (flutter|python|php|csharp|javascript|svelte|autohotkey; supports multiple), `-p`/`--path`, `-F`/`--file` (filter violations to single file; defaults max errors to 5; suppresses progress output), `--only-changed` (filter to files new/modified in git vs HEAD; includes untracked, skips deletes; mutually exclusive with `--file`; defaults max errors to 5), `-r`/`--rules` (default: rules.json), `-v`/`--verbosity` (minimal|normal|verbose), `-o`/`--output` (folder for CSV; previous reports are auto-cleaned), `-L`/`--loglevel` (error|warning|all), `-m`/`--maxamountoferrors`, `-f`/`--list-files` (show analyzed file paths), `-a`/`--list-analyzers`, `--format` (text|json; default: text), `--build-cache` (build violation cache in output folder; requires --output), `--cache-max-age` (cache staleness in minutes; default: 60)
 
 **Exit codes:** 0 = no errors, 1 = errors found or failure.
 

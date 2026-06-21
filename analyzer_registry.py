@@ -3,7 +3,7 @@ Centralized registry of available analyzers per language.
 """
 
 import json
-from typing import List, Tuple, Optional
+from typing import Optional
 
 from logger import Logger
 
@@ -63,6 +63,10 @@ ANALYZER_REGISTRY = {
         ('eslint_analyze', 'Linting and style', 'ESLint (npm) + eslint-plugin-svelte'),
         ('svelte_check', 'TypeScript/Svelte type checking', 'svelte-check (npm)'),
     ],
+    'autohotkey': [
+        ('max_lines_per_file', 'File length checks', None),
+        ('autohotkey_analyze', 'Syntax/load validation (AHK v1/v2)', 'AutoHotkey'),
+    ],
 }
 
 # Shorthand and alternative language names that map to canonical names above
@@ -73,10 +77,11 @@ LANGUAGE_ALIASES = {
     'dart': 'flutter',
     'cs': 'csharp',
     'py': 'python',
+    'ahk': 'autohotkey',
 }
 
 
-def get_analyzers_for_language(lang: str) -> List[Tuple[str, str, Optional[str]]]:
+def get_analyzers_for_language(lang: str) -> list[tuple[str, str, Optional[str]]]:
     """
     Get the list of available analyzers for a language.
 
@@ -89,7 +94,7 @@ def get_analyzers_for_language(lang: str) -> List[Tuple[str, str, Optional[str]]
     return ANALYZER_REGISTRY.get(lang.lower(), [])
 
 
-def get_supported_languages() -> List[str]:
+def get_supported_languages() -> list[str]:
     """
     Get list of supported language names.
 
@@ -153,7 +158,7 @@ def format_analyzers_output(lang: str, output_format: str = 'text') -> str:
     return '\n'.join(lines)
 
 
-def _format_analyzer_list(analyzers: List[Tuple[str, str, Optional[str]]]) -> List[str]:
+def _format_analyzer_list(analyzers: list[tuple[str, str, Optional[str]]]) -> list[str]:
     """Format a list of analyzers as aligned text lines."""
     lines = []
 

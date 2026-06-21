@@ -7,6 +7,7 @@ ones that cannot be scoped to a file subset and are skipped under --only-changed
 """
 
 from rules import (
+    AutoHotkeyAnalyzeRule,
     DartAnalyzeRule,
     DartCodeLinterRule,
     DartCrapScoreRule,
@@ -31,6 +32,7 @@ from rules import (
 )
 
 PROJECT_WIDE_ANALYZERS = [
+    ('autohotkey_analyze', AutoHotkeyAnalyzeRule),
     ('dart_analyze', DartAnalyzeRule),
     ('dart_code_linter', DartCodeLinterRule),
     ('flutter_analyze', FlutterAnalyzeRule),
