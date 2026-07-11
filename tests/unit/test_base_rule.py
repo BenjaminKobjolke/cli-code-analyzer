@@ -7,7 +7,7 @@ from rules.context import RuleContext
 
 
 class _NoopRule(BaseRule):
-    def check(self, file_path):
+    def check(self, _file_path):
         return []
 
 
@@ -54,7 +54,7 @@ def test_get_threshold_for_file_picks_matching_exception(tmp_path: Path):
         "exceptions": [{"file": "a/big.py", "warning": 1000, "error": 2000}],
     }
     t = rule._get_threshold_for_file(f, config)
-    assert t == {"warning": 1000.0, "error": 2000.0}
+    assert t == {"warning": 1000.0, "error": 2000.0, "info": None}
 
 
 def test_get_threshold_for_file_falls_back_to_base(tmp_path: Path):
@@ -63,7 +63,7 @@ def test_get_threshold_for_file_falls_back_to_base(tmp_path: Path):
     f.write_text("")
     config = {"warning": 300, "error": 500, "exceptions": [{"file": "other.py", "warning": 9}]}
     t = rule._get_threshold_for_file(f, config)
-    assert t == {"warning": 300.0, "error": 500.0}
+    assert t == {"warning": 300.0, "error": 500.0, "info": None}
 
 
 def test_filter_violations_by_log_level_error_only():

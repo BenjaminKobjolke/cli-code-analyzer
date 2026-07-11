@@ -43,11 +43,18 @@ class GraphifyFanoutRule(ProjectWideRule):
         graph_rel = self.config.get('graph_path', 'graphify-out/graph.json')
         graph_path = self.base_path / graph_rel
 
+        # Opt-in: refresh the graph before analyzing so results are never stale.
+        # Off by default — the rule's contract is "reads the graph as-is"; only
+        # rebuild when the project explicitly asks for it. Soft-fails so a missing
+        # graphify or a failed build never breaks the analysis run.
+        if self.config.get('auto_build', False):
+            self._build_graph()
+
         if not graph_path.exists():
             # Enabled but no graph: surface a visible warning (report + CSV) rather
             # than a silent skip — the user opted in and needs to know why it's blank.
             msg = (f"graphify graph not found at '{graph_rel}'. Install graphify and build the "
-                   f"graph (e.g. `graphify src --directed`) to enable fan-out analysis.")
+                   f"graph (e.g. `graphify update src`) to enable fan-out analysis.")
             self.logger.warning(msg)
             return self._ok([Violation(file_path=graph_rel, rule_name=self.rule_name,
                                        severity=Severity.WARNING, message=msg)])
@@ -114,15 +121,34 @@ class GraphifyFanoutRule(ProjectWideRule):
             out = len(targets)
             fin = len(in_sources.get(u, ()))
             ratio = (fin / out) if out else 0.0
-            if ratio >= ratio_max:
-                continue  # healthy hub or well-balanced
+            th = self._get_threshold_for_file(Path(u), self.config)
+            rep_nid = rep.get(u)
+            name = label.get(rep_nid) or Path(str(u)).stem
+            line = self._parse_line(loc.get(rep_nid))
 
-            severity, threshold = self._severity_for(Path(u), out)
+            if ratio >= ratio_max:
+                # High fan-out AND high fan-in — a chokepoint, not a greedy consumer.
+                # `ratio_max` spares it from the fan-out finding, but that is a *defer*,
+                # not a clear (a chokepoint is the worst ripple position). If its
+                # absolute fan-out still clears the warning bar, surface it as INFO so
+                # the outgoing-edge cohesion gets a human look. (see module docstring)
+                warn_t = th.get('warning')
+                if warn_t is not None and out >= warn_t:
+                    violations.append(Violation(
+                        file_path=u,
+                        rule_name=self.rule_name,
+                        severity=Severity.INFO,
+                        message=(f"[chokepoint] '{name}' fan-out {out} AND fan-in {fin} "
+                                 f"(ratio {ratio:.2f}) - high both; spared as a hub, but review "
+                                 f"whether the {out} outgoing deps are one cohesive job or many"),
+                        line=line,
+                    ))
+                continue
+
+            severity, threshold = self._tier(out, th)
             if severity is None:
                 continue
 
-            rep_nid = rep.get(u)
-            name = label.get(rep_nid) or Path(str(u)).stem
             violations.append(Violation(
                 file_path=u,
                 rule_name=self.rule_name,
@@ -130,35 +156,78 @@ class GraphifyFanoutRule(ProjectWideRule):
                 message=(f"[fan-out] '{name}' fan-out {out} (fan-in {fin}, ratio {ratio:.2f}) "
                          f">= {int(threshold)} - high outgoing coupling; prefer an injected "
                          f"collaborator or a config object over many direct dependencies"),
-                line=self._parse_line(loc.get(rep_nid)),
+                line=line,
             ))
         return violations
 
     def _hub_units(self, nodes: list[dict], label: dict, links: list[dict], unit) -> set:
-        """Hub = configured constant registry OR (auto-detect) a top-percentile fan-in unit.
+        """Hub = configured constant registry OR (auto-detect) a high-fan-in unit.
 
         Fan-in is measured per unit (distinct external dependants), matching the
         unit-level fan-out roll-up in `_analyze`.
+
+        Auto-detection prefers an **absolute** cutoff (`hub_min_fanin`): "depended
+        on by N+ distinct units = hub". This is tie-immune and predictable. The
+        older `hub_autodetect_percentile` is a fallback for configs that don't set
+        `hub_min_fanin`, but on unit-level (distinct) fan-in the distribution is
+        tie-heavy and a percentile cut sweeps in far too many units — prefer the
+        absolute cutoff.
         """
         configured = set(self.config.get('hub_classes', []))
         hub_units = {unit(n.get('id')) for n in nodes if label.get(n.get('id')) in configured}
 
         if self.config.get('hub_autodetect', True):
-            pct = float(self.config.get('hub_autodetect_percentile', 95))
             fan_in: dict[Any, set] = defaultdict(set)
             for e in links:
                 su, tu = unit(e.get('source')), unit(e.get('target'))
                 if su != tu:
                     fan_in[tu].add(su)
-            values = sorted(len(v) for v in fan_in.values() if v)
-            if values:
-                idx = min(len(values) - 1, int(len(values) * pct / 100))
-                cutoff = values[idx]
+
+            cutoff = self.config.get('hub_min_fanin')
+            if cutoff is None:  # legacy percentile fallback (tie-fragile)
+                pct = float(self.config.get('hub_autodetect_percentile', 99))
+                values = sorted(len(v) for v in fan_in.values() if v)
+                if values:
+                    idx = min(len(values) - 1, int(len(values) * pct / 100))
+                    cutoff = values[idx]
+
+            if cutoff is not None:
                 # Only meaningful when a unit is a genuine sink; ignore tiny graphs.
                 for u, srcs in fan_in.items():
                     if len(srcs) >= cutoff and len(srcs) > 1:
                         hub_units.add(u)
         return hub_units
+
+    def _build_graph(self) -> None:
+        """Refresh the graphify graph before analysis (opt-in `auto_build`).
+
+        Default command is `graphify update <build_path>` — re-extracts code files
+        with no LLM and preserves the existing graph's directed flag. Override with
+        `build_command` (string or argv list). Soft-fails: a missing graphify binary
+        or a failed build logs a warning and leaves any existing graph in place.
+        """
+        import shutil
+
+        build_path = self.config.get('build_path', 'src')
+        cmd_cfg = self.config.get('build_command')
+        if cmd_cfg:
+            cmd = cmd_cfg if isinstance(cmd_cfg, list) else cmd_cfg.split()
+        else:
+            graphify = shutil.which('graphify')
+            if not graphify:
+                self.logger.warning(
+                    "auto_build: 'graphify' not found on PATH; skipping graph rebuild. "
+                    "Install graphify or set 'build_command'. Using existing graph if present.")
+                return
+            cmd = [graphify, 'update', build_path]
+
+        try:
+            self.logger.info(f"auto_build: refreshing graph ({' '.join(str(c) for c in cmd)})...")
+            self._run_subprocess(cmd, cwd=self.base_path,
+                                 timeout=int(self.config.get('build_timeout', 600)))
+        except Exception as e:
+            self.logger.warning(
+                f"auto_build: graph rebuild failed ({e}); using existing graph if present.")
 
     def _unit_reps(self, nodes: list[dict], label: dict, source: dict) -> dict:
         """Pick a representative node per file-unit for reporting — prefer the class
@@ -180,14 +249,18 @@ class GraphifyFanoutRule(ProjectWideRule):
                 rep[sf] = nid
         return rep
 
-    def _severity_for(self, file_path: Path, value: int) -> tuple[Severity | None, float | None]:
-        thresholds = self._get_threshold_for_file(file_path, self.config)
+    @staticmethod
+    def _tier(value: int, thresholds: dict) -> tuple[Severity | None, float | None]:
+        """Map a fan-out value to the highest tier it clears: error > warning > info."""
         error_t = thresholds.get('error')
         warning_t = thresholds.get('warning')
+        info_t = thresholds.get('info')
         if error_t is not None and value >= error_t:
             return Severity.ERROR, error_t
         if warning_t is not None and value >= warning_t:
             return Severity.WARNING, warning_t
+        if info_t is not None and value >= info_t:
+            return Severity.INFO, info_t
         return None, None
 
     @staticmethod

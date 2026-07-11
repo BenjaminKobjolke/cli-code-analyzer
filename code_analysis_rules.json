@@ -53,13 +53,17 @@
   },
   "graphify_fanout": {
     "enabled": false,
+    "info": 15,
     "warning": 20,
     "error": 32,
     "ratio_max": 0.25,
     "graph_path": "graphify-out/graph.json",
     "hub_classes": [],
     "hub_autodetect": true,
-    "hub_autodetect_percentile": 95,
+    "hub_min_fanin": 25,
+    "hub_autodetect_percentile": 99,
+    "auto_build": false,
+    "build_path": "src",
     "exceptions": []
   }
 }

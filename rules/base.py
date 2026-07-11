@@ -93,8 +93,10 @@ class BaseRule(FilterScopeMixin, ABC):
 
         if exception:
             return {'error': to_num(exception.get('error', base.get('error'))),
-                    'warning': to_num(exception.get('warning', base.get('warning')))}
-        return {'error': to_num(base.get('error')), 'warning': to_num(base.get('warning'))}
+                    'warning': to_num(exception.get('warning', base.get('warning'))),
+                    'info': to_num(exception.get('info', base.get('info')))}
+        return {'error': to_num(base.get('error')), 'warning': to_num(base.get('warning')),
+                'info': to_num(base.get('info'))}
 
     def _get_threshold_for_file(
         self, file_path: Path, threshold_config: dict[str, Any],
