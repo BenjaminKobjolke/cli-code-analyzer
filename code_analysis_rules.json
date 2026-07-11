@@ -50,5 +50,16 @@
     "timeout": 5,
     "exclude_patterns": ["vendor/**", "node_modules/**", ".git/**"],
     "ignore_unused_underscore": true
+  },
+  "graphify_fanout": {
+    "enabled": false,
+    "warning": 20,
+    "error": 32,
+    "ratio_max": 0.25,
+    "graph_path": "graphify-out/graph.json",
+    "hub_classes": [],
+    "hub_autodetect": true,
+    "hub_autodetect_percentile": 95,
+    "exceptions": []
   }
 }

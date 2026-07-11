@@ -18,6 +18,7 @@ ANALYZER_REGISTRY = {
         ('phpstan_analyze', 'Static analysis', 'PHPStan (composer)'),
         ('php_cs_fixer', 'Code style checking', 'PHP-CS-Fixer (composer)'),
         ('intelephense_analyze', 'LSP diagnostics', 'Intelephense (npm)'),
+        ('graphify_fanout', 'Fan-out / outgoing coupling', 'graphify (graph.json)'),
     ],
     'python': [
         ('max_lines_per_file', 'File length checks', None),
@@ -27,6 +28,7 @@ ANALYZER_REGISTRY = {
         ('pyscn_analyze', 'Complexity, dead code, coupling', 'pyscn (pipx)'),
         ('python_test_coverage', 'Test coverage checking', 'coverage.py + pytest'),
         ('python_crap_score', 'CRAP score (complexity x coverage) per function', 'pyscn + coverage.py'),
+        ('graphify_fanout', 'Fan-out / outgoing coupling', 'graphify (graph.json)'),
     ],
     'flutter': [
         ('max_lines_per_file', 'File length checks', None),
@@ -42,12 +44,14 @@ ANALYZER_REGISTRY = {
         ('dart_missing_dispose', 'Missing dispose detection', 'dart-lsp-mcp'),
         ('dart_test_coverage', 'Test coverage checking', 'Flutter SDK'),
         ('dart_crap_score', 'CRAP score (complexity x coverage) per function', 'Flutter SDK + dart_code_linter'),
+        ('graphify_fanout', 'Fan-out / outgoing coupling', 'graphify (graph.json)'),
     ],
     'csharp': [
         ('max_lines_per_file', 'File length checks', None),
         ('pmd_duplicates', 'Duplicate code detection', 'PMD'),
         ('pmd_similar_code', 'Similar code pattern detection', 'PMD'),
         ('dotnet_analyze', '.NET analysis', '.NET SDK'),
+        ('graphify_fanout', 'Fan-out / outgoing coupling', 'graphify (graph.json)'),
     ],
     'javascript': [
         ('max_lines_per_file', 'File length checks', None),
@@ -55,6 +59,7 @@ ANALYZER_REGISTRY = {
         ('pmd_similar_code', 'Similar code pattern detection', 'PMD'),
         ('eslint_analyze', 'Linting and style', 'ESLint (npm)'),
         ('tsc_analyze', 'TypeScript type checking', 'TypeScript (npm)'),
+        ('graphify_fanout', 'Fan-out / outgoing coupling', 'graphify (graph.json)'),
     ],
     'svelte': [
         ('max_lines_per_file', 'File length checks', None),
@@ -62,6 +67,7 @@ ANALYZER_REGISTRY = {
         ('pmd_similar_code', 'Similar code pattern detection', 'PMD'),
         ('eslint_analyze', 'Linting and style', 'ESLint (npm) + eslint-plugin-svelte'),
         ('svelte_check', 'TypeScript/Svelte type checking', 'svelte-check (npm)'),
+        ('graphify_fanout', 'Fan-out / outgoing coupling', 'graphify (graph.json)'),
     ],
     'autohotkey': [
         ('max_lines_per_file', 'File length checks', None),

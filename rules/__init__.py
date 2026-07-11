@@ -16,6 +16,7 @@ from rules.dart_unused_files import DartUnusedFilesRule
 from rules.dotnet_analyze import DotnetAnalyzeRule
 from rules.eslint_analyze import ESLintAnalyzeRule
 from rules.flutter_analyze import FlutterAnalyzeRule
+from rules.graphify_fanout import GraphifyFanoutRule
 from rules.intelephense_analyze import IntelephenseAnalyzeRule
 from rules.max_lines import MaxLinesRule
 from rules.php_cs_fixer_analyze import PHPCSFixerAnalyzeRule
@@ -45,6 +46,7 @@ __all__ = [
     'DotnetAnalyzeRule',
     'ESLintAnalyzeRule',
     'FlutterAnalyzeRule',
+    'GraphifyFanoutRule',
     'IntelephenseAnalyzeRule',
     'MaxLinesRule',
     'PHPCSFixerAnalyzeRule',

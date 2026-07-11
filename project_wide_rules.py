@@ -20,6 +20,7 @@ from rules import (
     DotnetAnalyzeRule,
     ESLintAnalyzeRule,
     FlutterAnalyzeRule,
+    GraphifyFanoutRule,
     IntelephenseAnalyzeRule,
     PHPCSFixerAnalyzeRule,
     PHPStanAnalyzeRule,
@@ -54,6 +55,7 @@ PROJECT_WIDE_ANALYZERS = [
     ('dart_crap_score', DartCrapScoreRule),
     ('python_test_coverage', PythonTestCoverageRule),
     ('python_crap_score', PythonCrapScoreRule),
+    ('graphify_fanout', GraphifyFanoutRule),
 ]
 
 # Project-wide analyzers that cannot be meaningfully scoped to a file subset
@@ -69,4 +71,5 @@ FILTER_INCAPABLE = {
     'dart_unused_code', 'dart_missing_dispose',
     'dart_test_coverage', 'dart_crap_score',
     'python_test_coverage', 'python_crap_score',
+    'graphify_fanout',
 }
