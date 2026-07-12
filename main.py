@@ -6,6 +6,13 @@ CLI Code Analyzer - Analyze code files based on configurable rules
 import sys
 from pathlib import Path
 
+# Windows consoles default to cp1252; tool output (e.g. PMD CPD) can contain
+# characters outside that codec, making bare print() raise UnicodeEncodeError.
+# Force utf-8 with replacement so no analyzer dies on an un-encodable byte.
+for _stream in (sys.stdout, sys.stderr):
+    if hasattr(_stream, "reconfigure"):
+        _stream.reconfigure(encoding="utf-8", errors="replace")
+
 from analyzer_registry import LANGUAGE_ALIASES, list_analyzers
 from cli_parser import build_parser
 from cli_support import clean_report_files, resolve_reporter_log_level
