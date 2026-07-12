@@ -24,6 +24,11 @@ def main():
         list_analyzers(lang_arg)
         sys.exit(0)
 
+    # Handle --dead-exceptions (read-only rules-file audit) before other validation
+    if args.dead_exceptions:
+        from dead_exceptions import run_dead_exceptions
+        sys.exit(run_dead_exceptions(args.rules, args.path, args.output, args.fix))
+
     # Validate required arguments for analysis mode
     if not args.language:
         parser.error("--language is required for analysis")

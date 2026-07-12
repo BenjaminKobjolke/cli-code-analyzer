@@ -30,6 +30,23 @@ Examples:
         help='List available analyzers for a language (or all languages if not specified)',
     )
     parser.add_argument(
+        '-D',
+        '--dead-exceptions',
+        action='store_true',
+        default=False,
+        help=(
+            'Scan the --rules file for dead exceptions (entries whose file no longer '
+            'exists, or whose documented function is absent) and report them. '
+            'Uses --path as project root (default: current dir). Add --fix to remove them.'
+        ),
+    )
+    parser.add_argument(
+        '--fix',
+        action='store_true',
+        default=False,
+        help='With --dead-exceptions: remove the dead entries from the rules file in place.',
+    )
+    parser.add_argument(
         '-l',
         '--language',
         required=False,
