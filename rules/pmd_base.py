@@ -232,7 +232,9 @@ class PMDCpdRule(ProjectWideRule):
         filtered = None
         if self.filter_files is not None:
             filtered = resolve_filtered_pmd_files(self, exclude_patterns)
-            if len(filtered) < 2:
+            if self.filter_mode == 'file':
+                filtered = None
+            elif len(filtered) < 2:
                 self.logger.info("Skipping check: fewer than 2 changed files of this language.")
                 return self._ok([])
 

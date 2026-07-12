@@ -16,10 +16,11 @@ from rules.pmd_base import resolve_filtered_pmd_files
 EMPTY_CPD = '<?xml version="1.0"?><pmd-cpd></pmd-cpd>'
 
 
-def _rule(tmp_path: Path, filter_files=None, language="flutter") -> PMDDuplicatesRule:
+def _rule(tmp_path: Path, filter_files=None, language="flutter",
+          filter_mode=None) -> PMDDuplicatesRule:
     return PMDDuplicatesRule(RuleContext(
         config={}, base_path=tmp_path, language=language,
-        filter_files=filter_files, logger=Logger(quiet=True),
+        filter_files=filter_files, filter_mode=filter_mode, logger=Logger(quiet=True),
     ))
 
 
@@ -77,3 +78,15 @@ def test_run_skips_when_fewer_than_two_changed_files(tmp_path: Path):
     assert result.status == RuleStatus.OK
     assert result.violations == []
     assert called['ran'] is False  # short-circuited before invoking PMD
+
+
+def test_file_filter_scans_directory_so_duplicates_can_be_found(tmp_path: Path):
+    a = tmp_path / "a.dart"
+    a.write_text("")
+    rule = _rule(tmp_path, filter_files={"a.dart"}, filter_mode="file")
+    rule._get_tool_path = lambda *_args, **_kwargs: "pmd"
+    seen = _capture_cmd(rule)
+    result = rule._run(a)
+    assert result.status == RuleStatus.OK
+    assert '-d' in seen['cmd']
+    assert '--file-list' not in seen['cmd']

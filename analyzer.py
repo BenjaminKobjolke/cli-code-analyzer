@@ -25,6 +25,7 @@ class AnalyzerConfig:
     cli_log_level: LogLevel | None = None
     max_errors: int | None = None
     filter_files: set[str] | None = None
+    filter_mode: str | None = None
     logger: Logger | None = None
 
 
@@ -52,6 +53,7 @@ class CodeAnalyzer:
         self.filter_files: set[str] | None = (
             {p.replace('\\', '/') for p in cfg.filter_files} if cfg.filter_files else None
         )
+        self.filter_mode = cfg.filter_mode
         self.logger = cfg.logger or Logger()
         self._enabled_analyzers = self._get_enabled_analyzers()
         self._multi_language = len(self.languages) > 1
@@ -193,6 +195,7 @@ class CodeAnalyzer:
             logger=self.logger,
             language=language,
             filter_files=self.filter_files,
+            filter_mode=self.filter_mode,
         )
 
     def _check_file(self, file_path: Path):

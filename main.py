@@ -81,10 +81,12 @@ def main():
     from path_utils import to_relative_posix
 
     filter_files: set[str] | None = None
+    filter_mode: str | None = None
     base_path_resolved = Path(args.path).resolve()
 
     if args.file:
         filter_files = {to_relative_posix(args.file, base_path_resolved)}
+        filter_mode = "file"
 
     if args.only_changed:
         from git_changes import GitNotAvailableError, find_repo_root, get_changed_files
@@ -110,6 +112,7 @@ def main():
             sys.exit(0)
 
         filter_files = {to_relative_posix(p, base_path_resolved) for p in matching}
+        filter_mode = "only_changed"
 
     # -----------------------------------------------------------
     # Resolve the max-errors cap (violations reported per rule/analyzer).
@@ -241,6 +244,7 @@ def main():
                 cli_log_level=cli_log_level,
                 max_errors=args.maxamountoferrors,
                 filter_files=filter_files,
+                filter_mode=filter_mode,
                 logger=logger,
             ))
             analyzer.analyze()

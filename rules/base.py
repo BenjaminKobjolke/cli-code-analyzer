@@ -35,6 +35,7 @@ class BaseRule(FilterScopeMixin, ABC):
         self.logger = ctx.logger or Logger()
         self.language = ctx.language
         self.filter_files = ctx.filter_files
+        self.filter_mode = ctx.filter_mode
         self._settings = None
 
     @property
