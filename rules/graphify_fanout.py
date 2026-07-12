@@ -14,9 +14,13 @@ raw dependency count misses. The smarts a plain coupling count lacks live here:
 - **Domain floor** — per-file `exceptions` raise the threshold for classes that
   legitimately touch many endpoints (e.g. a document controller).
 
-The rule never builds the graph. If it is enabled but the graph is missing, it
-emits a single WARNING so the report/CSV tells the user to install graphify and
-build the graph.
+Graph building is opt-in. By default the rule only reads an existing graph; if
+one is enabled with `auto_build: true` it refreshes the graph first by running
+`graphify update <build_path>` (override with `build_command`). The rebuild
+soft-fails — a missing graphify binary or a failed build logs a warning and
+falls back to any existing graph. If auto_build is off (or unset) and the graph
+is missing, the rule emits a single WARNING telling the user to install graphify
+and build the graph.
 """
 
 import json
