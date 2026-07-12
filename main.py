@@ -273,7 +273,7 @@ def main():
             has_errors = reporter.report()
 
         # Show analyzed files summary (always) and list (if requested)
-        found_extensions = sorted(set(Path(fp).suffix for fp in all_file_paths if Path(fp).suffix))
+        found_extensions = sorted({Path(fp).suffix for fp in all_file_paths if Path(fp).suffix})
         found_ext_str = ", ".join(found_extensions)
         logger.info(f"\nAnalyzed files ({len(all_file_paths)}) [{found_ext_str}]")
         if args.list_files:
