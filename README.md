@@ -26,7 +26,7 @@ A flexible command-line tool for analyzing code files based on configurable rule
 - **Language-specific exclusions**: Automatically exclude generated files (e.g., `**.g.dart`, `**.freezed.dart`)
 - **Relative path display**: Clean, readable output with relative file paths
 - **JSON output**: Machine-readable JSON output format via `--format json`
-- **Violation cache**: SQLite-based caching — normal runs with `--output` auto-save results; subsequent runs and `--file` queries use cached data when fresh
+- **Violation cache**: SQLite-based caching — normal runs with `--output` auto-save results; subsequent runs and `--file` queries use cached data when fresh (auto-invalidated when source files are added, removed, or modified)
 - **Quiet file mode**: `--file` suppresses all progress output, showing only results
 - **Git-aware mode**: `--only-changed` reports violations only for files new or modified vs git `HEAD` (includes untracked, skips deletes) — ideal for iterating on a feature branch or AI-assisted post-implementation checks
 
@@ -99,7 +99,7 @@ python main.py --language <language> --path <path> [options]
 | `--list-analyzers` | `-a` | No | - | List available analyzers for a language (or all) |
 | `--format` | | No | `text` | Output format: `text` (default) or `json` |
 | `--build-cache` | | No | off | Build a violation cache in the output folder for fast `--file` queries. Requires `--output`. |
-| `--cache-max-age` | | No | `60` | Maximum cache age in minutes before it is considered stale |
+| `--cache-max-age` | | No | `60` | Maximum cache age in minutes before it is considered stale. Independent of age, the cache is also invalidated when source files are added/removed/modified or `rules.json` changes |
 
 ## JSON Output
 
@@ -133,7 +133,7 @@ Output:
 
 ## Violation Cache
 
-The cache stores analyzer results in a SQLite database so that subsequent runs skip analysis when the cache is fresh. Requires `--output`.
+The cache stores analyzer results in a SQLite database so that subsequent runs skip analysis when the cache is valid — i.e. no analyzed source file was added, removed, or modified since it was written, `rules.json` is unchanged, and it is younger than `--cache-max-age`. Requires `--output`.
 
 ### Automatic caching
 
@@ -143,8 +143,10 @@ Every normal run with `--output` automatically saves results to the cache. On th
 # First run: full analysis, results saved to cache
 python main.py --language python --path ./src --output ./reports
 
-# Second run (within cache-max-age): instant, loaded from cache
+# Second run (no source changes, within cache-max-age): instant, loaded from cache
 python main.py --language python --path ./src --output ./reports
+
+# After editing/adding/removing a source file: cache is stale, fresh analysis runs
 ```
 
 ### Fast single-file queries
@@ -168,9 +170,12 @@ python main.py --language python --path ./src --output ./reports --build-cache
 
 ### Cache staleness
 
+- **Source changes invalidate the cache**: any analyzed source file added,
+  removed, or modified since the cache was written forces a fresh analysis
+  (file-set comparison + newest-mtime check against the discovered files)
 - `--cache-max-age 60` (default): cache expires after 60 minutes
 - Editing `rules.json` invalidates the cache (hash mismatch)
-- Cache status is logged (not found, too old, rules changed)
+- Cache status is logged (not found, too old, rules changed, files changed)
 
 ## Examples
 

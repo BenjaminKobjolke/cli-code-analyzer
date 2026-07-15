@@ -8,6 +8,7 @@ can filter from cached data instead of re-running all analyzers.
 import hashlib
 import sqlite3
 from collections.abc import Iterable
+from contextlib import suppress
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -37,8 +38,18 @@ class ViolationCache:
     # Public API
     # ------------------------------------------------------------------
 
-    def is_valid(self, max_age_minutes: int, rules_hash: str) -> bool:
-        """Check whether the cache exists, is fresh, and matches the rules hash."""
+    def is_valid(self, max_age_minutes: int, rules_hash: str,
+                 current_files: list[Path] | None = None,
+                 base_path: str | None = None) -> bool:
+        """Check whether the cache exists, is fresh, and matches the rules hash.
+
+        When `current_files` (the currently discovered source files) is given,
+        the cache is additionally invalid if the analyzed file set changed
+        (files added/removed vs the cached `file_paths`) or if any current file
+        was modified after the cache was written (mtime newer than the stored
+        `newest_mtime`). `base_path` relativizes `current_files` the same way
+        the analyzer stored them.
+        """
         if not self.db_path.exists():
             self.logger.info("Cache not found, will run full analysis")
             return False
@@ -59,14 +70,45 @@ class ViolationCache:
                 return False
             cur.execute("SELECT value FROM cache_meta WHERE key = 'rules_hash'")
             row = cur.fetchone()
-            con.close()
             if not row or row[0] != rules_hash:
+                con.close()
                 self.logger.info("Cache rules hash mismatch, will run full analysis")
                 return False
+            if current_files is not None and not self._sources_unchanged(cur, current_files, base_path):
+                con.close()
+                return False
+            con.close()
             return True
         except Exception:
             self.logger.info("Cache read error, will run full analysis")
             return False
+
+    def _sources_unchanged(self, cur: sqlite3.Cursor,
+                           current_files: list[Path],
+                           base_path: str | None) -> bool:
+        """True if the discovered file set and mtimes still match the cache."""
+        cur.execute("SELECT file_path FROM file_paths")
+        cached_set = {r[0].replace("\\", "/") for r in cur.fetchall()}
+
+        base = Path(base_path).resolve() if base_path else None
+        current_set = set()
+        newest_mtime = 0.0
+        for p in current_files:
+            resolved = p.resolve()
+            rel = resolved.relative_to(base) if base and resolved.is_relative_to(base) else resolved
+            current_set.add(str(rel).replace("\\", "/"))
+            newest_mtime = max(newest_mtime, resolved.stat().st_mtime)
+
+        if current_set != cached_set:
+            self.logger.info("Cache file set changed (files added/removed), will run full analysis")
+            return False
+
+        cur.execute("SELECT value FROM cache_meta WHERE key = 'newest_mtime'")
+        row = cur.fetchone()
+        if not row or newest_mtime > float(row[0]):
+            self.logger.info("Source files modified since cache, will run full analysis")
+            return False
+        return True
 
     def save(self, violations: list[Violation], rules_hash: str,
              languages: list[str], base_path: str,
@@ -110,6 +152,8 @@ class ViolationCache:
         cur.execute("INSERT INTO cache_meta VALUES (?, ?)", ("rules_hash", rules_hash))
         cur.execute("INSERT INTO cache_meta VALUES (?, ?)", ("languages", ",".join(languages)))
         cur.execute("INSERT INTO cache_meta VALUES (?, ?)", ("base_path", base_path))
+        cur.execute("INSERT INTO cache_meta VALUES (?, ?)",
+                    ("newest_mtime", repr(self._newest_mtime(base_path, file_paths))))
 
         # Bulk-insert violations
         rows = [
@@ -207,6 +251,18 @@ class ViolationCache:
     # ------------------------------------------------------------------
     # Helpers
     # ------------------------------------------------------------------
+
+    @staticmethod
+    def _newest_mtime(base_path: str, file_paths: list[str] | None) -> float:
+        """Max st_mtime over `file_paths` (relative to `base_path`); 0.0 if none."""
+        newest = 0.0
+        for fp in file_paths or []:
+            p = Path(fp)
+            if not p.is_absolute():
+                p = Path(base_path) / p
+            with suppress(OSError):
+                newest = max(newest, p.stat().st_mtime)
+        return newest
 
     @staticmethod
     def compute_rules_hash(rules_file: str) -> str:

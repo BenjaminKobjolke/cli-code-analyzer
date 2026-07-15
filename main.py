@@ -13,11 +13,11 @@ for _stream in (sys.stdout, sys.stderr):
     if hasattr(_stream, "reconfigure"):
         _stream.reconfigure(encoding="utf-8", errors="replace")
 
-from analyzer_registry import LANGUAGE_ALIASES, list_analyzers
-from cli_parser import build_parser
-from cli_support import clean_report_files, resolve_reporter_log_level
-from file_discovery import FileDiscovery
-from logger import Logger
+from analyzer_registry import LANGUAGE_ALIASES, list_analyzers  # noqa: E402
+from cli_parser import build_parser  # noqa: E402
+from cli_support import clean_report_files, resolve_reporter_log_level  # noqa: E402
+from file_discovery import FileDiscovery  # noqa: E402
+from logger import Logger  # noqa: E402
 
 
 def main():
@@ -91,6 +91,9 @@ def main():
     filter_mode: str | None = None
     base_path_resolved = Path(args.path).resolve()
 
+    # Discovered source files, reused for cache mtime/file-set validation.
+    discovered_files: list[Path] | None = None
+
     if args.file:
         filter_files = {to_relative_posix(args.file, base_path_resolved)}
         filter_mode = "file"
@@ -110,7 +113,8 @@ def main():
 
         # Reuse FileDiscovery for extension + exclusion filtering.
         discovery = FileDiscovery(languages, args.path)
-        discovered_set = {p.resolve() for p in discovery.discover()}
+        discovered_files = discovery.discover()
+        discovered_set = {p.resolve() for p in discovered_files}
 
         matching = changed & discovered_set
         if not matching:
@@ -167,9 +171,20 @@ def main():
     if output_folder:
         cache = ViolationCache(output_folder / '_violations_cache.db', logger=logger)
 
+    # Discover source files once for cache validation (mtime / file-set checks).
+    if cache and discovered_files is None:
+        try:
+            discovered_files = FileDiscovery(languages, args.path).discover()
+        except ValueError:
+            discovered_files = None  # unsupported language — surfaces in the analyzer run
+
+    def cache_is_valid() -> bool:
+        return cache.is_valid(args.cache_max_age, rules_hash,
+                              current_files=discovered_files, base_path=args.path)
+
     # --build-cache: build cache and exit
     if args.build_cache:
-        if cache.is_valid(args.cache_max_age, rules_hash):
+        if cache_is_valid():
             logger.info("Cache is fresh, skipping rebuild")
             sys.exit(0)
         # Run full analysis and save to cache
@@ -190,7 +205,7 @@ def main():
         sys.exit(0)
 
     # Filter with cache: try cache first (covers --file and --only-changed)
-    if filter_files and cache and cache.is_valid(args.cache_max_age, rules_hash):
+    if filter_files and cache and cache_is_valid():
         all_violations = cache.load_for_files(filter_files)
 
         reporter_log_level = resolve_reporter_log_level(cli_log_level, args.rules)
@@ -217,7 +232,7 @@ def main():
         # a failure that occurred during a cached run survives as an ERROR violation).
         failures = []
         # Check cache first for normal runs
-        if cache and cache.is_valid(args.cache_max_age, rules_hash):
+        if cache and cache_is_valid():
             logger.info("Using cached results")
             all_violations, all_file_paths = cache.load_all_with_paths()
             total_file_count = len(all_file_paths)

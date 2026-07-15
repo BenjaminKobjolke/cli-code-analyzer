@@ -51,7 +51,7 @@ python main.py --language flutter --path ./lib --only-changed --rules rules.json
 
 ## Architecture
 
-The pipeline flows: `main.py` (CLI parsing) -> `CodeAnalyzer` (orchestration) -> `FileDiscovery` (find files) -> `BaseRule` subclasses (analysis) -> `Reporter` (output). A `Logger` instance is created in `main.py` and propagated to all components. When `--file` is used, the logger is set to quiet mode, suppressing all progress output. `ViolationCache` provides SQLite-based caching of violations for fast `--file` queries.
+The pipeline flows: `main.py` (CLI parsing) -> `CodeAnalyzer` (orchestration) -> `FileDiscovery` (find files) -> `BaseRule` subclasses (analysis) -> `Reporter` (output). A `Logger` instance is created in `main.py` and propagated to all components. When `--file` is used, the logger is set to quiet mode, suppressing all progress output. `ViolationCache` provides SQLite-based caching of violations for fast `--file` queries; the cache self-invalidates when analyzed source files are added, removed, or modified (file-set + newest-mtime check), when `rules.json` changes (hash), or after `--cache-max-age` minutes.
 
 ### Two types of analyzers
 
