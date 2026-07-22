@@ -88,7 +88,8 @@ Create a `code_analysis_rules.json` file in your project:
 | Option | Description | Default |
 |--------|-------------|---------|
 | `level` | Analysis strictness (0-9, higher = stricter) | 5 |
-| `exclude_patterns` | Glob patterns to exclude from analysis | `[]` |
+| `memory_limit` | PHP memory limit passed via `--memory-limit` (also applies to parallel workers) | `1G` |
+| `exclude_patterns` | Glob patterns to exclude from analysis (missing dirs are tolerated) | `[]` |
 | `analyze_path` | Specific path to analyze within project | project root |
 
 ### PHPStan Levels
@@ -310,10 +311,12 @@ If you get an Intelephense import error:
 
 ### Memory issues with large projects
 
-PHPStan may run out of memory on large projects. Add to your phpstan.neon:
-```yaml
-parameters:
-    memory_limit: 1G
+The analyzer passes `--memory-limit 1G` to PHPStan by default. If that is not
+enough, raise it in your rules file:
+```json
+"phpstan_analyze": {
+  "memory_limit": "2G"
+}
 ```
 
 ## Auto-Fix Workflow

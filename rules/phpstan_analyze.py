@@ -2,6 +2,9 @@
 
 import csv
 import json
+import os
+import tempfile
+from contextlib import suppress
 from pathlib import Path
 
 from models import RuleResult, Severity, Violation
@@ -45,19 +48,35 @@ class PHPStanAnalyzeRule(ProjectWideRule):
         level = self.config.get('level', 5)
         cmd.extend(['--level', str(level)])
 
-        # Add exclude patterns as --exclude options
+        # PHPStan's default 128M memory limit crashes its parallel workers on
+        # medium-sized projects; the limit propagates to workers via the CLI flag.
+        memory_limit = self.config.get('memory_limit', '1G')
+        cmd.extend(['--memory-limit', str(memory_limit)])
+
+        # PHPStan's CLI has no --exclude option; excludes must go through a
+        # config file. Write exclude_patterns to a temp neon as excludePaths.
+        neon_path = None
         if self.config.get('exclude_patterns'):
+            exclude_dirs = []
             for pattern in self.config['exclude_patterns']:
-                # PHPStan uses --exclude for directory exclusion
                 if '**' in pattern:
                     pattern = pattern.replace('/**', '').replace('**/', '')
-                cmd.extend(['--exclude', pattern])
+                exclude_dirs.append((self.base_path / pattern).as_posix())
+            # "(?)" marks each path optional so a configured-but-absent dir
+            # (e.g. node_modules in a pure PHP project) doesn't abort the run.
+            neon = 'parameters:\n    excludePaths:\n'
+            neon += ''.join(f'        - {d} (?)\n' for d in exclude_dirs)
+            fd, neon_path = tempfile.mkstemp(suffix='.neon', text=True)
+            with os.fdopen(fd, 'w', encoding='utf-8') as f:
+                f.write(neon)
+            cmd.extend(['-c', neon_path])
 
-        # Add path to analyze: changed files when filtering, else the configured analyze_path.
+        # Add paths to analyze: changed files when filtering, else the
+        # configured analyze_path (a single path or a list of paths).
         analyze_path = self.config.get('analyze_path', str(self.base_path))
-        if not Path(analyze_path).is_absolute():
-            analyze_path = str(self.base_path / analyze_path)
-        scope = self._scope_args(('.php',), [analyze_path])
+        paths = analyze_path if isinstance(analyze_path, list) else [analyze_path]
+        paths = [p if Path(p).is_absolute() else str(self.base_path / p) for p in paths]
+        scope = self._scope_args(('.php',), paths)
         if scope is None:
             return self._ok([])
         cmd += scope
@@ -72,6 +91,18 @@ class PHPStanAnalyzeRule(ProjectWideRule):
         except Exception as e:
             self.logger.error(f"Error running PHPStan check: {e}")
             return self._failed(f"error running PHPStan check: {e}")
+        finally:
+            if neon_path:
+                with suppress(OSError):
+                    os.unlink(neon_path)
+
+        # Empty stdout with a nonzero exit means PHPStan died before analyzing
+        # (bad CLI option, config error) — a real "errors found" run (exit 1)
+        # always emits JSON on stdout. Never report this as clean.
+        if result.returncode != 0 and not output.strip():
+            stderr = (result.stderr or '').strip()
+            self.logger.error(f"PHPStan failed without producing output: {stderr[:300]}")
+            return self._failed(f"PHPStan failed without producing output: {stderr[:300]}")
 
         # Conservative guard: non-empty output that is not valid JSON means PHPStan
         # emitted a fatal/non-JSON message — treat as a failure, not "clean".
