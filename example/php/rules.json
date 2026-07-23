@@ -26,6 +26,7 @@
     "enabled": true,
     "level": 5,
     "memory_limit": "1G",
+    "bootstrap_files": ["tools/phpstan-bootstrap.php"],
     "exclude_patterns": ["vendor/**", "node_modules/**", ".git/**"]
   },
   "php_cs_fixer": {

@@ -9,6 +9,12 @@ from pathlib import Path
 
 from models import RuleResult, Severity, Violation
 from rules.base import ProjectWideRule
+from rules.phpstan_config import (
+    build_phpstan_config,
+    resolve_bootstrap_files,
+    resolve_config_file,
+    resolve_exclude_dirs,
+)
 
 
 class PHPStanAnalyzeRule(ProjectWideRule):
@@ -53,19 +59,15 @@ class PHPStanAnalyzeRule(ProjectWideRule):
         memory_limit = self.config.get('memory_limit', '1G')
         cmd.extend(['--memory-limit', str(memory_limit)])
 
-        # PHPStan's CLI has no --exclude option; excludes must go through a
-        # config file. Write exclude_patterns to a temp neon as excludePaths.
+        # PHPStan bootstrap/excludes must go through a config file. If the
+        # project has its own config, include it from the generated temp config
+        # so project settings survive.
         neon_path = None
-        if self.config.get('exclude_patterns'):
-            exclude_dirs = []
-            for pattern in self.config['exclude_patterns']:
-                if '**' in pattern:
-                    pattern = pattern.replace('/**', '').replace('**/', '')
-                exclude_dirs.append((self.base_path / pattern).as_posix())
-            # "(?)" marks each path optional so a configured-but-absent dir
-            # (e.g. node_modules in a pure PHP project) doesn't abort the run.
-            neon = 'parameters:\n    excludePaths:\n'
-            neon += ''.join(f'        - {d} (?)\n' for d in exclude_dirs)
+        config_file = resolve_config_file(self.base_path, self.config)
+        bootstrap_files = resolve_bootstrap_files(self.base_path, self.config)
+        exclude_dirs = resolve_exclude_dirs(self.base_path, self.config)
+        if config_file or bootstrap_files or exclude_dirs:
+            neon = build_phpstan_config(config_file, bootstrap_files, exclude_dirs)
             fd, neon_path = tempfile.mkstemp(suffix='.neon', text=True)
             with os.fdopen(fd, 'w', encoding='utf-8') as f:
                 f.write(neon)

@@ -66,6 +66,7 @@ Create a `code_analysis_rules.json` file in your project:
   "phpstan_analyze": {
     "enabled": true,
     "level": 5,
+    "bootstrap_files": ["tools/phpstan-bootstrap.php"],
     "exclude_patterns": ["vendor/**", "node_modules/**", ".git/**"]
   },
   "php_cs_fixer": {
@@ -89,8 +90,15 @@ Create a `code_analysis_rules.json` file in your project:
 |--------|-------------|---------|
 | `level` | Analysis strictness (0-9, higher = stricter) | 5 |
 | `memory_limit` | PHP memory limit passed via `--memory-limit` (also applies to parallel workers) | `1G` |
+| `config_file` | Optional PHPStan NEON config to include before generated analyzer settings | unset |
+| `bootstrap_files` | Optional PHP files loaded by PHPStan before analysis, usually for autoload setup | `[]` |
 | `exclude_patterns` | Glob patterns to exclude from analysis (missing dirs are tolerated) | `[]` |
 | `analyze_path` | Specific path to analyze within project | project root |
+
+Use `bootstrap_files` when PHPStan needs project autoload context. Use
+`config_file` when a project already has a full PHPStan NEON config. The analyzer
+merges these settings into its generated temporary config, so `exclude_patterns`
+still work.
 
 ### PHPStan Levels
 
