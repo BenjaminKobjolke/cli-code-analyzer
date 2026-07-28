@@ -105,12 +105,20 @@ class FileDiscovery:
             # Normalize pattern
             pattern = pattern.replace('\\', '/')
 
-            # Handle directory patterns like venv/** or venv/**/*
+            # Handle directory patterns like venv/**, **/vendor/**, foo/**/*
             if pattern.endswith(('/**', '/**/*')):
-                # Extract the directory prefix
+                # Extract the directory prefix, tolerating a leading **/ so that
+                # **/vendor/** matches a vendor dir at ANY depth, not just root.
                 dir_prefix = pattern.split('/**')[0]
-                # Check if path starts with this directory
-                if path_str.startswith(dir_prefix + '/') or path_str == dir_prefix:
+                if dir_prefix.startswith('**/'):
+                    dir_prefix = dir_prefix[3:]
+                # Match the dir as a path-segment run at any depth. Wrapping both
+                # sides in '/' keeps it segment-safe (vendor != vendored-thing) and
+                # still matches the root case (path == prefix or path starts with it).
+                if (dir_prefix and (
+                        path_str == dir_prefix
+                        or path_str.startswith(dir_prefix + '/')
+                        or ('/' + dir_prefix + '/') in ('/' + path_str + '/'))):
                     return True
             elif '**' in pattern:
                 # General glob pattern with **

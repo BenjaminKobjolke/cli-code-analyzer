@@ -313,9 +313,16 @@ If you get an Intelephense import error:
 
 ### Exclusions not working
 
-- Ensure patterns use `/**` for recursive matching
-- Use forward slashes `/` in patterns, even on Windows
-- Check your vendor directory name matches the pattern
+- Use `**/dir/**` (or `dir/**`) to exclude a directory at **any** depth — e.g.
+  `**/vendor/**` matches a nested `wp-content/themes/x/vendor/` as well as a
+  root-level `vendor/`. Both forms are recursive.
+- Use forward slashes `/` in patterns, even on Windows.
+- Check your directory name matches the pattern exactly (segment-safe: `vendor`
+  will not match a sibling like `vendored-thing/`).
+- File discovery reads its exclude list from **`max_lines_per_file.exclude_patterns`**
+  (see `analyzer.py`). If files under a nested dependency dir are still scanned,
+  add the excludes to that rule — not only to `pmd_duplicates` / `php_cs_fixer`,
+  which filter with their own separate lists.
 
 ### Memory issues with large projects
 
