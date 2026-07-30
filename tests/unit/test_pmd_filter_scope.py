@@ -30,6 +30,12 @@ def _capture_cmd(rule):
 
     def fake(cmd, *_args, **_kwargs):
         seen['cmd'] = cmd
+        if '--file-list' in cmd:
+            file_list = Path(cmd[cmd.index('--file-list') + 1])
+            seen['file_paths'] = {
+                Path(line)
+                for line in file_list.read_text(encoding="utf-8").splitlines()
+            }
         return SimpleNamespace(returncode=0, stdout=EMPTY_CPD, stderr="")
 
     rule._run_subprocess = fake
@@ -49,13 +55,23 @@ def test_run_pmd_cpd_uses_file_list_when_filtered(tmp_path: Path):
     assert '-d' not in cmd
 
 
-def test_run_pmd_cpd_uses_directory_when_not_filtered(tmp_path: Path):
+def test_run_pmd_cpd_uses_curated_file_list_when_not_filtered(tmp_path: Path):
+    source = tmp_path / "source.dart"
+    source.write_text("")
+    cache = tmp_path / ".pytest_cache"
+    cache.mkdir()
+    cached_source = cache / "cached.dart"
+    cached_source.write_text("")
     rule = _rule(tmp_path)
     seen = _capture_cmd(rule)
-    rule._run_pmd_cpd("pmd", "dart", tmp_path, 100, [], [], filtered=None)
+    rule._run_pmd_cpd(
+        "pmd", "dart", tmp_path, 100, [".pytest_cache"], [], filtered=None,
+    )
     cmd = seen['cmd']
-    assert '-d' in cmd
-    assert '--file-list' not in cmd
+    assert '--file-list' in cmd
+    assert '-d' not in cmd
+    assert source.resolve() in seen['file_paths']
+    assert cached_source.resolve() not in seen['file_paths']
 
 
 def test_resolve_filtered_pmd_files_filters_ext_and_excludes(tmp_path: Path):
@@ -80,7 +96,7 @@ def test_run_skips_when_fewer_than_two_changed_files(tmp_path: Path):
     assert called['ran'] is False  # short-circuited before invoking PMD
 
 
-def test_file_filter_scans_directory_so_duplicates_can_be_found(tmp_path: Path):
+def test_file_filter_scans_full_curated_list_so_duplicates_can_be_found(tmp_path: Path):
     a = tmp_path / "a.dart"
     a.write_text("")
     rule = _rule(tmp_path, filter_files={"a.dart"}, filter_mode="file")
@@ -88,5 +104,5 @@ def test_file_filter_scans_directory_so_duplicates_can_be_found(tmp_path: Path):
     seen = _capture_cmd(rule)
     result = rule._run(a)
     assert result.status == RuleStatus.OK
-    assert '-d' in seen['cmd']
-    assert '--file-list' not in seen['cmd']
+    assert '--file-list' in seen['cmd']
+    assert '-d' not in seen['cmd']

@@ -98,21 +98,18 @@ def get_exclude_patterns(config, language: str | None) -> list[str]:
     return DEFAULT_EXCLUDE_PATTERNS.get(lang, DEFAULT_EXCLUDE_PATTERNS.get(pmd_lang, []))
 
 
-def generate_exclude_file_list(base_path, exclude_patterns: list[str], logger) -> Path | None:
-    """Write a temp file listing every project file matching exclude_patterns."""
-    if not exclude_patterns or not base_path:
-        return None
-    excluded_files = set()
-    for pattern in exclude_patterns:
-        if pattern.endswith('/**'):
-            pattern = pattern + '/*'
-        try:
-            for file_path in base_path.rglob(pattern):
-                if file_path.is_file():
-                    excluded_files.add(file_path.resolve())
-        except Exception as e:
-            logger.warning(f"Warning: Could not process pattern '{pattern}': {e}")
-    return write_temp_path_list(excluded_files, 'pmd_exclude_', logger)
+def resolve_full_pmd_files(rule, directory: Path, exclude_paths: list[str],
+                           exclude_patterns: list[str]) -> list[Path]:
+    """Discover only source files that PMD should receive for a full scan."""
+    from file_discovery import FileDiscovery
+    path_patterns = [
+        f"{Path(path).as_posix().rstrip('/')}/**"
+        for path in exclude_paths
+    ]
+    discovery = FileDiscovery(
+        rule.language, str(directory), [*exclude_patterns, *path_patterns],
+    )
+    return discovery.discover()
 
 
 def filter_pmd_stderr(stderr: str) -> str:
@@ -135,27 +132,24 @@ def run_cpd(rule, cmd_base: list[str], directory: Path, exclude_paths: list[str]
     """Append scan-source args to cmd_base, run PMD CPD, return a RuleResult.
 
     Shared by both CPD rules. When ``filtered`` is provided, scan exactly those
-    files via --file-list (excludes are meaningless against a curated list);
-    otherwise scan the whole directory with the configured excludes. Handles
+    files via ``--file-list``. Full and single-file-query scans first discover a
+    curated list of language source files, then use the same mechanism. This
+    keeps PMD from traversing excluded cache and metadata directories. Handles
     temp-file cleanup, stderr filtering, and delegates parsing to the rule's
     ``_result_from_pmd_stdout``.
     """
     cmd = list(cmd_base)
     temps: list[Path | None] = []
-    if filtered is not None:
-        file_list = write_temp_path_list(filtered, 'pmd_files_', rule.logger)
-        temps.append(file_list)
-        cmd.extend(['--file-list', str(file_list)])
-    else:
-        cmd.extend(['-d', str(directory)])
-        for path in exclude_paths:
-            exclude_dir = directory / path
-            if exclude_dir.exists():
-                cmd.extend(['--exclude', str(exclude_dir)])
-        exclude_file_list = generate_exclude_file_list(directory, exclude_patterns, rule.logger)
-        temps.append(exclude_file_list)
-        if exclude_file_list:
-            cmd.extend(['--exclude-file-list', str(exclude_file_list)])
+    scan_files = filtered
+    if scan_files is None:
+        scan_files = resolve_full_pmd_files(
+            rule, directory, exclude_paths, exclude_patterns,
+        )
+    file_list = write_temp_path_list(scan_files, 'pmd_files_', rule.logger)
+    if file_list is None:
+        return rule._ok([])
+    temps.append(file_list)
+    cmd.extend(['--file-list', str(file_list)])
 
     try:
         result = rule._run_subprocess(cmd)
