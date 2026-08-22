@@ -49,11 +49,14 @@ class ESLintAnalyzeRule(ProjectWideRule):
         """
         import platform
         if platform.system() == 'Windows':
-            local_eslint = self.base_path / 'node_modules' / '.bin' / 'eslint.cmd'
+            # eslint.cmd = npm, eslint.exe = bun
+            candidates = ['eslint.cmd', 'eslint.exe']
         else:
-            local_eslint = self.base_path / 'node_modules' / '.bin' / 'eslint'
-        if local_eslint.exists():
-            return str(local_eslint)
+            candidates = ['eslint']
+        for name in candidates:
+            local_eslint = self.base_path / 'node_modules' / '.bin' / name
+            if local_eslint.exists():
+                return str(local_eslint)
         return None
 
     def _run_eslint_check(self, eslint_path: str) -> RuleResult:
