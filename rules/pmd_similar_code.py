@@ -36,7 +36,8 @@ class PMDSimilarCodeRule(PMDCpdRule):
             cmd_base.append('--ignore-literals')
         if ignore_annotations:
             cmd_base.append('--ignore-annotations')
-        return run_cpd(self, cmd_base, directory, exclude_paths, exclude_patterns, filtered)
+        return run_cpd(self, cmd_base, directory, exclude_paths, exclude_patterns, filtered,
+                       pmd_language=language)
 
     def _result_from_pmd_stdout(self, stdout: str) -> RuleResult:
         """Turn PMD CPD XML stdout into a RuleResult, guarding the parse invariant.

@@ -25,7 +25,8 @@ class PMDDuplicatesRule(PMDCpdRule):
         """Execute PMD CPD and return a typed result (see pmd_base.run_cpd)."""
         cmd_base = [pmd_path, 'cpd', '-l', language, '-f', 'xml',
                     '--minimum-tokens', str(minimum_tokens), '--encoding', 'utf-8']
-        return run_cpd(self, cmd_base, directory, exclude_paths, exclude_patterns, filtered)
+        return run_cpd(self, cmd_base, directory, exclude_paths, exclude_patterns, filtered,
+                       pmd_language=language)
 
     def _result_from_pmd_stdout(self, stdout: str) -> RuleResult:
         """Turn PMD CPD XML stdout into a RuleResult.

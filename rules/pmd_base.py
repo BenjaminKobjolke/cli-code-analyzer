@@ -127,8 +127,38 @@ def filter_pmd_stderr(stderr: str) -> str:
     return '\n'.join(filtered)
 
 
+def sanitize_shebang_files(scan_files: list[Path], logger) -> tuple[dict[str, str], list[Path]]:
+    """Copy shebang-led files to temp copies with the shebang line blanked.
+
+    CPD's ecmascript lexer cannot parse ``#!`` shebang lines and skips the whole
+    file with a lexical error. The shebang is replaced by an empty line so all
+    other line numbers stay identical. Returns (temp->original path mapping,
+    temp paths for cleanup).
+    """
+    mapping: dict[str, str] = {}
+    temps: list[Path] = []
+    for f in scan_files:
+        try:
+            with open(f, encoding='utf-8', errors='ignore') as fh:
+                first = fh.readline()
+                if not first.startswith('#!'):
+                    continue
+                rest = fh.read()
+            fd, tmp = tempfile.mkstemp(suffix=Path(f).suffix, prefix='pmd_shebang_')
+            with open(fd, 'w', encoding='utf-8') as out:
+                out.write('\n' + rest)
+        except OSError as e:
+            logger.warning(f"Warning: Could not sanitize shebang file {f}: {e}")
+            continue
+        tmp_path = Path(tmp).resolve()
+        mapping[str(tmp_path)] = str(Path(f).resolve())
+        temps.append(tmp_path)
+    return mapping, temps
+
+
 def run_cpd(rule, cmd_base: list[str], directory: Path, exclude_paths: list[str],
-            exclude_patterns: list[str], filtered: list[Path] | None) -> RuleResult:
+            exclude_patterns: list[str], filtered: list[Path] | None,
+            pmd_language: str | None = None) -> RuleResult:
     """Append scan-source args to cmd_base, run PMD CPD, return a RuleResult.
 
     Shared by both CPD rules. When ``filtered`` is provided, scan exactly those
@@ -136,7 +166,9 @@ def run_cpd(rule, cmd_base: list[str], directory: Path, exclude_paths: list[str]
     curated list of language source files, then use the same mechanism. This
     keeps PMD from traversing excluded cache and metadata directories. Handles
     temp-file cleanup, stderr filtering, and delegates parsing to the rule's
-    ``_result_from_pmd_stdout``.
+    ``_result_from_pmd_stdout``. For ecmascript, shebang-led files are fed to
+    CPD as sanitized temp copies (see ``sanitize_shebang_files``) and their
+    paths mapped back to the originals in the output.
     """
     cmd = list(cmd_base)
     temps: list[Path | None] = []
@@ -145,6 +177,15 @@ def run_cpd(rule, cmd_base: list[str], directory: Path, exclude_paths: list[str]
         scan_files = resolve_full_pmd_files(
             rule, directory, exclude_paths, exclude_patterns,
         )
+
+    shebang_map: dict[str, str] = {}
+    if pmd_language == 'ecmascript' and scan_files:
+        shebang_map, shebang_temps = sanitize_shebang_files(scan_files, rule.logger)
+        if shebang_map:
+            temps.extend(shebang_temps)
+            orig_to_tmp = {orig: tmp for tmp, orig in shebang_map.items()}
+            scan_files = [Path(orig_to_tmp.get(str(Path(f).resolve()), str(f))) for f in scan_files]
+
     file_list = write_temp_path_list(scan_files, 'pmd_files_', rule.logger)
     if file_list is None:
         return rule._ok([])
@@ -157,7 +198,11 @@ def run_cpd(rule, cmd_base: list[str], directory: Path, exclude_paths: list[str]
             filtered_stderr = filter_pmd_stderr(result.stderr)
             if filtered_stderr:
                 rule.logger.warning(f"PMD CPD warning: {filtered_stderr}")
-        return rule._result_from_pmd_stdout(result.stdout)
+        stdout = result.stdout
+        for tmp, orig in shebang_map.items():
+            stdout = stdout.replace(tmp, orig)
+            stdout = stdout.replace(tmp.replace('\\', '/'), orig)
+        return rule._result_from_pmd_stdout(stdout)
     except Exception as e:
         rule.logger.error(f"Error running PMD CPD: {e}")
         return rule._failed(f"error running PMD CPD: {e}")
