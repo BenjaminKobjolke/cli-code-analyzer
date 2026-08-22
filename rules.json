@@ -241,6 +241,11 @@
     },
     "exclude_patterns": ["**/__pycache__/**", "*.pyc", "**/.venv/**", "**/venv/**"]
   },
+  "semgrep_analyze": {
+    "enabled": true,
+    "config": null,
+    "exclude_patterns": ["node_modules", ".venv", "venv", "vendor", "build", "dist", ".dart_tool", "*.g.dart", "*.freezed.dart"]
+  },
   "python_crap_score": {
     "enabled": false,
     "run_tests": true,

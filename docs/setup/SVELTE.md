@@ -9,6 +9,7 @@ This guide explains how to set up cli-code-analyzer for Svelte and SvelteKit pro
 - ESLint with `eslint-plugin-svelte` (for linting)
 - `svelte-check` (for TypeScript/Svelte type checking)
 - PMD (optional, for duplicate code detection)
+- Semgrep (optional, pattern scanning: `pip install semgrep`) — see [semgrep_analyze](../analyzers/semgrep_analyze.md)
 
 ## Quick Start
 

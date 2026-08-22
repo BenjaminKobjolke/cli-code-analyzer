@@ -7,6 +7,7 @@ This guide explains how to set up cli-code-analyzer for JavaScript and TypeScrip
 - Node.js 14+
 - npm or yarn
 - PMD (optional, for duplicate code detection)
+- Semgrep (optional, pattern scanning: `pip install semgrep`) — see [semgrep_analyze](../analyzers/semgrep_analyze.md)
 
 ## Quick Start
 

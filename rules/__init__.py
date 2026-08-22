@@ -27,13 +27,13 @@ from rules.pyscn_analyze import PyscnAnalyzeRule
 from rules.python_crap_score import PythonCrapScoreRule
 from rules.python_test_coverage import PythonTestCoverageRule
 from rules.ruff_analyze import RuffAnalyzeRule
+from rules.semgrep_analyze import SemgrepAnalyzeRule
 from rules.svelte_check import SvelteCheckRule
 from rules.tsc_analyze import TscAnalyzeRule
 
 __all__ = [
-    'BaseRule',
-    'ProjectWideRule',
     'AutoHotkeyAnalyzeRule',
+    'BaseRule',
     'DartAnalyzeRule',
     'DartCodeLinterRule',
     'DartCrapScoreRule',
@@ -53,10 +53,12 @@ __all__ = [
     'PHPStanAnalyzeRule',
     'PMDDuplicatesRule',
     'PMDSimilarCodeRule',
+    'ProjectWideRule',
     'PyscnAnalyzeRule',
     'PythonCrapScoreRule',
     'PythonTestCoverageRule',
     'RuffAnalyzeRule',
+    'SemgrepAnalyzeRule',
     'SvelteCheckRule',
     'TscAnalyzeRule',
 ]

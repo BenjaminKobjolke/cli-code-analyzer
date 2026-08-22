@@ -8,6 +8,7 @@ This guide explains how to set up cli-code-analyzer for Python projects.
 - PMD (optional, for duplicate code detection)
 - Ruff (optional, for Python linting)
 - pyscn (optional, for complexity / dead code / coupling)
+- Semgrep (optional, pattern scanning: `pip install semgrep`) — see [semgrep_analyze](../analyzers/semgrep_analyze.md)
 
 ## Quick Start
 

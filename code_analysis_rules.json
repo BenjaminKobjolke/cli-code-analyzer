@@ -65,5 +65,10 @@
     "auto_build": false,
     "build_path": "src",
     "exceptions": []
+  },
+  "semgrep_analyze": {
+    "enabled": true,
+    "config": null,
+    "exclude_patterns": ["venv", ".venv", "__pycache__", ".git", "example"]
   }
 }

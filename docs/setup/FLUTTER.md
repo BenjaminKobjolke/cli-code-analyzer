@@ -8,6 +8,7 @@ This guide explains how to set up cli-code-analyzer for Flutter/Dart projects.
 - Dart SDK (included with Flutter)
 - PMD (optional, for duplicate code detection)
 - dart_code_linter package (optional, for code metrics)
+- Semgrep (optional, pattern scanning: `pip install semgrep`) — see [semgrep_analyze](../analyzers/semgrep_analyze.md)
 
 ## Quick Start
 

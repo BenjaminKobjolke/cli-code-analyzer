@@ -3,10 +3,8 @@ Centralized registry of available analyzers per language.
 """
 
 import json
-from typing import Optional
 
 from logger import Logger
-
 
 # Registry format: (analyzer_name, description, requires)
 # requires = None means no external tool required
@@ -19,6 +17,7 @@ ANALYZER_REGISTRY = {
         ('php_cs_fixer', 'Code style checking', 'PHP-CS-Fixer (composer)'),
         ('intelephense_analyze', 'LSP diagnostics', 'Intelephense (npm)'),
         ('graphify_fanout', 'Fan-out / outgoing coupling', 'graphify (graph.json)'),
+        ('semgrep_analyze', 'Pattern scanning', 'semgrep (pip)'),
     ],
     'python': [
         ('max_lines_per_file', 'File length checks', None),
@@ -29,6 +28,7 @@ ANALYZER_REGISTRY = {
         ('python_test_coverage', 'Test coverage checking', 'coverage.py + pytest'),
         ('python_crap_score', 'CRAP score (complexity x coverage) per function', 'pyscn + coverage.py'),
         ('graphify_fanout', 'Fan-out / outgoing coupling', 'graphify (graph.json)'),
+        ('semgrep_analyze', 'Pattern scanning', 'semgrep (pip)'),
     ],
     'flutter': [
         ('max_lines_per_file', 'File length checks', None),
@@ -45,6 +45,7 @@ ANALYZER_REGISTRY = {
         ('dart_test_coverage', 'Test coverage checking', 'Flutter SDK'),
         ('dart_crap_score', 'CRAP score (complexity x coverage) per function', 'Flutter SDK + dart_code_linter'),
         ('graphify_fanout', 'Fan-out / outgoing coupling', 'graphify (graph.json)'),
+        ('semgrep_analyze', 'Pattern scanning', 'semgrep (pip)'),
     ],
     'csharp': [
         ('max_lines_per_file', 'File length checks', None),
@@ -52,6 +53,7 @@ ANALYZER_REGISTRY = {
         ('pmd_similar_code', 'Similar code pattern detection', 'PMD'),
         ('dotnet_analyze', '.NET analysis', '.NET SDK'),
         ('graphify_fanout', 'Fan-out / outgoing coupling', 'graphify (graph.json)'),
+        ('semgrep_analyze', 'Pattern scanning', 'semgrep (pip)'),
     ],
     'javascript': [
         ('max_lines_per_file', 'File length checks', None),
@@ -60,6 +62,7 @@ ANALYZER_REGISTRY = {
         ('eslint_analyze', 'Linting and style', 'ESLint (npm)'),
         ('tsc_analyze', 'TypeScript type checking', 'TypeScript (npm)'),
         ('graphify_fanout', 'Fan-out / outgoing coupling', 'graphify (graph.json)'),
+        ('semgrep_analyze', 'Pattern scanning', 'semgrep (pip)'),
     ],
     'svelte': [
         ('max_lines_per_file', 'File length checks', None),
@@ -68,6 +71,7 @@ ANALYZER_REGISTRY = {
         ('eslint_analyze', 'Linting and style', 'ESLint (npm) + eslint-plugin-svelte'),
         ('svelte_check', 'TypeScript/Svelte type checking', 'svelte-check (npm)'),
         ('graphify_fanout', 'Fan-out / outgoing coupling', 'graphify (graph.json)'),
+        ('semgrep_analyze', 'Pattern scanning', 'semgrep (pip)'),
     ],
     'autohotkey': [
         ('max_lines_per_file', 'File length checks', None),
@@ -87,7 +91,7 @@ LANGUAGE_ALIASES = {
 }
 
 
-def get_analyzers_for_language(lang: str) -> list[tuple[str, str, Optional[str]]]:
+def get_analyzers_for_language(lang: str) -> list[tuple[str, str, str | None]]:
     """
     Get the list of available analyzers for a language.
 
@@ -164,7 +168,7 @@ def format_analyzers_output(lang: str, output_format: str = 'text') -> str:
     return '\n'.join(lines)
 
 
-def _format_analyzer_list(analyzers: list[tuple[str, str, Optional[str]]]) -> list[str]:
+def _format_analyzer_list(analyzers: list[tuple[str, str, str | None]]) -> list[str]:
     """Format a list of analyzers as aligned text lines."""
     lines = []
 

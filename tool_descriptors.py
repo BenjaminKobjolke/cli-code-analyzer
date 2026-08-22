@@ -84,6 +84,20 @@ TOOLS: list[ToolDescriptor] = [
         error_label="Ruff",
     ),
     ToolDescriptor(
+        name="semgrep",
+        section="semgrep",
+        key="semgrep_path",
+        install_msgs=(
+            "\nSemgrep executable not found in PATH.",
+            "Semgrep is a pattern-based static analysis tool.",
+            "Install with: pip install semgrep",
+        ),
+        prompt_msg="\nEnter path to semgrep executable (or press Enter to skip): ",
+        skip_msg="Skipping semgrep analyze rule. Install semgrep and configure later.",
+        saved_label="Semgrep",
+        error_label="Semgrep",
+    ),
+    ToolDescriptor(
         name="phpstan",
         section="phpstan",
         key="phpstan_path",

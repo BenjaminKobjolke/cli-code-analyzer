@@ -9,7 +9,14 @@
     "enabled": true,
     "minimum_tokens": 100,
     "exclude_patterns": {
-      "python": ["__pycache__/**", "*.pyc", "venv/**", ".venv/**", "env/**", ".git/**"]
+      "python": [
+        "__pycache__/**",
+        "*.pyc",
+        "venv/**",
+        ".venv/**",
+        "env/**",
+        ".git/**"
+      ]
     }
   },
   "pmd_similar_code": {
@@ -19,14 +26,23 @@
     "ignore_literals": true,
     "ignore_annotations": false,
     "exclude_patterns": {
-      "python": ["__pycache__/**", "*.pyc", "venv/**", ".venv/**", "env/**", ".git/**"]
+      "python": [
+        "__pycache__/**",
+        "*.pyc",
+        "venv/**",
+        ".venv/**",
+        "env/**",
+        ".git/**"
+      ]
     }
   },
   "ruff_analyze": {
     "enabled": true,
     "select": [
       "F",
-      "E4", "E7", "E9",
+      "E4",
+      "E7",
+      "E9",
       "W",
       "I",
       "B",
@@ -38,6 +54,26 @@
       "RUF"
     ],
     "ignore": [],
-    "exclude_patterns": ["venv", "__pycache__", ".git", ".venv"]
+    "exclude_patterns": [
+      "venv",
+      "__pycache__",
+      ".git",
+      ".venv"
+    ]
+  },
+  "semgrep_analyze": {
+    "enabled": true,
+    "config": null,
+    "exclude_patterns": [
+      "node_modules",
+      ".venv",
+      "venv",
+      "vendor",
+      "build",
+      "dist",
+      ".dart_tool",
+      "*.g.dart",
+      "*.freezed.dart"
+    ]
   }
 }

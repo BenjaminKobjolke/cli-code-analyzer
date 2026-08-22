@@ -9,7 +9,11 @@
     "enabled": true,
     "minimum_tokens": 100,
     "exclude_patterns": {
-      "php": ["vendor/**", "node_modules/**", ".git/**"]
+      "php": [
+        "vendor/**",
+        "node_modules/**",
+        ".git/**"
+      ]
     }
   },
   "pmd_similar_code": {
@@ -19,26 +23,59 @@
     "ignore_literals": true,
     "ignore_annotations": false,
     "exclude_patterns": {
-      "php": ["vendor/**", "node_modules/**", ".git/**"]
+      "php": [
+        "vendor/**",
+        "node_modules/**",
+        ".git/**"
+      ]
     }
   },
   "phpstan_analyze": {
     "enabled": true,
     "level": 5,
     "memory_limit": "1G",
-    "bootstrap_files": ["tools/phpstan-bootstrap.php"],
-    "exclude_patterns": ["vendor/**", "node_modules/**", ".git/**"]
+    "bootstrap_files": [
+      "tools/phpstan-bootstrap.php"
+    ],
+    "exclude_patterns": [
+      "vendor/**",
+      "node_modules/**",
+      ".git/**"
+    ]
   },
   "php_cs_fixer": {
     "enabled": true,
     "rules": "@PSR12",
-    "exclude_patterns": ["vendor/**", "node_modules/**", ".git/**"]
+    "exclude_patterns": [
+      "vendor/**",
+      "node_modules/**",
+      ".git/**"
+    ]
   },
   "intelephense_analyze": {
     "enabled": true,
     "min_severity": "warning",
     "timeout": 5,
-    "exclude_patterns": ["vendor/**", "node_modules/**", ".git/**"],
+    "exclude_patterns": [
+      "vendor/**",
+      "node_modules/**",
+      ".git/**"
+    ],
     "ignore_unused_underscore": true
+  },
+  "semgrep_analyze": {
+    "enabled": true,
+    "config": null,
+    "exclude_patterns": [
+      "node_modules",
+      ".venv",
+      "venv",
+      "vendor",
+      "build",
+      "dist",
+      ".dart_tool",
+      "*.g.dart",
+      "*.freezed.dart"
+    ]
   }
 }

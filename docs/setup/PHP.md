@@ -8,6 +8,7 @@ This guide explains how to set up cli-code-analyzer for PHP projects.
 - PHP 8.4+
 - Composer
 - PMD (optional, for duplicate code detection)
+- Semgrep (optional, pattern scanning: `pip install semgrep`) — see [semgrep_analyze](../analyzers/semgrep_analyze.md)
 
 ## Quick Start
 

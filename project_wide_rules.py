@@ -28,6 +28,7 @@ from rules import (
     PythonCrapScoreRule,
     PythonTestCoverageRule,
     RuffAnalyzeRule,
+    SemgrepAnalyzeRule,
     SvelteCheckRule,
     TscAnalyzeRule,
 )
@@ -56,13 +57,14 @@ PROJECT_WIDE_ANALYZERS = [
     ('python_test_coverage', PythonTestCoverageRule),
     ('python_crap_score', PythonCrapScoreRule),
     ('graphify_fanout', GraphifyFanoutRule),
+    ('semgrep_analyze', SemgrepAnalyzeRule),
 ]
 
 # Project-wide analyzers that cannot be meaningfully scoped to a file subset
 # (cross-file/whole-graph analysis, project/solution-based tools, or whole-suite
 # coverage). Under --only-changed / --file these are skipped rather than run over
 # the whole project. The scopeable ones (dart_analyze, flutter_analyze,
-# ruff_analyze, eslint_analyze, phpstan_analyze, and PMD) accept a file list and
+# ruff_analyze, eslint_analyze, phpstan_analyze, semgrep_analyze, and PMD) accept a file list and
 # are scoped instead — see BaseRule._scope_args / PMD --file-list.
 FILTER_INCAPABLE = {
     'dart_code_linter', 'pyscn_analyze', 'svelte_check', 'tsc_analyze',

@@ -1,0 +1,15 @@
+rules:
+  - id: complex-boolean-condition
+    languages: [dart, javascript, typescript, php, csharp]
+    severity: WARNING
+    message: Complex boolean condition (3+ operands). Extract to a well-named variable or method.
+    pattern-either:
+      - pattern: if ($A && $B && $C) ...
+      - pattern: if ($A || $B || $C) ...
+  - id: complex-boolean-condition-python
+    languages: [python]
+    severity: WARNING
+    message: Complex boolean condition (3+ operands). Extract to a well-named variable or method.
+    pattern-either:
+      - pattern: "if $A and $B and $C: ..."
+      - pattern: "if $A or $B or $C: ..."

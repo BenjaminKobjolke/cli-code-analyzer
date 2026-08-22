@@ -7,6 +7,7 @@ This guide explains how to set up cli-code-analyzer for C# / .NET projects.
 - Python 3.9+
 - .NET SDK (any version: .NET Framework 4.x, .NET Core, .NET 5/6/7/8+)
 - PMD (optional, for duplicate code detection)
+- Semgrep (optional, pattern scanning: `pip install semgrep`) — see [semgrep_analyze](../analyzers/semgrep_analyze.md)
 
 ## Quick Start
 
