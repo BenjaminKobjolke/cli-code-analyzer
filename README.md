@@ -26,9 +26,10 @@ A flexible command-line tool for analyzing code files based on configurable rule
 - **Language-specific exclusions**: Automatically exclude generated files (e.g., `**.g.dart`, `**.freezed.dart`)
 - **Relative path display**: Clean, readable output with relative file paths
 - **JSON output**: Machine-readable JSON output format via `--format json`
-- **Violation cache**: SQLite-based caching — normal runs with `--output` auto-save results; subsequent runs and `--file` queries use cached data when fresh (auto-invalidated when source files are added, removed, or modified)
+- **Violation cache**: SQLite-based caching — normal runs with `--output` auto-save results; subsequent runs and `--file` queries use cached data when fresh (auto-invalidated when project sources, rules, or analyzer code change)
 - **Quiet file mode**: `--file` suppresses all progress output, showing only results
 - **Git-aware mode**: `--only-changed` reports violations only for files new or modified vs git `HEAD` (includes untracked, skips deletes) — ideal for iterating on a feature branch or AI-assisted post-implementation checks
+- **Single-analyzer runs**: `--only-analyzer` runs just the named analyzer(s) from `--rules` for a run, skipping every other enabled rule
 
 ## Installation
 
@@ -99,7 +100,8 @@ python main.py --language <language> --path <path> [options]
 | `--list-analyzers` | `-a` | No | - | List available analyzers for a language (or all) |
 | `--format` | | No | `text` | Output format: `text` (default) or `json` |
 | `--build-cache` | | No | off | Build a violation cache in the output folder for fast `--file` queries. Requires `--output`. |
-| `--cache-max-age` | | No | `60` | Maximum cache age in minutes before it is considered stale. Independent of age, the cache is also invalidated when source files are added/removed/modified or `rules.json` changes |
+| `--cache-max-age` | | No | `60` | Maximum cache age in minutes before it is considered stale. Independent of age, the cache is also invalidated when source files, `rules.json`, or analyzer code change |
+| `--only-analyzer` | | No | - | Run only the named analyzer(s) from `--rules`, skipping every other enabled rule for this run (space- or comma-separated). Names match `rules.json` keys / `--list-analyzers` output. Disables the violation cache; mutually exclusive with `--build-cache`. |
 
 ## JSON Output
 
@@ -133,7 +135,7 @@ Output:
 
 ## Violation Cache
 
-The cache stores analyzer results in a SQLite database so that subsequent runs skip analysis when the cache is valid — i.e. no analyzed source file was added, removed, or modified since it was written, `rules.json` is unchanged, and it is younger than `--cache-max-age`. Requires `--output`.
+The cache stores analyzer results in a SQLite database so that subsequent runs skip analysis when the cache is valid — i.e. no analyzed source file was added, removed, or modified since it was written, `rules.json` and the analyzer implementation are unchanged, and it is younger than `--cache-max-age`. Requires `--output`.
 
 ### Automatic caching
 
@@ -175,7 +177,9 @@ python main.py --language python --path ./src --output ./reports --build-cache
   (file-set comparison + newest-mtime check against the discovered files)
 - `--cache-max-age 60` (default): cache expires after 60 minutes
 - Editing `rules.json` invalidates the cache (hash mismatch)
-- Cache status is logged (not found, too old, rules changed, files changed)
+- Editing production analyzer Python modules invalidates the cache (hash mismatch)
+- Caches created before analyzer fingerprints were introduced are rebuilt once
+- Cache status is logged (not found, too old, rules changed, analyzer changed, files changed)
 
 ## Examples
 
@@ -366,6 +370,25 @@ python main.py --language flutter --path ./lib --only-changed --output ./reports
 - Iterating on a feature branch — see only what you're touching
 - Pre-commit / pre-push checks on the working tree
 - Quickly re-checking after edits without scrolling past unrelated violations
+
+#### Running a Single Analyzer
+
+Use `--only-analyzer` to run just one (or a few) analyzer(s) from your `--rules` file for this run, without editing `rules.json`. Every other enabled rule is skipped; the violation cache is disabled since the result would only be a partial run.
+
+```bash
+# Only check line counts, ignore ruff/pmd/dart_analyze/etc. even though they're enabled in rules.json
+python main.py --language flutter --path ./lib --rules rules.json --only-analyzer max_lines_per_file
+
+# Multiple analyzers (space- or comma-separated)
+python main.py --language python --path ./src --only-analyzer max_lines_per_file,ruff_analyze
+```
+
+Analyzer names match the keys in `rules.json` — see `--list-analyzers` to look them up. An unrecognized name logs a warning and contributes no violations. Mutually exclusive with `--build-cache`.
+
+**When to use:**
+- Fast-checking one rule (e.g. line count) without the full analyzer suite
+- Debugging why a specific analyzer flags (or doesn't flag) a violation
+- Skipping slow analyzers (PMD, dart analyze) when you only care about one thing right now
 
 ### Analyze Your Own Flutter Project
 

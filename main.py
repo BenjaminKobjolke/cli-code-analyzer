@@ -81,6 +81,15 @@ def main():
     if args.build_cache and not args.output:
         parser.error("--build-cache requires --output to be set")
 
+    # Normalize --only-analyzer: support both space- and comma-separated
+    only_analyzers: set[str] | None = None
+    if args.only_analyzer:
+        only_analyzers = {
+            part.strip() for name in args.only_analyzer for part in name.split(',') if part.strip()
+        }
+        if args.build_cache:
+            parser.error("--only-analyzer and --build-cache cannot be used together")
+
     # -----------------------------------------------------------
     # Resolve filter_files (set of base-relative posix paths)
     # Drives both --file (1-element set) and --only-changed (N-element set).
@@ -168,7 +177,7 @@ def main():
     # -----------------------------------------------------------
     rules_hash = ViolationCache.compute_rules_hash(args.rules)
     cache = None
-    if output_folder:
+    if output_folder and not only_analyzers:
         cache = ViolationCache(output_folder / '_violations_cache.db', logger=logger)
 
     # Discover source files once for cache validation (mtime / file-set checks).
@@ -268,6 +277,7 @@ def main():
                 filter_files=filter_files,
                 filter_mode=filter_mode,
                 logger=logger,
+                only_analyzers=only_analyzers,
             ))
             analyzer.analyze()
 

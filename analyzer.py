@@ -27,6 +27,7 @@ class AnalyzerConfig:
     filter_files: set[str] | None = None
     filter_mode: str | None = None
     logger: Logger | None = None
+    only_analyzers: set[str] | None = None
 
 
 class CodeAnalyzer:
@@ -56,6 +57,14 @@ class CodeAnalyzer:
         self.filter_mode = cfg.filter_mode
         self.logger = cfg.logger or Logger()
         self._enabled_analyzers = self._get_enabled_analyzers()
+        self.only_analyzers = cfg.only_analyzers
+        if self.only_analyzers is not None:
+            unknown = self.only_analyzers - self._enabled_analyzers
+            for name in sorted(unknown):
+                self.logger.warning(
+                    f"Warning: --only-analyzer '{name}' is not a valid analyzer for "
+                    f"language(s) {', '.join(self.languages)}"
+                )
         self._multi_language = len(self.languages) > 1
         self._last_language_header = None
 
@@ -68,7 +77,13 @@ class CodeAnalyzer:
         return analyzers
 
     def _should_run(self, analyzer_name: str) -> bool:
-        """Check if an analyzer should run (in language set AND enabled in rules)."""
+        """Check if an analyzer should run (in language set AND enabled in rules).
+
+        When only_analyzers is set (--only-analyzer), it further narrows the set —
+        it never re-enables an analyzer disabled in rules.json.
+        """
+        if self.only_analyzers is not None and analyzer_name not in self.only_analyzers:
+            return False
         return analyzer_name in self._enabled_analyzers and self.config.is_rule_enabled(analyzer_name)
 
     def _get_languages_for_analyzer(self, analyzer_name: str) -> list[str]:

@@ -18,6 +18,7 @@ Examples:
   python main.py --language python --path ./src --format json
   python main.py --language python --path ./src --output reports/ --build-cache
   python main.py --language python --path ./src --output reports/ --file src/app.py
+  python main.py --language python --path ./src --rules rules.json --only-analyzer max_lines_per_file
         """,
     )
 
@@ -132,5 +133,16 @@ Examples:
         type=int,
         default=60,
         help='Maximum cache age in minutes before it is considered stale (default: 60)',
+    )
+    parser.add_argument(
+        '--only-analyzer',
+        nargs='+',
+        default=None,
+        metavar='ANALYZER',
+        help=(
+            'Run only the named analyzer(s) from --rules, skipping every other enabled '
+            'rule for this run (space- or comma-separated). Names match rules.json keys '
+            '/ --list-analyzers output, e.g. max_lines_per_file. Disables the violation cache.'
+        ),
     )
     return parser

@@ -12,6 +12,7 @@ from contextlib import suppress
 from datetime import datetime, timezone
 from pathlib import Path
 
+from analyzer_fingerprint import compute_analyzer_hash
 from logger import Logger
 from models import Severity, Violation
 
@@ -22,6 +23,7 @@ class ViolationCache:
     def __init__(self, db_path: Path, logger: Logger | None = None):
         self.db_path = db_path
         self.logger = logger or Logger()
+        self.analyzer_hash = compute_analyzer_hash()
 
     # ------------------------------------------------------------------
     # Connection
@@ -41,7 +43,7 @@ class ViolationCache:
     def is_valid(self, max_age_minutes: int, rules_hash: str,
                  current_files: list[Path] | None = None,
                  base_path: str | None = None) -> bool:
-        """Check whether the cache exists, is fresh, and matches the rules hash.
+        """Check whether the cache is fresh and matches rules and analyzer code.
 
         When `current_files` (the currently discovered source files) is given,
         the cache is additionally invalid if the analyzed file set changed
@@ -73,6 +75,12 @@ class ViolationCache:
             if not row or row[0] != rules_hash:
                 con.close()
                 self.logger.info("Cache rules hash mismatch, will run full analysis")
+                return False
+            cur.execute("SELECT value FROM cache_meta WHERE key = 'analyzer_hash'")
+            row = cur.fetchone()
+            if not row or row[0] != self.analyzer_hash:
+                con.close()
+                self.logger.info("Cache analyzer hash mismatch, will run full analysis")
                 return False
             if current_files is not None and not self._sources_unchanged(cur, current_files, base_path):
                 con.close()
@@ -150,6 +158,8 @@ class ViolationCache:
         now_utc = datetime.now(timezone.utc).isoformat()
         cur.execute("INSERT INTO cache_meta VALUES (?, ?)", ("created_at", now_utc))
         cur.execute("INSERT INTO cache_meta VALUES (?, ?)", ("rules_hash", rules_hash))
+        cur.execute("INSERT INTO cache_meta VALUES (?, ?)",
+                    ("analyzer_hash", self.analyzer_hash))
         cur.execute("INSERT INTO cache_meta VALUES (?, ?)", ("languages", ",".join(languages)))
         cur.execute("INSERT INTO cache_meta VALUES (?, ?)", ("base_path", base_path))
         cur.execute("INSERT INTO cache_meta VALUES (?, ?)",

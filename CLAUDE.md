@@ -43,9 +43,12 @@ python main.py --language python --path ./src --output ./reports --file src/app.
 
 # Analyze only files new or modified vs git HEAD (includes untracked, skips deletes)
 python main.py --language flutter --path ./lib --only-changed --rules rules.json
+
+# Run only a single analyzer from rules.json (e.g. just line-count checks)
+python main.py --language flutter --path ./lib --rules rules.json --only-analyzer max_lines_per_file
 ```
 
-**Arguments:** `-l`/`--language` (flutter|python|php|csharp|javascript|svelte|autohotkey; supports multiple), `-p`/`--path`, `-F`/`--file` (filter violations to single file; defaults max errors to 5; suppresses progress output), `--only-changed` (filter to files new/modified in git vs HEAD; includes untracked, skips deletes; mutually exclusive with `--file`; defaults max errors to 5), `-r`/`--rules` (default: rules.json), `-v`/`--verbosity` (minimal|normal|verbose), `-o`/`--output` (folder for CSV; previous reports are auto-cleaned), `-L`/`--loglevel` (error|warning|all), `-m`/`--maxamountoferrors`, `-f`/`--list-files` (show analyzed file paths), `-a`/`--list-analyzers`, `--format` (text|json; default: text), `--build-cache` (build violation cache in output folder; requires --output), `--cache-max-age` (cache staleness in minutes; default: 60)
+**Arguments:** `-l`/`--language` (flutter|python|php|csharp|javascript|svelte|autohotkey; supports multiple), `-p`/`--path`, `-F`/`--file` (filter violations to single file; defaults max errors to 5; suppresses progress output), `--only-changed` (filter to files new/modified in git vs HEAD; includes untracked, skips deletes; mutually exclusive with `--file`; defaults max errors to 5), `-r`/`--rules` (default: rules.json), `-v`/`--verbosity` (minimal|normal|verbose), `-o`/`--output` (folder for CSV; previous reports are auto-cleaned), `-L`/`--loglevel` (error|warning|all), `-m`/`--maxamountoferrors`, `-f`/`--list-files` (show analyzed file paths), `-a`/`--list-analyzers`, `--format` (text|json; default: text), `--build-cache` (build violation cache in output folder; requires --output), `--cache-max-age` (cache staleness in minutes; default: 60), `--only-analyzer` (run only the named analyzer(s) from --rules, skipping every other enabled rule; space- or comma-separated; disables the cache; mutually exclusive with --build-cache)
 
 **Exit codes:** 0 = no errors, 1 = errors found or failure.
 
