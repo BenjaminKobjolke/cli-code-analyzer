@@ -29,6 +29,7 @@ Each rule generates a CSV with specific columns:
 - Split large files into smaller, focused modules
 - Extract classes/functions into separate files
 - Consider if the file has too many responsibilities
+- For a non-trivial split, run `/refactor_large_file <path>` for a guided, verified workflow
 
 ### Duplicate Code (`pmd_duplicates`)
 - Extract duplicated code into shared functions/utilities
