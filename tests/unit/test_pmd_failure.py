@@ -52,3 +52,34 @@ def test_no_duplicates_is_ok_and_empty(tmp_path: Path):
     res = _rule(tmp_path)._result_from_pmd_stdout(NO_DUPLICATES)
     assert res.status == RuleStatus.OK
     assert res.violations == []
+
+
+def test_all_suppressed_by_exceptions_is_ok_not_failed(tmp_path: Path):
+    """A duplication that parses but is fully suppressed by exceptions is a
+    clean OK — not the schema-mismatch FAILED (regression: the guard used to key
+    off surviving violations, so suppressing every finding tripped a false
+    failure)."""
+    a = tmp_path / "src" / "A.php"
+    b = tmp_path / "src" / "B.php"
+    a.parent.mkdir(parents=True, exist_ok=True)
+    a.write_text("")
+    b.write_text("")
+    xml = (
+        '<?xml version="1.0" encoding="UTF-8"?>'
+        '<pmd-cpd xmlns="https://pmd-code.org/schema/cpd-report" pmdVersion="7.17.0">'
+        '<duplication lines="27" tokens="205">'
+        f'<file column="5" endcolumn="6" endline="47" line="19" path="{a}"/>'
+        f'<file column="5" endcolumn="6" endline="45" line="17" path="{b}"/>'
+        '<codefragment><![CDATA[ body ]]></codefragment>'
+        '</duplication></pmd-cpd>'
+    )
+    rule = PMDDuplicatesRule(RuleContext(
+        config={'exceptions': [
+            {"file": "src/A.php", "duplicate_of": "src/B.php", "reason": "data models"},
+        ]},
+        base_path=tmp_path,
+        logger=Logger(quiet=True),
+    ))
+    res = rule._result_from_pmd_stdout(xml)
+    assert res.status == RuleStatus.OK
+    assert res.violations == []

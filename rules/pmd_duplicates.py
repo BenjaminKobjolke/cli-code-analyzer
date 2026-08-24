@@ -32,19 +32,27 @@ class PMDDuplicatesRule(PMDCpdRule):
         """Turn PMD CPD XML stdout into a RuleResult.
 
         Invariant guard: if the output clearly contains <duplication markers but
-        none parse into violations, the result is NOT clean — it's a parser/schema
+        none parse into ELEMENTS, the result is NOT clean — it's a parser/schema
         mismatch (the exact failure mode of the original namespace bug). Surface it
         as FAILED instead of a false "no duplicates".
+
+        The guard keys off parsed <duplication> *elements*, not surviving
+        violations: when duplications parse fine but are all suppressed by
+        configured ``exceptions``, that is a legitimate clean result, not a
+        schema mismatch.
         """
         if not self._has_duplicates_in_xml(stdout):
             self.logger.info("No duplicate code found.")
             return self._ok([])
 
-        violations = self._parse_xml_output(stdout)
-        if not violations:
+        if not self._parsed_any_duplications(stdout):
             return self._failed(
                 "PMD reported duplications but none parsed — likely XML schema/namespace mismatch"
             )
+
+        violations = self._parse_xml_output(stdout)
+        if not violations:
+            self.logger.info("No duplicate code found (all duplications suppressed by exceptions).")
         return self._ok(self._filter_violations_by_log_level(violations))
 
     def _has_duplicates_in_xml(self, xml_content: str) -> bool:
@@ -52,6 +60,18 @@ class PMDDuplicatesRule(PMDCpdRule):
         if not xml_content or not xml_content.strip():
             return False
         return '<duplication' in xml_content
+
+    def _parsed_any_duplications(self, xml_content: str) -> bool:
+        """Whether the XML parses into at least one <duplication> element.
+
+        Distinguishes a genuine parse/schema mismatch (raw text has the
+        ``<duplication`` marker but zero elements parse) from an all-suppressed
+        run (elements parse, then exceptions drop every occurrence).
+        """
+        try:
+            return bool(ET.fromstring(xml_content).findall('{*}duplication'))
+        except ET.ParseError:
+            return False
 
     def _parse_xml_output(self, xml_content: str) -> list[Violation]:
         """Parse PMD CPD XML output string into violations with actual file paths.
