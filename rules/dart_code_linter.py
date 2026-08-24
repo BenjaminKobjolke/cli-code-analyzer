@@ -161,7 +161,10 @@ class DartCodeLinterRule(ProjectWideRule):
         if metric_id not in thresholds:
             return None
 
-        eff = self._get_threshold_for_file(Path(file_path), thresholds[metric_id], metric_id)
+        applicable = [e for e in self.config.get('exceptions', [])
+                      if e.get('metric') in (None, metric_id)]  # no metric key => applies to all metrics
+        tc = {**thresholds[metric_id], 'exceptions': applicable}
+        eff = self._get_threshold_for_file(Path(file_path), tc, metric_id)
         err_th, warn_th = eff.get('error'), eff.get('warning')
         if err_th == 0 and warn_th == 0:
             return None
