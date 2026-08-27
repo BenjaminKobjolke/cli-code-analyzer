@@ -219,5 +219,7 @@ code_analysis_results
 php/vendor/
 .php-cs-fixer.cache
 .claude/settings.local.json
+.claude/
 /nul
 claude-plans
+/PLAN_*.md
