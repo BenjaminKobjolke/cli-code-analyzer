@@ -79,8 +79,11 @@ class DartCodeLinterRule(ProjectWideRule):
         self.logger.info(f"Running dart_code_linter analysis on '{analyze_path}'...")
 
         working_dir = self.project_root or self.base_path
-        report_dir = (self.output_folder or working_dir) / 'code_analysis'
-        report_dir.mkdir(exist_ok=True)
+        # Absolute: the subprocess runs with cwd=working_dir, which is not necessarily
+        # our own cwd, so a relative --json-path would resolve to a different directory
+        # than the one we create here (dart then fails with PathNotFoundException).
+        report_dir = ((self.output_folder or working_dir) / 'code_analysis').resolve()
+        report_dir.mkdir(parents=True, exist_ok=True)
         report_json = report_dir / 'report.json'
 
         cmd = [

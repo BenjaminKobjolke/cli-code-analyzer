@@ -52,7 +52,10 @@ class DartCrapScoreRule(CrapScoreMixin, DartCrapIOMixin, ProjectWideRule):
             return self._failed("dart_code_linter not in dev_dependencies")
 
         # 1. Get per-function complexity + line ranges from DCL JSON
-        report_dir = (self.output_folder or self.project_root) / 'crap_report'
+        # Absolute for the same reason as in dart_code_linter: the DCL subprocess runs
+        # with a cwd that need not match ours, so a relative report path can point at a
+        # directory we never created.
+        report_dir = ((self.output_folder or self.project_root) / 'crap_report').resolve()
         report_dir.mkdir(exist_ok=True, parents=True)
         report_json = self._run_dcl_metrics(dart_cmd, report_dir)
         if not report_json:
