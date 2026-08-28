@@ -11,8 +11,15 @@ import subprocess
 import sys
 from pathlib import Path
 
-from logger import Logger
-from settings import Settings
+# Windows consoles default to cp1252; tool output can contain characters outside
+# that codec, making bare print() raise UnicodeEncodeError. Force utf-8 with
+# replacement so the fixer does not die on an un-encodable byte.
+for _stream in (sys.stdout, sys.stderr):
+    if hasattr(_stream, "reconfigure"):
+        _stream.reconfigure(encoding="utf-8", errors="replace")
+
+from logger import Logger  # noqa: E402
+from settings import Settings  # noqa: E402
 
 
 def load_ruff_config(rules_file: str, logger: Logger) -> dict:
