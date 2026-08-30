@@ -166,6 +166,9 @@ class DartCodeLinterRule(ProjectWideRule):
 
         applicable = [e for e in self.config.get('exceptions', [])
                       if e.get('metric') in (None, metric_id)]  # no metric key => applies to all metrics
+        # Exceptions may also be nested under metrics.<metric>.exceptions, where the
+        # metric scope is implied by the placement.
+        applicable += thresholds[metric_id].get('exceptions', [])
         tc = {**thresholds[metric_id], 'exceptions': applicable}
         eff = self._get_threshold_for_file(Path(file_path), tc, metric_id)
         err_th, warn_th = eff.get('error'), eff.get('warning')

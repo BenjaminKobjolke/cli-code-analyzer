@@ -95,3 +95,46 @@ def test_non_matching_file_uses_base_threshold(tmp_path: Path):
     v = rule._check_metric_threshold(fp, _metric('number-of-methods', 40), METRICS)
     assert v is not None
     assert "20" in v.message  # base error threshold
+
+
+def _nested_metrics(exceptions: list[dict]) -> dict:
+    """METRICS with per-metric `exceptions` nested under number-of-methods."""
+    return {'number-of-methods': {**METRICS['number-of-methods'], 'exceptions': exceptions},
+            'halstead-volume': METRICS['halstead-volume']}
+
+
+def test_exceptions_nested_under_metric_are_honored(tmp_path: Path):
+    """Exceptions written under metrics.<metric>.exceptions must not be dropped."""
+    fp = _file(tmp_path, "lib/data/local_datasource.dart")
+    metrics = _nested_metrics([
+        {"file": "lib/data/local_datasource.dart",
+         "warning": 35, "error": 45, "reason": "cohesive data-access layer"},
+    ])
+    rule = _rule(tmp_path)
+    # value 30 is above base error 20 but below the nested exception's warning 35
+    assert rule._check_metric_threshold(fp, _metric('number-of-methods', 30), metrics) is None
+
+
+def test_nested_exception_is_scoped_to_its_own_metric(tmp_path: Path):
+    fp = _file(tmp_path, "lib/data/local_datasource.dart")
+    metrics = _nested_metrics([
+        {"file": "lib/data/local_datasource.dart", "warning": 35, "error": 45, "reason": "cohesive"},
+    ])
+    rule = _rule(tmp_path)
+    v = rule._check_metric_threshold(fp, _metric('halstead-volume', 250), metrics)
+    assert v is not None
+    assert "200" in v.message  # halstead-volume still on its base threshold
+
+
+def test_nested_and_top_level_exceptions_combine(tmp_path: Path):
+    fp = _file(tmp_path, "lib/data/local_datasource.dart")
+    other = _file(tmp_path, "lib/data/remote_datasource.dart")
+    metrics = _nested_metrics([
+        {"file": "lib/data/local_datasource.dart", "warning": 35, "error": 45, "reason": "nested"},
+    ])
+    rule = _rule(tmp_path, [
+        {"file": "lib/data/remote_datasource.dart", "metric": "number-of-methods",
+         "warning": 35, "error": 45, "reason": "top-level"},
+    ])
+    assert rule._check_metric_threshold(fp, _metric('number-of-methods', 30), metrics) is None
+    assert rule._check_metric_threshold(other, _metric('number-of-methods', 30), metrics) is None
