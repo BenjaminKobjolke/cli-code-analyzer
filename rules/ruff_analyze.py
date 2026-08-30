@@ -7,6 +7,7 @@ import json
 from pathlib import Path
 
 from models import LogLevel, RuleResult, Severity, Violation
+from path_utils import resolve_exclude_patterns
 from rules.base import ProjectWideRule
 
 
@@ -46,10 +47,9 @@ class RuffAnalyzeRule(ProjectWideRule):
         if self.config.get('ignore'):
             cmd.extend(['--ignore', ','.join(self.config['ignore'])])
 
-        # Add exclude patterns
-        if self.config.get('exclude_patterns'):
-            for pattern in self.config['exclude_patterns']:
-                cmd.extend(['--exclude', pattern])
+        # Add exclude patterns (config may be a flat list or a per-language dict)
+        for pattern in resolve_exclude_patterns(self.config.get('exclude_patterns'), ['python']):
+            cmd.extend(['--exclude', pattern])
 
         # Add paths to analyze: changed files when filtering, else the whole base path.
         scope = self._scope_args(('.py',), [str(self.base_path)])

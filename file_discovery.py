@@ -6,6 +6,8 @@ import fnmatch
 from pathlib import Path
 from typing import ClassVar
 
+from path_utils import resolve_exclude_patterns
+
 # Default exclude patterns per language
 DEFAULT_EXCLUDE_PATTERNS = {
     'flutter': ['*.g.dart', '*.freezed.dart'],
@@ -31,21 +33,16 @@ class FileDiscovery:
         'autohotkey': ['.ahk', '.ah2', '.ahk2'],
     }
 
-    def __init__(self, languages: str | list[str], path: str, exclude_patterns: list[str] | None = None):
+    def __init__(self, languages: str | list[str], path: str,
+                 exclude_patterns: list[str] | dict[str, list[str]] | None = None):
         if isinstance(languages, str):
             languages = [languages]
         self.languages = [lang.lower() for lang in languages]
         self.path = Path(path)
-        # Use provided patterns or fall back to merged defaults for all languages
-        if exclude_patterns is not None:
-            self.exclude_patterns = exclude_patterns
-        else:
-            merged = []
-            for lang in self.languages:
-                for pattern in DEFAULT_EXCLUDE_PATTERNS.get(lang, []):
-                    if pattern not in merged:
-                        merged.append(pattern)
-            self.exclude_patterns = merged
+        # rules.json may give a flat list or a dict keyed by language; both
+        # arrive here unnormalized. Fall back to merged defaults when unset.
+        source = DEFAULT_EXCLUDE_PATTERNS if exclude_patterns is None else exclude_patterns
+        self.exclude_patterns = resolve_exclude_patterns(source, self.languages)
 
     def _get_extensions(self) -> list[str]:
         """Get file extensions for all requested languages"""

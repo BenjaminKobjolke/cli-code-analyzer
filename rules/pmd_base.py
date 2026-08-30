@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from models import RuleResult
+from path_utils import resolve_exclude_patterns
 from rules.base import ProjectWideRule
 
 # Default exclude patterns per language (glob patterns)
@@ -86,16 +87,16 @@ def resolve_filtered_pmd_files(rule, exclude_patterns: list[str]) -> list[Path]:
 
 
 def get_exclude_patterns(config, language: str | None) -> list[str]:
-    """Resolve file patterns to exclude from config or per-language defaults."""
+    """Resolve file patterns to exclude from config or per-language defaults.
+
+    A dict config may be keyed by either the analyzer's language name or PMD's,
+    so both spellings are offered to the shared resolver.
+    """
     lang = language.lower() if language else None
-    pmd_lang = LANGUAGE_TO_PMD.get(lang) if lang else None
+    names = [n for n in (lang, LANGUAGE_TO_PMD.get(lang) if lang else None) if n]
     if 'exclude_patterns' in config:
-        exclude_config = config['exclude_patterns']
-        if isinstance(exclude_config, dict):
-            return exclude_config.get(lang, exclude_config.get(pmd_lang, []))
-        if isinstance(exclude_config, list):
-            return exclude_config
-    return DEFAULT_EXCLUDE_PATTERNS.get(lang, DEFAULT_EXCLUDE_PATTERNS.get(pmd_lang, []))
+        return resolve_exclude_patterns(config['exclude_patterns'], names)
+    return resolve_exclude_patterns(DEFAULT_EXCLUDE_PATTERNS, names)
 
 
 def resolve_full_pmd_files(rule, directory: Path, exclude_paths: list[str],
