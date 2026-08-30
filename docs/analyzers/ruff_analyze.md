@@ -58,7 +58,7 @@ Or download from: https://docs.astral.sh/ruff/installation/
 | `enabled` | boolean | true | Enable/disable this analyzer |
 | `select` | array | [] | Rule codes to enable |
 | `ignore` | array | [] | Rule codes to ignore |
-| `exclude_patterns` | array | [] | Directories/patterns to exclude |
+| `exclude_patterns` | array or object | [] | Directories/patterns to exclude. Either a flat array, or an object keyed by language (`{"python": ["target/**"]}`) — every analyzer that takes exclusions accepts both forms. |
 
 ### Common Rule Codes
 
@@ -126,3 +126,16 @@ python main.py --language python --path ./src --rules rules.json --verbosity err
 - Ruff executes once per analysis run (project-wide, not per-file)
 - Very fast compared to traditional Python linters
 - Supports configuration via `pyproject.toml` or `ruff.toml` in addition to rules.json
+
+## Auto-fixing (`ruff_fixer.py` / `fix_ruff_issues.bat`)
+
+The fixer force-ignores **F401, F403, F405, F811** no matter what `select` and
+`ignore` say. Ruff's unused-import analysis is single-file, so it cannot see a
+name re-exported through another module or a `from .x import *` that exists to
+register side effects. Deleting either leaves the project importable but broken
+at runtime — it happened, silently, and took a real codebase's tests down.
+
+These rules are still *reported* by the analyzer; they are simply never
+auto-fixed. Remove an unused import by hand after checking who imports it.
+
+`--unsafe-fixes` is deliberately not passed either.
