@@ -9,7 +9,15 @@ import re
 import shutil
 import subprocess
 import sys
+from collections.abc import Sequence
 from pathlib import Path
+
+# Ruff rules whose autofix deletes imports. Its unused-import analysis is
+# single-file, so it cannot see a name re-exported to another module or a
+# `from .x import *` whose only job is registering side effects — removing
+# either leaves the project importable but broken at runtime. Reported by the
+# analyzer, never fixed by the fixer.
+UNSAFE_FIX_RULES = ('F401', 'F403', 'F405', 'F811')
 
 # Windows consoles default to cp1252; tool output can contain characters outside
 # that codec, making bare print() raise UnicodeEncodeError. Force utf-8 with
@@ -19,6 +27,7 @@ for _stream in (sys.stdout, sys.stderr):
         _stream.reconfigure(encoding="utf-8", errors="replace")
 
 from logger import Logger  # noqa: E402
+from path_utils import resolve_exclude_patterns  # noqa: E402
 from settings import Settings  # noqa: E402
 
 
@@ -65,25 +74,51 @@ def get_ruff_path(logger: Logger) -> str | None:
     return None
 
 
+def build_fix_command(ruff_path: str, path: str, ruff_config: dict,
+                      dry_run: bool = False,
+                      languages: Sequence[str] = ('python',)) -> list[str]:
+    """Assemble the `ruff check` command line for a fix (or --diff preview) run."""
+    cmd = [ruff_path, 'check']
+    cmd.append('--diff' if dry_run else '--fix')
+
+    if ruff_config.get('select'):
+        cmd.extend(['--select', ','.join(ruff_config['select'])])
+
+    # Never let ruff delete imports: its unused-import fixes cannot see through
+    # re-exports, so they silently break packages that import for side effects.
+    ignore = list(ruff_config.get('ignore') or [])
+    ignore += [rule for rule in UNSAFE_FIX_RULES if rule not in ignore]
+    cmd.extend(['--ignore', ','.join(ignore)])
+
+    for pattern in resolve_exclude_patterns(ruff_config.get('exclude_patterns'), languages):
+        cmd.extend(['--exclude', pattern])
+
+    cmd.append(path)
+    return cmd
+
+
+def parse_fixed_count(output: str) -> int:
+    """Read how many issues ruff actually fixed (or, under --diff, would fix).
+
+    A --fix run prints "Found 1025 errors (186 fixed, 839 remaining)." — the
+    count that matters is the 186, not the 1025 it merely found. A --diff run
+    reports "Would fix 146 errors" instead and never emits a "(N fixed" clause.
+    """
+    match = re.search(r'\((\d+) fixed', output) or re.search(r'Would fix (\d+) error', output)
+    return int(match.group(1)) if match else 0
+
+
 def run_ruff_fix(path: str, ruff_config: dict, logger: Logger, dry_run: bool = False) -> int:
     ruff_path = get_ruff_path(logger)
     if not ruff_path:
         logger.error("Error: Ruff executable not found")
         return -1
 
-    cmd = [ruff_path, 'check']
-    cmd.append('--diff' if dry_run else '--fix')
+    cmd = build_fix_command(ruff_path, path, ruff_config, dry_run)
 
-    if ruff_config.get('select'):
-        cmd.extend(['--select', ','.join(ruff_config['select'])])
-    if ruff_config.get('ignore'):
-        cmd.extend(['--ignore', ','.join(ruff_config['ignore'])])
-    if ruff_config.get('exclude_patterns'):
-        for pattern in ruff_config['exclude_patterns']:
-            cmd.extend(['--exclude', pattern])
-
-    cmd.append(path)
-
+    logger.info(
+        f"Not auto-fixing (import removal is unsafe): {', '.join(UNSAFE_FIX_RULES)}"
+    )
     logger.info(f"Running: {' '.join(cmd)}\n")
 
     try:
@@ -101,13 +136,7 @@ def run_ruff_fix(path: str, ruff_config: dict, logger: Logger, dry_run: bool = F
         if result.stderr:
             logger.error(result.stderr)
 
-        output = result.stderr or result.stdout
-        if 'Found' in output and 'error' in output:
-            match = re.search(r'Found (\d+) errors?', output)
-            if match:
-                return int(match.group(1))
-
-        return 0
+        return parse_fixed_count(result.stderr or result.stdout)
 
     except FileNotFoundError:
         logger.error(f"Error: Ruff executable not found: {ruff_path}")
@@ -154,7 +183,7 @@ Examples:
     if result < 0:
         sys.exit(1)
     elif result == 0:
-        logger.info("\nNo issues to fix!")
+        logger.info("\nNothing auto-fixable — run the analyzer to see what remains.")
     elif args.dry_run:
         logger.info(f"\n{result} issue(s) would be fixed")
     else:
