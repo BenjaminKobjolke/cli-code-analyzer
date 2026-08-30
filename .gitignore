@@ -215,6 +215,7 @@ tmp/
 minimal/
 reports/
 PLAN.md
+HANDOFF.md
 code_analysis_results
 php/vendor/
 .php-cs-fixer.cache
