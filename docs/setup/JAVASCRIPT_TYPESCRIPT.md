@@ -206,6 +206,53 @@ The `tsc_analyze` rule runs `tsc --noEmit` to catch type errors that ESLint miss
 | `enabled` | Enable/disable the rule | `false` |
 | `tsconfig` | Path to tsconfig.json (relative to project) | `./tsconfig.json` |
 
+### Plain JavaScript projects (checkJs)
+
+`tsc_analyze` also type-checks plain `.js` projects — no TypeScript source needed. tsc
+infers types from JSDoc and usage and catches wrong argument counts, typos on object
+properties, and null-unsafe calls that ESLint cannot see.
+
+1. `npm install --save-dev typescript`
+2. `tsconfig.json` in the project root:
+
+   ```json
+   {
+     "compilerOptions": {
+       "allowJs": true,
+       "checkJs": true,
+       "noEmit": true,
+       "strict": false,
+       "target": "es2022",
+       "module": "es2022",
+       "moduleResolution": "bundler",
+       "lib": ["es2022", "dom"],
+       "types": ["node"],
+       "skipLibCheck": true
+     },
+     "include": ["**/*.js", "**/*.cjs", "types/**/*.d.ts"],
+     "exclude": ["node_modules", "dist", "build", "code_analysis_results"]
+   }
+   ```
+
+3. Enable the rule (see above).
+
+Gotchas:
+
+- **Untyped globals** (WebExtension `messenger` / `browser`, host-injected objects) fail
+  with `TS2304`. Stub them in `types/globals.d.ts` (`declare const messenger: any;`) and
+  keep that path in tsconfig `include`. Upgrade to a real `@types/...` package when API
+  misuse bugs justify it.
+- **ESLint without a TypeScript parser chokes on the `.d.ts`** stub ("Parsing error:
+  Unexpected token const"). Add `types/**` to both `eslint.config.js` `ignores` and
+  `eslint_analyze.exclude_patterns`.
+- **`document.getElementById(...).value`** reports `TS2339` because the return type is
+  `HTMLElement`. Fix with a JSDoc cast:
+  `const tag = /** @type {HTMLInputElement} */ (document.getElementById("tag"));`
+- **Injected test doubles** (e.g. a `fetch` default parameter) are typed from the
+  global; narrow the default with a cast to the minimal shape the code uses so fakes
+  are assignable: `fetch = /** @type {(url: string) => Promise<{ json(): Promise<any> }>} */ (globalThis.fetch)`.
+- `strict: false` keeps the first run tractable; tighten later per flag.
+
 ## TypeScript-Specific Notes (ESLint)
 
 TypeScript support is included when you follow the Quick Start steps above (`@typescript-eslint/parser` and `@typescript-eslint/eslint-plugin` are installed together with ESLint).
