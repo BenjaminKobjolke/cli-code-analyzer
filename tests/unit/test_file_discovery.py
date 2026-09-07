@@ -45,6 +45,22 @@ def test_root_vendor_still_excluded():
     assert _excluded(["vendor/**"], ROOT_VENDOR) is True
 
 
+def test_language_defaults_survive_explicit_patterns():
+    # Configured patterns add to the language defaults; they must not replace
+    # them, or a project listing its cache dir silently re-enables *.g.dart.
+    discovery = FileDiscovery("flutter", str(BASE), [".dart_tool/**"])
+    assert discovery._is_excluded(BASE / "lib/objectbox.g.dart") is True
+    assert discovery._is_excluded(BASE / ".dart_tool/flutter_build/x.dart") is True
+    assert discovery._is_excluded(BASE / "lib/main.dart") is False
+
+
+def test_flutter_tool_caches_excluded_by_default():
+    discovery = FileDiscovery("flutter", str(BASE))
+    assert discovery._is_excluded(BASE / ".dart_tool/flutter_build/x.dart") is True
+    assert discovery._is_excluded(BASE / "build/app/x.dart") is True
+    assert discovery._is_excluded(BASE / ".fvm/flutter_sdk/x.dart") is True
+
+
 def test_segment_safe_no_false_prefix_match():
     # 'vendor' must not match a sibling dir that merely starts with it.
     vendored = BASE / "vendored-thing/a.php"
@@ -59,4 +75,6 @@ if __name__ == "__main__":
     test_src_not_excluded()
     test_root_vendor_still_excluded()
     test_segment_safe_no_false_prefix_match()
+    test_language_defaults_survive_explicit_patterns()
+    test_flutter_tool_caches_excluded_by_default()
     print("OK")

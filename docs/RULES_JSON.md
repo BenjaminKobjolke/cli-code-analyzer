@@ -23,6 +23,7 @@ is a single JSON object: top-level keys are either **global settings** or
 |-----|------|---------|---------|
 | `log_level` | `"error"` \| `"warning"` \| `"all"` | `all` | Default severity filter for every rule. See [Log level resolution](#log-level-resolution). |
 | `max_errors` | positive int | unset (unlimited) | Caps violations reported **per rule/analyzer** (not a global total). See [Max errors](#max-errors). |
+| `global_exclude_paths` | array of dirs | `[]` | Bare directory paths (`".dart_tool"`, `"vendor"`) skipped by file discovery for every analyzer. Merged with the language defaults (`*.g.dart`, `.dart_tool/**`, `venv/**`, …) and with `max_lines_per_file.exclude_paths` / `exclude_patterns`. |
 
 Any other top-level key is treated as a per-rule config block.
 

@@ -44,7 +44,8 @@ None - this is a pure Python implementation with no external tools required.
 | `enabled` | boolean | true | Enable/disable this analyzer |
 | `warning` | integer | 300 | Line count threshold for warnings |
 | `error` | integer | 500 | Line count threshold for errors |
-| `exclude_patterns` | array | [] | Glob patterns for files to exclude |
+| `exclude_patterns` | array | [] | Glob patterns for files to exclude (also drives file discovery for every analyzer) |
+| `exclude_paths` | array | [] | Bare directory paths to exclude (`".dart_tool"`, `"vendor"`); same as the global `global_exclude_paths` |
 | `exceptions` | array | [] | File-specific threshold overrides |
 
 ### Exception Configuration

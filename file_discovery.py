@@ -10,7 +10,7 @@ from path_utils import resolve_exclude_patterns
 
 # Default exclude patterns per language
 DEFAULT_EXCLUDE_PATTERNS = {
-    'flutter': ['*.g.dart', '*.freezed.dart'],
+    'flutter': ['*.g.dart', '*.freezed.dart', '.dart_tool/**', '.fvm/**', 'build/**'],
     'python': ['venv/**', '.venv/**', '__pycache__/**', '*.pyc', 'env/**', '.git/**'],
     'php': ['vendor/**', 'node_modules/**', '.git/**', '.phpstan-cache/**'],
     'csharp': ['bin/**', 'obj/**', '.vs/**', 'packages/**', 'node_modules/**', '.git/**'],
@@ -40,9 +40,13 @@ class FileDiscovery:
         self.languages = [lang.lower() for lang in languages]
         self.path = Path(path)
         # rules.json may give a flat list or a dict keyed by language; both
-        # arrive here unnormalized. Fall back to merged defaults when unset.
-        source = DEFAULT_EXCLUDE_PATTERNS if exclude_patterns is None else exclude_patterns
-        self.exclude_patterns = resolve_exclude_patterns(source, self.languages)
+        # arrive here unnormalized. Language defaults (generated files, tool
+        # caches) always apply; configured patterns add to them rather than
+        # replace them, so listing a cache dir never re-enables *.g.dart.
+        self.exclude_patterns = resolve_exclude_patterns(DEFAULT_EXCLUDE_PATTERNS, self.languages)
+        for pattern in resolve_exclude_patterns(exclude_patterns, self.languages):
+            if pattern not in self.exclude_patterns:
+                self.exclude_patterns.append(pattern)
 
     def _get_extensions(self) -> list[str]:
         """Get file extensions for all requested languages"""

@@ -24,6 +24,18 @@ def resolve_exclude_patterns(exclude_config, languages: Iterable[str]) -> list[s
     return list(exclude_config)
 
 
+def dir_paths_to_patterns(exclude_paths: Iterable[str] | None) -> list[str]:
+    """Turn bare directory paths (`.dart_tool`, `vendor`) into `dir/**` globs.
+
+    `exclude_paths` is the human-friendly form used by PMD and the global
+    config; FileDiscovery only understands glob patterns, so every consumer
+    converts through here.
+    """
+    if not exclude_paths:
+        return []
+    return [f"{Path(p).as_posix().rstrip('/')}/**" for p in exclude_paths]
+
+
 def to_relative_posix(path: Path | str, base: Path | str) -> str:
     """Resolve `path`, make it relative to `base`, return forward-slash string.
 

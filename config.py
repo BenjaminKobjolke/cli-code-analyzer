@@ -46,6 +46,11 @@ class Config:
         """
         return self.rules.get('log_level')
 
+    def get_global_exclude_paths(self) -> list[str]:
+        """Directories every analyzer skips (`global_exclude_paths`), bare form."""
+        value = self.rules.get('global_exclude_paths')
+        return list(value) if isinstance(value, list) else []
+
     def get_global_max_errors(self) -> int | None:
         """Get the global max-errors cap from rules configuration.
 

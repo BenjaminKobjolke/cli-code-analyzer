@@ -103,12 +103,10 @@ def resolve_full_pmd_files(rule, directory: Path, exclude_paths: list[str],
                            exclude_patterns: list[str]) -> list[Path]:
     """Discover only source files that PMD should receive for a full scan."""
     from file_discovery import FileDiscovery
-    path_patterns = [
-        f"{Path(path).as_posix().rstrip('/')}/**"
-        for path in exclude_paths
-    ]
+    from path_utils import dir_paths_to_patterns
     discovery = FileDiscovery(
-        rule.language, str(directory), [*exclude_patterns, *path_patterns],
+        rule.language, str(directory),
+        [*exclude_patterns, *dir_paths_to_patterns(exclude_paths)],
     )
     return discovery.discover()
 
