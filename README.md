@@ -22,7 +22,7 @@ A flexible command-line tool for analyzing code files based on configurable rule
 - **ESLint integration**: Integrated [ESLint](https://eslint.org/) for JavaScript/TypeScript linting with auto-detection of Svelte projects
 - **Svelte type checking**: Integrated [svelte-check](https://github.com/sveltejs/language-tools/tree/master/packages/svelte-check) for Svelte/TypeScript type checking with configurable compiler warning suppression
 - **TypeScript type checking**: Integrated `tsc --noEmit` for project-wide TypeScript type checking with error code filtering
-- **Auto-fix support**: Automatically fix Python issues using Ruff with `ruff_fixer.py`
+- **Auto-fix support**: Automatically fix Python issues using Ruff with `ruff_fixer.py`, PHP with `php_fixer.py`, Dart/Flutter with `dart_fixer.py` (`dart fix --apply`)
 - **Language-specific exclusions**: Automatically exclude generated files (e.g., `**.g.dart`, `**.freezed.dart`)
 - **Relative path display**: Clean, readable output with relative file paths
 - **JSON output**: Machine-readable JSON output format via `--format json`
@@ -1467,6 +1467,8 @@ cli-code-analyzer/
 ├── main.py                     # CLI entry point
 ├── analyzer.py                 # Main analyzer orchestration
 ├── ruff_fixer.py               # Ruff auto-fix tool for Python
+├── php_fixer.py                # PHP-CS-Fixer auto-fix tool for PHP
+├── dart_fixer.py               # dart fix --apply wrapper for Dart/Flutter
 ├── file_discovery.py           # File discovery logic
 ├── config.py                   # Configuration loading
 ├── settings.py                 # Settings management (INI-based)

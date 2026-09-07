@@ -257,6 +257,30 @@ cd /d "%~dp0.."
 cd /d "%~dp0"
 ```
 
+### Auto-Fix Lint Issues
+
+`dart_fixer.py` runs `dart fix --apply` (prefixed with `fvm` when the project has
+`.fvmrc` / `.fvm`), applying every fix for the lints enabled in `analysis_options.yaml`.
+Create `tools/fix_issues.bat`:
+
+```batch
+@echo off
+if not exist "%~dp0analyze_code_config.bat" (
+    echo ERROR: analyze_code_config.bat not found.
+    echo Copy analyze_code_config.example.bat to analyze_code_config.bat and set your CLI_ANALYZER_PATH and LANGUAGE.
+    exit /b 1
+)
+call "%~dp0analyze_code_config.bat"
+cd /d "%~dp0.."
+
+"%CLI_ANALYZER_PATH%\venv\Scripts\python.exe" "%CLI_ANALYZER_PATH%\dart_fixer.py" --path "." --rules "code_analysis_rules.json"
+
+cd /d "%~dp0"
+```
+
+Add `--dry-run` to preview the fixes without writing them. `--rules` is accepted only
+for symmetry with the other fixers; `dart fix` reads `analysis_options.yaml`.
+
 ## CLI Options
 
 | Option | Short | Description | Default |
