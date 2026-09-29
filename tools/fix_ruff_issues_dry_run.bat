@@ -8,5 +8,7 @@ call "%~dp0analyze_code_config.bat"
 cd /d "%~dp0.."
 
 "%CLI_ANALYZER_PATH%\venv\Scripts\python.exe" "%CLI_ANALYZER_PATH%\ruff_fixer.py" --path "." --rules "code_analysis_rules.json" --dry-run
+set RC=%ERRORLEVEL%
 
 cd /d "%~dp0"
+exit /b %RC%
