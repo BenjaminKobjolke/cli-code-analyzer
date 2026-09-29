@@ -3,8 +3,11 @@ Base rule class for all code analysis rules
 """
 
 import csv
+import os
 import shutil
+import signal
 import subprocess
+import sys
 from abc import ABC, abstractmethod
 from collections.abc import Callable
 from fnmatch import fnmatch
@@ -15,6 +18,20 @@ from logger import Logger
 from models import LogLevel, RuleResult, RuleStatus, Severity, Violation
 from rules.context import RuleContext
 from rules.filter_scope import FilterScopeMixin
+
+
+def _kill_tree(process: subprocess.Popen[str]) -> None:
+    if sys.platform == 'win32':
+        subprocess.run(
+            ['taskkill', '/T', '/F', '/PID', str(process.pid)],
+            capture_output=True,
+            check=False,
+        )
+    else:
+        try:
+            os.killpg(process.pid, signal.SIGKILL)
+        except ProcessLookupError:
+            pass
 
 
 class BaseRule(FilterScopeMixin, ABC):
@@ -174,11 +191,18 @@ class BaseRule(FilterScopeMixin, ABC):
 
     def _run_subprocess(self, cmd: list[str], cwd: Path | None = None, timeout: int = 300) -> subprocess.CompletedProcess:
         """Run subprocess with timeout and no stdin to prevent interactive prompts."""
-        return subprocess.run(
-            cmd, cwd=cwd, capture_output=True,
-            encoding='utf-8', errors='replace', check=False,
-            stdin=subprocess.DEVNULL, timeout=timeout
+        process = subprocess.Popen(
+            cmd, cwd=cwd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+            encoding='utf-8', errors='replace', stdin=subprocess.DEVNULL,
+            start_new_session=sys.platform != 'win32',
         )
+        try:
+            stdout, stderr = process.communicate(timeout=timeout)
+        except subprocess.TimeoutExpired as error:
+            _kill_tree(process)
+            process.communicate()
+            raise error
+        return subprocess.CompletedProcess(cmd, process.returncode, stdout, stderr)
 
     def _get_tool_path(self, tool_name: str, settings_name: str | None = None) -> str | None:
         """Get tool path from PATH, local node_modules, settings, or prompt user.
