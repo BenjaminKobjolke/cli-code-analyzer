@@ -5,10 +5,14 @@ Three generic methods (`get_path`, `set_path`, `prompt_and_save`) handle every
 tool; callers pass the tool name (e.g. `get_path("pmd")`).
 """
 import configparser
+import os
 from pathlib import Path
 
 from logger import Logger
 from tool_descriptors import TOOLS_BY_NAME, ToolDescriptor
+
+INPUT_LINE_MARKER = "::tw-input-line::"
+COMMAND_RUN_ENV = "TICKETS_WATCHER_COMMAND_RUN"
 
 
 class Settings:
@@ -51,6 +55,9 @@ class Settings:
         d = self._descriptor(name)
         for line in d.install_msgs:
             self.logger.info(line)
+        # See tools/TICKETS_WATCHER_COMMANDS.md for the phone input protocol.
+        if os.environ.get(COMMAND_RUN_ENV) == "1":
+            print(INPUT_LINE_MARKER, flush=True)
         user_input = input(d.prompt_msg).strip()
 
         if not user_input:
