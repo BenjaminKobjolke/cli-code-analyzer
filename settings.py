@@ -2,10 +2,12 @@
 
 Storage + dispatch only. Tool catalog lives in `tool_descriptors.py`.
 Three generic methods (`get_path`, `set_path`, `prompt_and_save`) handle every
-tool; callers pass the tool name (e.g. `get_path("pmd")`).
+tool; callers pass the tool name (e.g. `get_path("pmd")`). Prompts support
+Tickets Watcher and fail fast when no interactive input is available.
 """
 import configparser
 import os
+import sys
 from pathlib import Path
 
 from logger import Logger
@@ -52,13 +54,28 @@ class Settings:
         self._save()
 
     def prompt_and_save(self, name: str) -> str | None:
+        """Ask for a missing tool path in a terminal or Tickets Watcher run."""
         d = self._descriptor(name)
         for line in d.install_msgs:
             self.logger.info(line)
+        missing_path = (
+            f"Error: {d.error_label} path not configured and no interactive terminal to ask. "
+            f"Set [{d.section}] {d.key} in {self.settings_file}."
+        )
         # See tools/TICKETS_WATCHER_COMMANDS.md for the phone input protocol.
-        if os.environ.get(COMMAND_RUN_ENV) == "1":
-            print(INPUT_LINE_MARKER, flush=True)
-        user_input = input(d.prompt_msg).strip()
+        try:
+            if os.environ.get(COMMAND_RUN_ENV) == "1":
+                print(d.prompt_msg, flush=True)
+                print(INPUT_LINE_MARKER, flush=True)
+                user_input = input().strip()
+            elif sys.stdin is not None and sys.stdin.isatty():
+                user_input = input(d.prompt_msg).strip()
+            else:
+                self.logger.error(missing_path)
+                return None
+        except EOFError:
+            self.logger.error(missing_path)
+            return None
 
         if not user_input:
             if d.downloader is not None:

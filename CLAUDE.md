@@ -105,7 +105,7 @@ Full guide in `CREATING_NEW_ANALYZER.md`. Summary:
 - Rules always return `Violation` objects with severity `ERROR`, `WARNING`, or `INFO`
 - Use `_get_threshold_for_file()` instead of reading thresholds directly (supports exceptions)
 - Project-wide rules use an `_executed` flag pattern to run only once despite being called per-file
-- External tools are resolved lazily: PATH -> project-local `node_modules/.bin/` -> `settings.py` -> user prompt
+- External tools are resolved lazily: PATH -> project-local `node_modules/.bin/` -> `settings.py` -> user prompt. The prompt emits `::tw-input-line::` when `TICKETS_WATCHER_COMMAND_RUN=1`; without a terminal, it logs the missing `[section] key` and skips instead of blocking.
 - File paths in violations should always be relative (use `_get_relative_path()`)
 - File exclusion patterns use forward slashes even on Windows
 
