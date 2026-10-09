@@ -209,6 +209,21 @@ def main():
         ))
         analyzer.analyze()
         all_violations = analyzer.get_violations()
+        failures = analyzer.get_failures()
+        if failures:
+            logger.info(f"Skipping violation cache: {len(failures)} tool(s) failed")
+            reporter = Reporter(ReportConfig(
+                violations=all_violations,
+                file_count=analyzer.get_file_count(),
+                output_level=output_level,
+                log_level=resolve_reporter_log_level(cli_log_level, args.rules),
+                output_folder=output_folder,
+                max_errors=args.maxamountoferrors,
+                logger=logger,
+                failures=failures,
+            ))
+            reporter.report_json() if args.format == 'json' else reporter.report()
+            sys.exit(1)
         cache.save(all_violations, rules_hash, languages, args.path, analyzer.get_analyzed_file_paths())
         logger.info("Cache built successfully")
         sys.exit(0)
@@ -287,9 +302,11 @@ def main():
             failures = analyzer.get_failures()
 
             # Save to cache whenever output folder is set (keeps cache fresh for --file queries)
-            if cache:
+            if cache and not failures:
                 logger.info("Saving results to violation cache...")
                 cache.save(all_violations, rules_hash, languages, args.path, all_file_paths)
+            elif cache:
+                logger.info(f"Skipping violation cache: {len(failures)} tool(s) failed")
 
         # Generate report
         reporter_log_level = resolve_reporter_log_level(cli_log_level, args.rules)

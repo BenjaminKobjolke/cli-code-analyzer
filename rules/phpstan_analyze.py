@@ -1,7 +1,6 @@
 """PHPStan analyze rule for PHP code analysis"""
 
 import csv
-import json
 import os
 import tempfile
 from contextlib import suppress
@@ -78,14 +77,24 @@ class PHPStanAnalyzeRule(ProjectWideRule):
         analyze_path = self.config.get('analyze_path', str(self.base_path))
         paths = analyze_path if isinstance(analyze_path, list) else [analyze_path]
         paths = [p if Path(p).is_absolute() else str(self.base_path / p) for p in paths]
-        scope = self._scope_args(('.php',), paths)
-        if scope is None:
-            return self._ok([])
-        cmd += scope
-
         try:
-            result = self._run_subprocess(cmd, self.base_path)
-            output = result.stdout
+            commands = self._scoped_commands(cmd, ('.php',), paths)
+            if commands is None:
+                return self._ok([])
+            documents = self._run_json('PHPStan', commands, self.base_path)
+            data = {'files': {}, 'errors': []}
+            for document in documents:
+                if not isinstance(document, dict) or not isinstance(document.get('files'), (dict, list)) \
+                        or not isinstance(document.get('errors'), list) or \
+                        (isinstance(document['files'], list) and document['files']):
+                    raise ValueError('PHPStan returned unexpected JSON structure')
+                if isinstance(document['files'], dict):
+                    if any(not isinstance(file_data, dict) or not isinstance(file_data.get('messages'), list)
+                           for file_data in document['files'].values()):
+                        raise ValueError('PHPStan returned unexpected file result structure')
+                    data['files'].update(document['files'])
+                data['errors'].extend(document['errors'])
+            violations = self._parse_phpstan_json(data)
         except FileNotFoundError:
             self.logger.error(f"Error: PHPStan executable not found: {phpstan_path}")
             self.logger.error("Please ensure PHPStan is installed: composer require --dev phpstan/phpstan")
@@ -98,25 +107,6 @@ class PHPStanAnalyzeRule(ProjectWideRule):
                 with suppress(OSError):
                     os.unlink(neon_path)
 
-        # Empty stdout with a nonzero exit means PHPStan died before analyzing
-        # (bad CLI option, config error) — a real "errors found" run (exit 1)
-        # always emits JSON on stdout. Never report this as clean.
-        if result.returncode != 0 and not output.strip():
-            stderr = (result.stderr or '').strip()
-            self.logger.error(f"PHPStan failed without producing output: {stderr[:300]}")
-            return self._failed(f"PHPStan failed without producing output: {stderr[:300]}")
-
-        # Conservative guard: non-empty output that is not valid JSON means PHPStan
-        # emitted a fatal/non-JSON message — treat as a failure, not "clean".
-        if output and output.strip():
-            try:
-                json.loads(output)
-            except json.JSONDecodeError as e:
-                self.logger.error(f"Error parsing PHPStan JSON output: {e}")
-                self.logger.error(f"Output was: {output[:200]}...")
-                return self._failed(f"could not parse PHPStan JSON output: {e}")
-
-        violations = self._parse_phpstan_json(output)
         violations = self._filter_violations_by_log_level(violations)
 
         if self.max_errors and len(violations) > self.max_errors:
@@ -129,7 +119,7 @@ class PHPStanAnalyzeRule(ProjectWideRule):
 
         if self.output_folder and violations:
             output_file = self.output_folder / 'phpstan_analyze.csv'
-            if self._write_csv_output(output_file, output):
+            if self._write_csv_output(output_file, data):
                 self.logger.info(f"PHPStan report saved to: {output_file}")
 
         return self._ok(violations)
@@ -141,7 +131,7 @@ class PHPStanAnalyzeRule(ProjectWideRule):
         # For now, treat all PHPStan errors as errors since they're static analysis issues
         return Severity.ERROR
 
-    def _parse_phpstan_json(self, output: str) -> list[Violation]:
+    def _parse_phpstan_json(self, data: dict) -> list[Violation]:
         """Parse PHPStan JSON output into violations.
 
         PHPStan JSON format:
@@ -160,65 +150,47 @@ class PHPStanAnalyzeRule(ProjectWideRule):
         """
         violations = []
 
-        if not output or not output.strip():
-            return violations
+        files = data['files']
+        for file_path, file_data in files.items():
+            messages = file_data.get('messages', [])
 
-        try:
-            data = json.loads(output)
-            files = data.get('files', {})
+            for msg in messages:
+                message_text = msg.get('message', '')
+                line_num = msg.get('line', 0)
+                identifier = msg.get('identifier', '')
 
-            for file_path, file_data in files.items():
-                messages = file_data.get('messages', [])
+                try:
+                    rel_path = self._get_relative_path(Path(file_path))
+                except Exception:
+                    rel_path = file_path
 
-                for msg in messages:
-                    message_text = msg.get('message', '')
-                    line_num = msg.get('line', 0)
-                    identifier = msg.get('identifier', '')
+                detailed_message = f"{message_text}"
+                if identifier:
+                    detailed_message += f" [{identifier}]"
+                detailed_message += f" at line {line_num}"
 
-                    try:
-                        rel_path = self._get_relative_path(Path(file_path))
-                    except Exception:
-                        rel_path = file_path
-
-                    detailed_message = f"{message_text}"
-                    if identifier:
-                        detailed_message += f" [{identifier}]"
-                    detailed_message += f" at line {line_num}"
-
-                    violation = Violation(
-                        file_path=rel_path,
-                        rule_name='phpstan_analyze',
-                        severity=Severity.ERROR,
-                        message=detailed_message
-                    )
-                    violations.append(violation)
-
-            # Also process general errors (not file-specific)
-            for error in data.get('errors', []):
                 violation = Violation(
-                    file_path='<project>',
+                    file_path=rel_path,
                     rule_name='phpstan_analyze',
                     severity=Severity.ERROR,
-                    message=str(error)
+                    message=detailed_message
                 )
                 violations.append(violation)
 
-        except json.JSONDecodeError as e:
-            self.logger.error(f"Error parsing PHPStan JSON output: {e}")
-            self.logger.error(f"Output was: {output[:200]}...")
-        except Exception as e:
-            self.logger.error(f"Error processing PHPStan results: {e}")
+        for error in data['errors']:
+            violations.append(Violation(
+                file_path='<project>', rule_name='phpstan_analyze',
+                severity=Severity.ERROR, message=str(error)))
 
         return violations
 
-    def _write_csv_output(self, output_file: Path, json_content: str) -> bool:
+    def _write_csv_output(self, output_file: Path, data: dict) -> bool:
         """Write PHPStan results to CSV file.
 
         Returns:
             True if CSV was written successfully, False otherwise.
         """
         try:
-            data = json.loads(json_content)
             files = data.get('files', {})
 
             if not files and not data.get('errors', []):
@@ -269,9 +241,6 @@ class PHPStanAnalyzeRule(ProjectWideRule):
 
             return True
 
-        except json.JSONDecodeError as e:
-            self.logger.error(f"Error parsing JSON for CSV output: {e}")
-            return False
         except Exception as e:
             self.logger.error(f"Error writing PHPStan CSV file: {e}")
             return False

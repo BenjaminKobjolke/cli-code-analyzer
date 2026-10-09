@@ -3,7 +3,6 @@ Ruff analyze rule for Python code analysis
 """
 
 import csv
-import json
 from pathlib import Path
 
 from models import LogLevel, RuleResult, Severity, Violation
@@ -52,20 +51,16 @@ class RuffAnalyzeRule(ProjectWideRule):
             cmd.extend(['--exclude', pattern])
 
         # Add paths to analyze: changed files when filtering, else the whole base path.
-        scope = self._scope_args(('.py',), [str(self.base_path)])
-        if scope is None:
-            return self._ok([])
-        cmd += scope
-
-        # Execute ruff using base utility
         try:
-            result = self._run_subprocess(cmd, self.base_path)
-
-            # Ruff outputs JSON to stdout
-            output = result.stdout
-
-            # Parse JSON output
-            violations = self._parse_ruff_json(output)
+            commands = self._scoped_commands(cmd, ('.py',), [str(self.base_path)])
+            if commands is None:
+                return self._ok([])
+            data = []
+            for document in self._run_json('ruff', commands, self.base_path):
+                if not isinstance(document, list):
+                    raise TypeError('ruff returned unexpected JSON structure')
+                data.extend(document)
+            violations = self._parse_ruff_json(data)
 
             # Apply log level filter to violations
             violations = self._filter_violations_by_log_level(violations)
@@ -83,7 +78,7 @@ class RuffAnalyzeRule(ProjectWideRule):
             # Write to CSV file if output folder is specified and violations found
             if self.output_folder and violations:
                 output_file = self.output_folder / 'ruff_analyze.csv'
-                self._write_csv_output(output_file, output)
+                self._write_csv_output(output_file, data)
 
             return self._ok(violations)
 
@@ -112,7 +107,7 @@ class RuffAnalyzeRule(ProjectWideRule):
         else:  # All others (B, C, I, N, etc.)
             return Severity.INFO
 
-    def _parse_ruff_json(self, output: str) -> list[Violation]:
+    def _parse_ruff_json(self, data: list[dict]) -> list[Violation]:
         """Parse ruff check JSON output into violations.
 
         Ruff JSON format:
@@ -128,70 +123,55 @@ class RuffAnalyzeRule(ProjectWideRule):
         ]
 
         Args:
-            output: JSON output from ruff check
+            data: Parsed diagnostics from ruff check
 
         Returns:
             List of violations
         """
         violations = []
 
-        if not output or not output.strip():
-            return violations
+        for diagnostic in data:
+            # Extract fields from JSON
+            code = diagnostic.get('code', 'unknown')
+            message = diagnostic.get('message', '')
+            file_path = diagnostic.get('filename', 'unknown')
 
-        try:
-            data = json.loads(output)
+            location = diagnostic.get('location', {})
+            line_num = location.get('row', 0)
+            col_num = location.get('column', 0)
 
-            # Ruff returns a list of diagnostics directly
-            for diagnostic in data:
-                # Extract fields from JSON
-                code = diagnostic.get('code', 'unknown')
-                message = diagnostic.get('message', '')
-                file_path = diagnostic.get('filename', 'unknown')
+            # Map severity based on rule code
+            severity = self._map_ruff_severity(code)
 
-                location = diagnostic.get('location', {})
-                line_num = location.get('row', 0)
-                col_num = location.get('column', 0)
+            # Create relative path
+            try:
+                rel_path = self._get_relative_path(Path(file_path))
+            except Exception:
+                rel_path = file_path
 
-                # Map severity based on rule code
-                severity = self._map_ruff_severity(code)
+            # Build detailed message
+            detailed_message = f"{message} ({code}) at line {line_num}, column {col_num}"
 
-                # Create relative path
-                try:
-                    rel_path = self._get_relative_path(Path(file_path))
-                except Exception:
-                    rel_path = file_path
-
-                # Build detailed message
-                detailed_message = f"{message} ({code}) at line {line_num}, column {col_num}"
-
-                violation = Violation(
-                    file_path=rel_path,
-                    rule_name='ruff_analyze',
-                    severity=severity,
-                    message=detailed_message,
-                    line=line_num,
-                    column=col_num
-                )
-                violations.append(violation)
-
-        except json.JSONDecodeError as e:
-            self.logger.error(f"Error parsing ruff JSON output: {e}")
-            self.logger.error(f"Output was: {output[:200]}...")
-        except Exception as e:
-            self.logger.error(f"Error processing ruff results: {e}")
+            violation = Violation(
+                file_path=rel_path,
+                rule_name='ruff_analyze',
+                severity=severity,
+                message=detailed_message,
+                line=line_num,
+                column=col_num
+            )
+            violations.append(violation)
 
         return violations
 
-    def _write_csv_output(self, output_file: Path, json_content: str):
+    def _write_csv_output(self, output_file: Path, data: list[dict]):
         """Write ruff results to CSV file, filtered by log level.
 
         Args:
             output_file: Path to CSV output file
-            json_content: JSON content from ruff check
+            data: Parsed diagnostics from ruff check
         """
         try:
-            data = json.loads(json_content)
-
             if not data:
                 return
 
@@ -254,7 +234,5 @@ class RuffAnalyzeRule(ProjectWideRule):
 
             self.logger.info(f"Ruff report saved to: {output_file}")
 
-        except json.JSONDecodeError as e:
-            self.logger.error(f"Error parsing JSON for CSV output: {e}")
         except Exception as e:
             self.logger.error(f"Error writing ruff CSV file: {e}")

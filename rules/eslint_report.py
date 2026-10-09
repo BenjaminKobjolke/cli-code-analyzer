@@ -6,7 +6,6 @@ and execution. The functions take a ``get_relative_path`` callable (the rule's
 """
 
 import csv
-import json
 from pathlib import Path
 
 from models import LogLevel, Severity, Violation
@@ -21,48 +20,40 @@ def map_eslint_severity(severity: int) -> Severity:
     return Severity.INFO
 
 
-def parse_eslint_json(output: str, get_relative_path, logger) -> list[Violation]:
+def parse_eslint_json(data: list[dict], get_relative_path, logger) -> list[Violation]:
     """Parse ESLint --format json output into violations."""
     violations: list[Violation] = []
-    if not output or not output.strip():
-        return violations
-
-    try:
-        data = json.loads(output)
-        for file_result in data:
-            file_path = file_result.get('filePath', 'unknown')
-            for message in file_result.get('messages', []):
-                rule_id = message.get('ruleId', 'unknown')
-                msg = message.get('message', '')
-                line_num = message.get('line', 0)
-                col_num = message.get('column', 0)
-                severity = map_eslint_severity(message.get('severity', 1))
-                try:
-                    rel_path = get_relative_path(Path(file_path))
-                except Exception:
-                    rel_path = file_path
-                violations.append(Violation(
-                    file_path=rel_path,
-                    rule_name='eslint_analyze',
-                    severity=severity,
-                    message=f"{msg} ({rule_id}) at line {line_num}, column {col_num}",
-                    line=line_num,
-                    column=col_num,
-                ))
-    except json.JSONDecodeError as e:
-        logger.error(f"Error parsing eslint JSON output: {e}")
-        logger.error(f"Output was: {output[:200]}...")
-    except Exception as e:
-        logger.error(f"Error processing eslint results: {e}")
+    for file_result in data:
+        if not isinstance(file_result, dict) or not isinstance(file_result.get('filePath'), str) \
+                or not isinstance(file_result.get('messages'), list):
+            raise ValueError('ESLint returned unexpected file result structure')
+        file_path = file_result['filePath']
+        for message in file_result['messages']:
+            rule_id = message.get('ruleId', 'unknown')
+            msg = message.get('message', '')
+            line_num = message.get('line', 0)
+            col_num = message.get('column', 0)
+            severity = map_eslint_severity(message.get('severity', 1))
+            try:
+                rel_path = get_relative_path(Path(file_path))
+            except Exception:
+                rel_path = file_path
+            violations.append(Violation(
+                file_path=rel_path,
+                rule_name='eslint_analyze',
+                severity=severity,
+                message=f"{msg} ({rule_id}) at line {line_num}, column {col_num}",
+                line=line_num,
+                column=col_num,
+            ))
 
     return violations
 
 
-def write_eslint_csv(output_file: Path, json_content: str, log_level: LogLevel,
+def write_eslint_csv(output_file: Path, data: list[dict], log_level: LogLevel,
                      max_errors: int | None, get_relative_path, logger) -> None:
     """Write ESLint results to CSV, filtered by log level and limited by max_errors."""
     try:
-        data = json.loads(json_content)
         if not data:
             return
 
@@ -100,7 +91,5 @@ def write_eslint_csv(output_file: Path, json_content: str, log_level: LogLevel,
 
         logger.info(f"ESLint report saved to: {output_file}")
 
-    except json.JSONDecodeError as e:
-        logger.error(f"Error parsing JSON for CSV output: {e}")
     except Exception as e:
         logger.error(f"Error writing eslint CSV file: {e}")

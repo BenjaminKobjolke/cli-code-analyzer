@@ -115,20 +115,17 @@ class ESLintAnalyzeRule(ProjectWideRule):
         cmd.extend(['--ext', ','.join(extensions)])
 
         # Add paths to analyze: changed files when filtering, else the whole base path.
-        scope = self._scope_args(('.js', '.mjs', '.cjs', '.ts', '.tsx', '.jsx', '.svelte'), [str(self.base_path)])
-        if scope is None:
-            return self._ok([])
-        cmd += scope
-
-        # Execute eslint using base utility
         try:
-            result = self._run_subprocess(cmd, self.base_path)
-
-            # ESLint outputs JSON to stdout
-            output = result.stdout
-
-            # Parse JSON output
-            violations = parse_eslint_json(output, self._get_relative_path, self.logger)
+            commands = self._scoped_commands(
+                cmd, ('.js', '.mjs', '.cjs', '.ts', '.tsx', '.jsx', '.svelte'), [str(self.base_path)])
+            if commands is None:
+                return self._ok([])
+            data = []
+            for document in self._run_json('ESLint', commands, self.base_path):
+                if not isinstance(document, list):
+                    raise TypeError('ESLint returned unexpected JSON structure')
+                data.extend(document)
+            violations = parse_eslint_json(data, self._get_relative_path, self.logger)
 
             # Apply log level filter to violations
             violations = self._filter_violations_by_log_level(violations)
@@ -146,7 +143,7 @@ class ESLintAnalyzeRule(ProjectWideRule):
             # Write to CSV file if output folder is specified and violations found
             if self.output_folder and violations:
                 output_file = self.output_folder / 'eslint_analyze.csv'
-                write_eslint_csv(output_file, output, self.log_level, self.max_errors,
+                write_eslint_csv(output_file, data, self.log_level, self.max_errors,
                                  self._get_relative_path, self.logger)
 
             return self._ok(violations)

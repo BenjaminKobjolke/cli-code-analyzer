@@ -109,3 +109,51 @@ def test_config_override_passes_registry_ref(tmp_path: Path):
     rule._run(tmp_path)
 
     assert fake.cmd[fake.cmd.index("--config") + 1] == "p/default"
+
+
+def test_semgrep_merges_batches(tmp_path: Path, monkeypatch):
+    monkeypatch.setattr('rules.filter_scope.MAX_COMMAND_CHARS', 270)
+    names = {f'deep/{i:03d}_long_name.dart' for i in range(4)}
+    for name in names:
+        path = tmp_path / name
+        path.parent.mkdir(exist_ok=True)
+        path.touch()
+    rule = _rule(tmp_path, {}, filter_files=names)
+    calls = []
+
+    def run(cmd, _cwd):
+        calls.append(cmd)
+        data = {'results': [{'check_id': 'x', 'path': p, 'start': {'line': 1, 'col': 1},
+                             'extra': {'message': 'bad', 'severity': 'WARNING'}}
+                            for p in cmd if p.endswith('.dart')], 'errors': []}
+        return SimpleNamespace(returncode=1, stdout=json.dumps(data), stderr='')
+
+    rule._run_subprocess = run
+    result = rule._run(tmp_path)
+    assert result.status == RuleStatus.OK
+    assert len(calls) > 1
+    assert len(result.violations) == 4
+
+
+def test_semgrep_fails_fatal_error_in_later_batch_without_partial_results(tmp_path: Path, monkeypatch):
+    monkeypatch.setattr('rules.filter_scope.MAX_COMMAND_CHARS', 270)
+    names = {f'deep/{i:03d}_long_name.dart' for i in range(4)}
+    for name in names:
+        path = tmp_path / name
+        path.parent.mkdir(exist_ok=True)
+        path.touch()
+    rule = _rule(tmp_path, {}, filter_files=names)
+    calls = []
+
+    def run(cmd, _cwd):
+        calls.append(cmd)
+        if len(calls) > 1:
+            return SimpleNamespace(returncode=2, stdout='{"results": [], "errors": '
+                                   '[{"message": "invalid rule configuration"}]}', stderr='')
+        return SimpleNamespace(returncode=1, stdout=_result_json(), stderr='')
+
+    rule._run_subprocess = run
+    result = rule._run(tmp_path)
+    assert result.status == RuleStatus.FAILED
+    assert result.violations == []
+    assert len(calls) > 1

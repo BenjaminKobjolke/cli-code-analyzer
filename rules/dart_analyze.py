@@ -3,7 +3,6 @@ Dart analyze rule for Flutter/Dart code analysis
 """
 
 import csv
-import json
 from pathlib import Path
 
 from models import LogLevel, RuleResult, Severity, Violation
@@ -39,20 +38,17 @@ class DartAnalyzeRule(ProjectWideRule):
         cmd = [*dart_cmd, 'analyze', '--fatal-infos', '--format=json']
 
         # Scope to changed files when filtering; cwd stays base_path for package context.
-        scope = self._scope_args(('.dart',))
-        if scope is None:
-            return self._ok([])
-        cmd += scope
-
-        # Execute dart analyze using base utility
         try:
-            result = self._run_subprocess(cmd, self.base_path)
-
-            # Combine stdout and stderr (dart analyze may output to either)
-            output = result.stdout if result.stdout.strip() else result.stderr
-
-            # Parse JSON output
-            violations = self._parse_dart_json(output)
+            commands = self._scoped_commands(cmd, ('.dart',))
+            if commands is None:
+                return self._ok([])
+            documents = self._run_json('dart analyze', commands, self.base_path)
+            diagnostics = []
+            for data in documents:
+                if not isinstance(data, dict) or not isinstance(data.get('diagnostics'), list):
+                    raise TypeError('dart analyze returned unexpected JSON structure')
+                diagnostics.extend(data['diagnostics'])
+            violations = self._parse_dart_json(diagnostics)
 
             # Apply log level filter to violations
             violations = self._filter_violations_by_log_level(violations)
@@ -66,7 +62,7 @@ class DartAnalyzeRule(ProjectWideRule):
             # Write to CSV file if output folder is specified and violations found
             if self.output_folder and violations:
                 output_file = self.output_folder / 'dart_analyze.csv'
-                self._write_csv_output(output_file, output)
+                self._write_csv_output(output_file, diagnostics)
 
             return self._ok(violations)
 
@@ -78,86 +74,68 @@ class DartAnalyzeRule(ProjectWideRule):
             self.logger.error(f"Error running dart analyze: {e}")
             return self._failed(f"error running dart analyze: {e}")
 
-    def _parse_dart_json(self, output: str) -> list[Violation]:
+    def _parse_dart_json(self, diagnostics: list[dict]) -> list[Violation]:
         """Parse dart analyze JSON output into violations.
 
         Args:
-            output: JSON output from dart analyze
+            diagnostics: Parsed diagnostic entries from dart analyze
 
         Returns:
             List of violations
         """
         violations = []
 
-        if not output or not output.strip():
-            return violations
+        for diagnostic in diagnostics:
+            # Extract fields from JSON
+            code = diagnostic.get('code', 'unknown')
+            severity_str = diagnostic.get('severity', 'WARNING')
+            problem_message = diagnostic.get('problemMessage', '')
+            correction_message = diagnostic.get('correctionMessage', '')
 
-        try:
-            data = json.loads(output)
+            location = diagnostic.get('location', {})
+            file_path = location.get('file', 'unknown')
+            range_info = location.get('range', {})
+            start = range_info.get('start', {})
+            line_num = start.get('line', 0)
+            col_num = start.get('column', 0)
 
-            # Get diagnostics array
-            diagnostics = data.get('diagnostics', [])
+            # Map severity
+            severity = self._map_severity(severity_str)
 
-            for diagnostic in diagnostics:
-                # Extract fields from JSON
-                code = diagnostic.get('code', 'unknown')
-                severity_str = diagnostic.get('severity', 'WARNING')
-                problem_message = diagnostic.get('problemMessage', '')
-                correction_message = diagnostic.get('correctionMessage', '')
+            # Create relative path
+            try:
+                rel_path = self._get_relative_path(Path(file_path))
+            except Exception:
+                rel_path = file_path
 
-                location = diagnostic.get('location', {})
-                file_path = location.get('file', 'unknown')
-                range_info = location.get('range', {})
-                start = range_info.get('start', {})
-                line_num = start.get('line', 0)
-                col_num = start.get('column', 0)
+            # Build detailed message
+            message_parts = [problem_message]
+            if correction_message:
+                message_parts.append(correction_message)
+            full_message = ' '.join(message_parts)
 
-                # Map severity
-                severity = self._map_severity(severity_str)
+            detailed_message = f"{full_message} ({code}) at line {line_num}, column {col_num}"
 
-                # Create relative path
-                try:
-                    rel_path = self._get_relative_path(Path(file_path))
-                except Exception:
-                    rel_path = file_path
-
-                # Build detailed message
-                message_parts = [problem_message]
-                if correction_message:
-                    message_parts.append(correction_message)
-                full_message = ' '.join(message_parts)
-
-                detailed_message = f"{full_message} ({code}) at line {line_num}, column {col_num}"
-
-                violation = Violation(
-                    file_path=rel_path,
-                    rule_name='dart_analyze',
-                    severity=severity,
-                    message=detailed_message,
-                    line=line_num,
-                    column=col_num
-                )
-                violations.append(violation)
-
-        except json.JSONDecodeError as e:
-            self.logger.error(f"Error parsing dart analyze JSON output: {e}")
-            self.logger.error(f"Output was: {output[:200]}...")
-        except Exception as e:
-            self.logger.error(f"Error processing dart analyze results: {e}")
+            violation = Violation(
+                file_path=rel_path,
+                rule_name='dart_analyze',
+                severity=severity,
+                message=detailed_message,
+                line=line_num,
+                column=col_num
+            )
+            violations.append(violation)
 
         return violations
 
-    def _write_csv_output(self, output_file: Path, json_content: str):
+    def _write_csv_output(self, output_file: Path, diagnostics: list[dict]):
         """Write dart analyze results to CSV file, filtered by log level.
 
         Args:
             output_file: Path to CSV output file
-            json_content: JSON content from dart analyze
+            diagnostics: Parsed diagnostic entries from dart analyze
         """
         try:
-            data = json.loads(json_content)
-            diagnostics = data.get('diagnostics', [])
-
             if not diagnostics:
                 return
 
@@ -226,7 +204,5 @@ class DartAnalyzeRule(ProjectWideRule):
 
             self.logger.info(f"Dart analyze report saved to: {output_file}")
 
-        except json.JSONDecodeError as e:
-            self.logger.error(f"Error parsing JSON for CSV output: {e}")
         except Exception as e:
             self.logger.error(f"Error writing dart analyze CSV file: {e}")

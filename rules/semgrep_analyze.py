@@ -2,11 +2,11 @@
 Semgrep pattern-scanning rule (project-wide, multi-language)
 """
 
-import json
 from pathlib import Path
 
 from models import RuleResult, Violation
 from rules.base import ProjectWideRule
+from rules.filter_scope import ToolOutputError
 
 SEMGREP_EXTENSIONS = ('.py', '.js', '.jsx', '.ts', '.tsx', '.php', '.cs', '.dart')
 BUNDLED_RULES_DIR = Path(__file__).parent.parent / 'semgrep_rules'
@@ -29,28 +29,22 @@ class SemgrepAnalyzeRule(ProjectWideRule):
         for pattern in self.config.get('exclude_patterns', []):
             cmd.extend(['--exclude', pattern])
 
-        scope = self._scope_args(SEMGREP_EXTENSIONS, [str(self.base_path)])
-        if scope is None:
-            return self._ok([])
-        cmd += scope
-
         try:
-            result = self._run_subprocess(cmd, self.base_path)
+            commands = self._scoped_commands(cmd, SEMGREP_EXTENSIONS, [str(self.base_path)])
+            if commands is None:
+                return self._ok([])
+            data = {'results': [], 'errors': []}
+            for document in self._run_json('Semgrep', commands, self.base_path, {0, 1}):
+                if not isinstance(document, dict) or not isinstance(document.get('results'), list) \
+                        or not isinstance(document.get('errors'), list):
+                    raise ToolOutputError('Semgrep returned unexpected JSON structure')
+                data['results'].extend(document['results'])
+                data['errors'].extend(document['errors'])
         except FileNotFoundError:
             return self._failed(f"Semgrep executable not found: {semgrep_path}")
-
-        output = result.stdout
-        # Nonzero exit with no output means semgrep died before scanning; never report clean.
-        if result.returncode != 0 and not (output and output.strip()):
-            stderr = (result.stderr or '').strip()
-            self.logger.error(f"Semgrep failed without producing output: {stderr[:300]}")
-            return self._failed(f"Semgrep failed without producing output: {stderr[:300]}")
-
-        try:
-            data = json.loads(output)
-        except (json.JSONDecodeError, TypeError) as e:
-            self.logger.error(f"Error parsing semgrep JSON output: {e}")
-            return self._failed(f"could not parse semgrep JSON output: {e}")
+        except ToolOutputError as e:
+            self.logger.error(str(e))
+            return self._failed(str(e))
 
         violations = self._parse_results(data)
         violations = self._filter_violations_by_log_level(violations)

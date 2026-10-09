@@ -80,6 +80,8 @@ All rules inherit `BaseRule`. Important methods:
 - `_get_tool_path(tool_name, getter, prompter)` - Resolves external tool paths via PATH, project-local `node_modules/.bin/`, settings, or user prompt
 - `_filter_violations_by_log_level(violations)` - Filters violations by configured severity
 - `_run_command(cmd)` - Subprocess execution helper
+- `_scoped_commands(cmd, extensions, whole_project)` - Complete commands for a scoped tool, split below the Windows command-line limit
+- `_run_json(tool, commands, cwd)` - Runs scoped commands and returns parsed JSON; raises `ToolOutputError` on untrusted output
 
 ### Exception path matching order
 
@@ -108,6 +110,7 @@ Full guide in `CREATING_NEW_ANALYZER.md`. Summary:
 - External tools are resolved lazily: PATH -> project-local `node_modules/.bin/` -> `settings.py` -> user prompt. The prompt emits `::tw-input-line::` when `TICKETS_WATCHER_COMMAND_RUN=1`; without a terminal, it logs the missing `[section] key` and skips instead of blocking.
 - File paths in violations should always be relative (use `_get_relative_path()`)
 - File exclusion patterns use forward slashes even on Windows
+- A tool that could not start or produced unparseable output returns `_failed(...)`, never an empty `_ok([])`
 
 ## Dependencies
 

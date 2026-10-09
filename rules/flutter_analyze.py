@@ -58,12 +58,18 @@ class FlutterAnalyzeRule(ProjectWideRule):
     def _run_flutter_analyze(self, flutter_cmd: list[str]) -> RuleResult:
         """Execute flutter analyze and return parsed violations."""
         try:
-            scope = self._scope_args(('.dart',))
-            if scope is None:
+            commands = self._scoped_commands([*flutter_cmd, 'analyze'], ('.dart',))
+            if commands is None:
                 return self._ok([])
-            result = self._run_subprocess([*flutter_cmd, 'analyze', *scope], self.project_root or self.base_path)
-            output = result.stdout if result.stdout.strip() else result.stderr
-            violations = self._filter_violations_by_log_level(self._parse_flutter_text_output(output))
+            violations = []
+            for command in commands:
+                result = self._run_subprocess(command, self.project_root or self.base_path)
+                output = result.stdout if result.stdout.strip() else result.stderr
+                batch = self._parse_flutter_text_output(output)
+                if result.returncode != 0 and not batch:
+                    return self._failed(f"flutter analyze failed (exit {result.returncode}): {output.strip()[:300]}")
+                violations.extend(batch)
+            violations = self._filter_violations_by_log_level(violations)
 
             self.logger.info(f"Flutter analyze found {len(violations)} issue(s)" if violations else "Flutter analyze: No issues found")
 

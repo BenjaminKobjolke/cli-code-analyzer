@@ -1,12 +1,22 @@
 """Filter-file scoping helpers, mixed into BaseRule.
 
 Provides the logic that maps an active ``--only-changed`` / ``--file`` filter to
-the file-path arguments a project-wide tool should scan. Kept separate from
+the file-path arguments and bounded commands a project-wide tool should scan. Kept separate from
 base.py so the core base class stays focused. The host class supplies
 ``filter_files`` and ``base_path`` (BaseRule sets both in __init__).
 """
 
+import json
+import subprocess
 from pathlib import Path
+from typing import Any
+
+# ponytail: one tool start per roughly 70 files; revisit for thousands of changed files.
+MAX_COMMAND_CHARS = 6000
+
+
+class ToolOutputError(Exception):
+    """A tool could not run or did not produce trustworthy output."""
 
 
 class FilterScopeMixin:
@@ -46,3 +56,48 @@ class FilterScopeMixin:
         if not targets:
             return None
         return [str(p) for p in targets]
+
+    def _scoped_commands(self, cmd: list[str], extensions: tuple[str, ...] | None = None,
+                         whole_project: list[str] | None = None) -> list[list[str]] | None:
+        """Build complete commands, splitting only a filtered file list."""
+        scope = self._scope_args(extensions, whole_project)
+        if scope is None:
+            return None
+        if self.filter_files is None:
+            command = [*cmd, *scope]
+            if len(subprocess.list2cmdline(command)) > MAX_COMMAND_CHARS:
+                raise ToolOutputError(f"command exceeds {MAX_COMMAND_CHARS} characters")
+            return [command]
+
+        commands: list[list[str]] = []
+        current = cmd.copy()
+        for path in scope:
+            if len(subprocess.list2cmdline([*cmd, path])) > MAX_COMMAND_CHARS:
+                raise ToolOutputError(f"command exceeds {MAX_COMMAND_CHARS} characters for {path}")
+            if len(subprocess.list2cmdline([*current, path])) > MAX_COMMAND_CHARS:
+                commands.append(current)
+                current = cmd.copy()
+            current.append(path)
+        commands.append(current)
+        return commands
+
+    def _run_json(self, tool: str, commands: list[list[str]], cwd: Path | None,
+                  accepted_returncodes: set[int] | None = None) -> list[Any]:
+        """Run every command and return parsed JSON documents or fail."""
+        documents = []
+        for command in commands:
+            result = self._run_subprocess(command, cwd)
+            output = result.stdout or ''
+            if accepted_returncodes is not None and result.returncode not in accepted_returncodes:
+                raise ToolOutputError(
+                    f"{tool} failed (exit {result.returncode}): {(result.stderr or '').strip()[:300]}")
+            if not output.strip():
+                raise ToolOutputError(
+                    f"{tool} failed without producing output (exit {result.returncode}): "
+                    f"{(result.stderr or '').strip()[:300]}")
+            try:
+                documents.append(json.loads(output))
+            except json.JSONDecodeError as e:
+                raise ToolOutputError(
+                    f"could not parse {tool} JSON output: {e}; output was: {output[:200]}") from e
+        return documents
