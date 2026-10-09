@@ -2,11 +2,12 @@
 Dart unused code analyzer - finds unused classes, functions, enums, etc. using dart-lsp-mcp.
 """
 
+import re
 from pathlib import Path
 
 from models import RuleResult, Violation
 from rules.base import ProjectWideRule
-from rules.dart_utils import collect_dart_files
+from rules.dart_utils import collect_dart_files, collect_project_dart_files
 
 # Optional dependency: dart-lsp-mcp
 try:
@@ -53,6 +54,8 @@ class DartUnusedCodeRule(ProjectWideRule):
         violations = []
         total_symbols = 0
         checked_symbols = 0
+        unconfirmed = []
+        source_lines = None
 
         self.logger.info(f"Scanning {len(all_dart_files)} files for unused code...")
 
@@ -66,6 +69,7 @@ class DartUnusedCodeRule(ProjectWideRule):
             if not symbols:
                 continue
 
+            top_level_lines = sorted(symbol.get('line', 0) for symbol in symbols)
             for symbol in symbols:
                 name = symbol.get('name', '')
                 kind = symbol.get('kind', '')
@@ -85,9 +89,9 @@ class DartUnusedCodeRule(ProjectWideRule):
                 try:
                     refs = find_references(str(dart_file), line, col)
                 except Exception:
-                    continue
-
-                checked_symbols += 1
+                    refs = []
+                else:
+                    checked_symbols += 1
 
                 # Filter out the declaration itself - only count usages
                 usage_count = 0
@@ -101,6 +105,28 @@ class DartUnusedCodeRule(ProjectWideRule):
                         usage_count += 1
 
                 if usage_count == 0:
+                    if source_lines is None:
+                        try:
+                            paths = collect_project_dart_files(project_root)
+                        except OSError as e:
+                            self.logger.warning(f"Warning: Could not scan Dart source: {e}")
+                            return self._failed(f"Could not scan Dart source: {e}")
+                        source_lines = {}
+                        for path in paths:
+                            try:
+                                lines = path.read_text(encoding='utf-8', errors='replace').splitlines()
+                            except OSError as e:
+                                self.logger.warning(f"Warning: Could not read Dart source {path}: {e}")
+                                return self._failed(f"Could not read Dart source {path}: {e}")
+                            source_lines[path] = ["" if text.lstrip().startswith('//') else text
+                                                  for text in lines]
+
+                    # shortcut: annotations before the next declaration fall in this range; revisit if LSP misses them.
+                    own_end = next((other for other in top_level_lines if other > line), None)
+                    if self._is_referenced_in_text(name, dart_file, line, own_end, source_lines):
+                        unconfirmed.append(name)
+                        continue
+
                     try:
                         rel_path = self._get_relative_path(dart_file)
                     except Exception:
@@ -119,8 +145,23 @@ class DartUnusedCodeRule(ProjectWideRule):
             self.logger.info(f"Dart unused code found {len(violations)} unused declaration(s) (checked {checked_symbols}/{total_symbols} symbols)")
         else:
             self.logger.info(f"Dart unused code: No unused declarations found (checked {checked_symbols}/{total_symbols} symbols)")
+        if unconfirmed:
+            self.logger.info(
+                f"Dart unused code: {len(unconfirmed)} declaration(s) without LSP references "
+                f"not reported, name is used in project source: {', '.join(unconfirmed)}")
 
         return self._ok(violations)
+
+    @staticmethod
+    def _is_referenced_in_text(name: str, dart_file: Path, own_start: int,
+                               own_end: int | None, source_lines: dict[Path, list[str]]) -> bool:
+        pattern = re.compile(rf'(?<![\w$]){re.escape(name)}(?![\w$])')
+        return any(
+            pattern.search(text)
+            for path, lines in source_lines.items()
+            for number, text in enumerate(lines, 1)
+            if path != dart_file or not (number >= own_start and (own_end is None or number < own_end))
+        )
 
     @staticmethod
     def _extract_line(message: str) -> str:

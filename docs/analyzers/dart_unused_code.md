@@ -2,7 +2,7 @@
 
 ## Overview
 
-The Dart Unused Code analyzer finds unused classes, functions, enums, mixins, typedefs, and extensions across the project. It uses the dart-lsp-mcp Language Server Protocol integration for accurate, cross-file reference tracking.
+The Dart Unused Code analyzer finds unused classes, functions, enums, mixins, typedefs, and extensions across the project. It uses dart-lsp-mcp for cross-file reference tracking. A declaration is reported only when the LSP finds no usage and its name does not appear elsewhere in the project's Dart source.
 
 ## Supported Languages
 
@@ -52,6 +52,7 @@ The project must have a `pubspec.yaml` file.
 Running dart unused code check...
 Scanning 150 files for unused code...
 Dart unused code found 8 unused declaration(s) (checked 245/250 symbols)
+Dart unused code: 2 declaration(s) without LSP references not reported, name is used in project source: Keys, AppConfig
 Report saved to: code_analysis_results/dart_unused_code.csv
 ```
 
@@ -69,7 +70,7 @@ Report saved to: code_analysis_results/dart_unused_code.csv
 
 | Severity | Description |
 |----------|-------------|
-| WARNING | Declaration has no references anywhere in the project |
+| WARNING | LSP found no usage and the name does not appear elsewhere in project Dart source |
 
 ## Example Usage
 
@@ -94,6 +95,8 @@ python main.py --language flutter --path ./lib --rules rules.json --output ./rep
 - Executes once per analysis run (project-wide)
 - Requires `pubspec.yaml` in the project root or parent directory
 - Uses the real Dart language server for accurate cross-file reference tracking
+- When LSP finds no usage or its lookup fails, the analyzer checks the project Dart source before reporting. A name used elsewhere is listed in the console's "not reported" line, not in the CSV.
+- A same-named symbol or a mention in a block comment or string can hide a genuinely unused declaration. It appears in the "not reported" line for review.
 - Private symbols (prefixed with `_`) are skipped since they are file-scoped
 - Add framework methods (e.g., `build`, `initState`) to `ignore_names` to avoid false positives
 - If dart-lsp-mcp is not installed, the analyzer gracefully skips with a warning

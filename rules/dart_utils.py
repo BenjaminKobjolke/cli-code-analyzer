@@ -2,10 +2,28 @@
 Shared Dart/Flutter utilities for import parsing and file collection.
 """
 
+import os
 import re
 from pathlib import Path
 
 import yaml
+
+
+DART_SKIP_DIRECTORIES = frozenset({'.dart_tool', 'build', '.git', 'ios', 'android',
+                                   'web', 'linux', 'macos', 'windows'})
+
+
+def collect_project_dart_files(project_root: Path) -> list[Path]:
+    """All .dart files of a project, skipping build, cache and platform folders."""
+    files = []
+
+    def raise_walk_error(error: OSError) -> None:
+        raise error
+
+    for root, dirs, names in os.walk(project_root, onerror=raise_walk_error):
+        dirs[:] = [name for name in dirs if name not in DART_SKIP_DIRECTORIES]
+        files.extend(Path(root) / name for name in names if name.endswith('.dart'))
+    return sorted(files)
 
 
 def get_package_name(project_root: Path) -> str | None:
