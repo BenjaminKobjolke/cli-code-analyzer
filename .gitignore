@@ -225,3 +225,6 @@ php/vendor/
 claude-plans
 /PLAN_*.md
 tickets/
+graphify-out/
+tmp/commit_msg.tmp
+.reasonix/
