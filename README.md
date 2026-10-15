@@ -102,6 +102,7 @@ python main.py --language <language> --path <path> [options]
 | `--build-cache` | | No | off | Build a violation cache in the output folder for fast `--file` queries. Requires `--output`. |
 | `--cache-max-age` | | No | `60` | Maximum cache age in minutes before it is considered stale. Independent of age, the cache is also invalidated when source files, `rules.json`, or analyzer code change |
 | `--only-analyzer` | | No | - | Run only the named analyzer(s) from `--rules`, skipping every other enabled rule for this run (space- or comma-separated). Names match `rules.json` keys / `--list-analyzers` output. Disables the violation cache; mutually exclusive with `--build-cache`. |
+| `--audit-dependencies` | | No | off | Audit root dependency lock files for known advisories and outdated direct dependencies; prints JSON without changing the checkout. Requires `--path`. |
 
 ## JSON Output
 
@@ -132,6 +133,27 @@ Output:
   }
 }
 ```
+
+## Dependency Security Audit
+
+Run the standalone audit against a checkout:
+
+```bash
+D:\GIT\BenjaminKobjolke\cli-code-analyzer\venv\Scripts\python.exe D:\GIT\BenjaminKobjolke\cli-code-analyzer\main.py --audit-dependencies --path <checkout>
+```
+
+The command detects `uv.lock`, `composer.lock`, and `pubspec.lock` in the checkout root. It uses
+`uv` and `uvx` with `pip-audit` for Python, `composer` for PHP, and `dart` or `flutter` for Dart
+and Flutter. Advisory details for pub packages require network access to pub.dev. A missing or
+failed tool is reported for its stack while other detected stacks continue. A checkout without
+these lock files returns empty lists.
+
+Stdout contains only JSON with `advisories`, `outdated`, and `errors` arrays. Advisory entries
+include ecosystem, package, installed and fixed versions, id, summary, and URL; `fixed` is null
+when no fixed version is known. Outdated entries include ecosystem, package, installed version,
+and latest version. Error entries include ecosystem and message. The command returns 0 after
+printing JSON, including when a stack reports an error; it returns 2 when the path is missing or
+is not a directory. It writes no files into the checkout.
 
 ## Violation Cache
 
