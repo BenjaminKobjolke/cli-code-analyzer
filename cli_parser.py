@@ -19,6 +19,7 @@ Examples:
   python main.py --language python --path ./src --output reports/ --build-cache
   python main.py --language python --path ./src --output reports/ --file src/app.py
   python main.py --language python --path ./src --rules rules.json --only-analyzer max_lines_per_file
+  python main.py --audit-dependencies --path <checkout>
         """,
     )
 
@@ -40,6 +41,12 @@ Examples:
             'exists, or whose documented function is absent) and report them. '
             'Uses --path as project root (default: current dir). Add --fix to remove them.'
         ),
+    )
+    parser.add_argument(
+        '--audit-dependencies',
+        action='store_true',
+        default=False,
+        help='Audit dependencies in root lock files and print a JSON report.',
     )
     parser.add_argument(
         '--fix',

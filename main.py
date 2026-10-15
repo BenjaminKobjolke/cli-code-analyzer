@@ -36,6 +36,12 @@ def main():
         from dead_exceptions import run_dead_exceptions
         sys.exit(run_dead_exceptions(args.rules, args.path, args.output, args.fix))
 
+    if args.audit_dependencies:
+        if not args.path:
+            parser.error("--path is required for dependency auditing")
+        from dependency_audit import run_dependency_audit
+        sys.exit(run_dependency_audit(args.path, Logger(stream=sys.stderr)))
+
     # Validate required arguments for analysis mode
     if not args.language:
         parser.error("--language is required for analysis")
