@@ -1,5 +1,5 @@
 # Version
-1
+2
 
 <!-- Managed by `tickets-watcher --setup`. Replaced whole when the version above changes;
      edit the shipped template in the tickets-watcher repo, not this copy. -->
@@ -44,3 +44,21 @@ A child program keeps the run from hanging only if it says so itself:
 - `%~n0` / `%~nx0` see the temporary `.tw-run-*` copy name. `%~dp0` is safe.
 - The run has a time limit (`commands.timeout_seconds`); time spent waiting for an answer does
   not count against it.
+
+## Analysis commands after implementation
+
+The watcher can run configured test and code-quality commands before its analysis agent. Set
+`analysis_command_kinds` for commands whose kind is not clear from the script name. Test and
+code-quality commands have separate command limits: `analysis_test_timeout_seconds` defaults
+to 540 seconds and `analysis_code_quality_timeout_seconds` defaults to 300 seconds. Either
+setting falls back to `analysis_command_timeout_seconds` when present. Limits are capped at
+1800 seconds.
+
+Every test command also needs a per-test timeout shorter than its command limit. For pytest,
+set `timeout = 120` in `pyproject.toml` or another supported pytest config; for Flutter, use
+`--timeout` or `test/flutter_test_config.dart`. Setup warns when a configured pytest or Flutter
+test command has no per-test timeout.
+
+When a complete test command uses more than half its limit, the watcher raises the saved test
+limit for the next todo. Keep scripts printing output during long runs: a long silent stretch
+can create one low-priority follow-up asking for progress output.
