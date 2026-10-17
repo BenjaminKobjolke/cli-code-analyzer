@@ -10,7 +10,11 @@ from config import Config
 from file_discovery import FileDiscovery
 from logger import Logger
 from models import LogLevel, RuleResult, RuleStatus, Severity, Violation
-from path_utils import dir_paths_to_patterns, resolve_exclude_patterns, to_relative_posix
+from path_utils import (
+    dir_paths_to_patterns,
+    resolve_exclude_patterns,
+    to_relative_posix,
+)
 from project_wide_rules import FILTER_INCAPABLE, PROJECT_WIDE_ANALYZERS
 from rules import MaxLinesRule, PMDDuplicatesRule, PMDSimilarCodeRule
 from rules.context import RuleContext

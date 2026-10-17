@@ -3,7 +3,13 @@
 from pathlib import Path
 
 from dependency_audit.command import AuditToolError, parse_json, resolve_tool, run_tool
-from dependency_audit.models import Advisory, AuditReport, Ecosystem, OutdatedPackage, StackError
+from dependency_audit.models import (
+    Advisory,
+    AuditReport,
+    Ecosystem,
+    OutdatedPackage,
+    StackError,
+)
 
 LOCK_FILE = "composer.lock"
 ECOSYSTEM = Ecosystem.PHP

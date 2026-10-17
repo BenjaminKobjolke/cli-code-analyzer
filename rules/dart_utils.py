@@ -8,7 +8,6 @@ from pathlib import Path
 
 import yaml
 
-
 DART_SKIP_DIRECTORIES = frozenset({'.dart_tool', 'build', '.git', 'ios', 'android',
                                    'web', 'linux', 'macos', 'windows'})
 

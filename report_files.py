@@ -85,7 +85,7 @@ def write_csv_reports(violations: list[Violation], output_folder: Path,
 
 def build_json(violations: list[Violation], failures: list[RuleResult]) -> dict:
     """Build the JSON document describing violations and tool failures."""
-    counts = {sev: 0 for sev in Severity}
+    counts = dict.fromkeys(Severity, 0)
     violation_dicts = []
     for v in violations:
         counts[v.severity] += 1

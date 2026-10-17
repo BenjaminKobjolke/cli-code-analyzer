@@ -10,6 +10,8 @@ from dependency_audit import run_dependency_audit
 from dependency_audit.command import AuditToolError
 from dependency_audit.dart_stack import (
     audit as audit_dart,
+)
+from dependency_audit.dart_stack import (
     is_flutter_project,
     match_pub_advisories,
     parse_pub_outdated,

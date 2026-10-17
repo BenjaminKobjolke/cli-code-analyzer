@@ -25,7 +25,7 @@ def test_empty_and_none():
 
 
 def test_global_exclude_paths_reach_discovery(tmp_path):
-    from analyzer import CodeAnalyzer  # noqa: F401  (import guard only)
+    from analyzer import CodeAnalyzer
     from config import Config
 
     rules = tmp_path / "rules.json"
