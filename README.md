@@ -144,9 +144,11 @@ D:\GIT\BenjaminKobjolke\cli-code-analyzer\venv\Scripts\python.exe D:\GIT\Benjami
 
 The command detects `uv.lock`, `composer.lock`, and `pubspec.lock` in the checkout root. It uses
 `uv` and `uvx` with `pip-audit` for Python, `composer` for PHP, and `dart` or `flutter` for Dart
-and Flutter. Advisory details for pub packages require network access to pub.dev. A missing or
-failed tool is reported for its stack while other detected stacks continue. A checkout without
-these lock files returns empty lists.
+and Flutter. FVM-pinned checkouts (`.fvmrc` or `.fvm/`) use `fvm flutter` or `fvm dart` when `fvm`
+is on PATH; a Composer project with no packages reports no advisories or outdated packages.
+Advisory details for pub packages require network access to pub.dev. A missing or failed tool is
+reported for its stack while other detected stacks continue. A checkout without these lock files
+returns empty lists.
 
 Stdout contains only JSON with `advisories`, `outdated`, and `errors` arrays. Advisory entries
 include ecosystem, package, installed and fixed versions, id, summary, and URL; `fixed` is null
