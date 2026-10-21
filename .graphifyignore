@@ -1,0 +1,16 @@
+# Non-code and non-first-party content — keeps the graph AST-only (no LLM pass)
+*.md
+*.json
+*.ini
+*.txt
+*.bat
+LICENSE
+docs/
+tests/
+example/
+prompts/
+tools/
+php/
+semgrep_rules/
+.claude/
+graphify-out/
