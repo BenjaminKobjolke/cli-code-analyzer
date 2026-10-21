@@ -31,6 +31,9 @@
     "tests": true
   },
   "analysis_command_states": {
+    "tools/fix_ruff_issues.bat": {
+      "code_quality": "green"
+    },
     "tools\\run_tests.bat": {
       "test": "green"
     },
@@ -40,5 +43,6 @@
     "tools\\analyze_code.bat": {
       "code_quality": "green"
     }
-  }
+  },
+  "analysis_format_command": "tools/fix_ruff_issues.bat"
 }
