@@ -228,3 +228,4 @@ tickets/
 graphify-out/
 tmp/commit_msg.tmp
 .reasonix/
+coding-rules.json
