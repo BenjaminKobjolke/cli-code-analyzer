@@ -20,10 +20,10 @@ def resolve_tool(name: str) -> str:
     return executable
 
 
-def run_tool(
+def run_tool_result(
     cmd: Sequence[str], cwd: Path, accepted: tuple[int, ...] = (0,)
-) -> str:
-    """Run a tool with a finite timeout and return stdout."""
+) -> subprocess.CompletedProcess[str]:
+    """Run a tool with a finite timeout and return its full process result."""
     environment = os.environ.copy()
     environment["COMPOSER_NO_INTERACTION"] = "1"
     try:
@@ -40,11 +40,24 @@ def run_tool(
         detail = result.stderr.strip().splitlines()
         suffix = f": {detail[-1][:200]}" if detail else ""
         raise AuditToolError(f"{Path(cmd[0]).name} exited with code {result.returncode}{suffix}")
-    return result.stdout
+    return result
+
+
+def run_tool(
+    cmd: Sequence[str], cwd: Path, accepted: tuple[int, ...] = (0,)
+) -> str:
+    """Run a tool with a finite timeout and return stdout."""
+    return run_tool_result(cmd, cwd, accepted).stdout
 
 
 def parse_json(text: str, tool: str) -> object:
-    """Parse JSON even when a tool prepends a banner."""
+    """Parse complete JSON or an object following a tool's text banner."""
+    stripped = text.strip()
+    if stripped:
+        try:
+            return json.loads(stripped)
+        except json.JSONDecodeError:
+            pass
     start = text.find("{")
     if start < 0:
         raise AuditToolError(f"{tool} did not return JSON")

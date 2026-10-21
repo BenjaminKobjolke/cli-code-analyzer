@@ -1,13 +1,14 @@
 """Focused parsing and orchestration coverage for dependency audits."""
 
 import json
+import subprocess
 from io import StringIO
 from pathlib import Path
 
 import pytest
 
 from dependency_audit import run_dependency_audit
-from dependency_audit.command import AuditToolError
+from dependency_audit.command import AuditToolError, parse_json
 from dependency_audit.dart_stack import (
     audit as audit_dart,
 )
@@ -17,6 +18,7 @@ from dependency_audit.dart_stack import (
     parse_pub_outdated,
 )
 from dependency_audit.models import AuditReport, Ecosystem, StackError
+from dependency_audit.php_stack import audit as audit_php
 from dependency_audit.php_stack import parse_composer_audit, parse_composer_outdated
 from dependency_audit.python_stack import parse_pip_audit, parse_uv_tree
 
@@ -88,6 +90,86 @@ def test_parse_composer_outdated_locked_and_installed_forms():
     assert [x.package for x in parse_composer_outdated(fallback)] == ["vendor/c"]
 
 
+def test_parse_composer_outdated_accepts_empty_array_and_rejects_unexpected_array():
+    assert parse_composer_outdated([]) == []
+    with pytest.raises(AuditToolError, match="composer outdated returned unexpected JSON"):
+        parse_composer_outdated([{"x": 1}])
+
+
+def test_parse_json_accepts_complete_arrays_and_keeps_banner_support():
+    assert parse_json("[]", "composer outdated") == []
+    assert parse_json('Composer banner\n{"packages": []}', "dart pub outdated") == {"packages": []}
+    for text in ("", "garbage"):
+        with pytest.raises(AuditToolError, match="did not return JSON"):
+            parse_json(text, "composer outdated")
+
+
+def test_composer_audit_accepts_empty_stdout_for_empty_lock(tmp_path, monkeypatch):
+    (tmp_path / "composer.lock").write_text(
+        '{"packages": [], "packages-dev": []}', encoding="utf-8"
+    )
+    commands = []
+    monkeypatch.setattr("dependency_audit.php_stack.resolve_tool", lambda _name: "composer")
+
+    def run_tool_result(command, *_args, **_kwargs):
+        commands.append(command)
+        return subprocess.CompletedProcess(command, 0, "", "No packages - skipping audit.")
+
+    monkeypatch.setattr("dependency_audit.php_stack.run_tool_result", run_tool_result)
+    monkeypatch.setattr("dependency_audit.php_stack.run_tool", lambda *_args, **_kwargs: "[]")
+
+    report = AuditReport()
+    audit_php(tmp_path, report)
+
+    assert len(commands) == 1
+    assert report.errors == []
+    assert report.advisories == []
+    assert report.outdated == []
+
+
+@pytest.mark.parametrize(
+    "returncode,stdout,error_message",
+    [(1, "", "composer audit did not return JSON"), (0, "garbage", "composer audit did not return JSON")],
+)
+def test_composer_audit_still_reports_failure_or_garbage(
+    tmp_path, monkeypatch, returncode, stdout, error_message
+):
+    (tmp_path / "composer.lock").write_text(
+        '{"packages": [], "packages-dev": []}', encoding="utf-8"
+    )
+    monkeypatch.setattr("dependency_audit.php_stack.resolve_tool", lambda _name: "composer")
+    monkeypatch.setattr(
+        "dependency_audit.php_stack.run_tool_result",
+        lambda command, *_args, **_kwargs: subprocess.CompletedProcess(command, returncode, stdout, ""),
+    )
+    monkeypatch.setattr("dependency_audit.php_stack.run_tool", lambda *_args, **_kwargs: "[]")
+
+    report = AuditReport()
+    audit_php(tmp_path, report)
+
+    assert [error.message for error in report.errors] == [error_message]
+
+
+def test_composer_outdated_tool_failure_is_reported(tmp_path, monkeypatch):
+    (tmp_path / "composer.lock").write_text(
+        '{"packages": [], "packages-dev": []}', encoding="utf-8"
+    )
+    monkeypatch.setattr("dependency_audit.php_stack.resolve_tool", lambda _name: "composer")
+    monkeypatch.setattr(
+        "dependency_audit.php_stack.run_tool_result",
+        lambda command, *_args, **_kwargs: subprocess.CompletedProcess(command, 0, "", ""),
+    )
+
+    def fail_outdated(*_args, **_kwargs):
+        raise AuditToolError("composer exited with code 1")
+
+    monkeypatch.setattr("dependency_audit.php_stack.run_tool", fail_outdated)
+    report = AuditReport()
+    audit_php(tmp_path, report)
+
+    assert [error.message for error in report.errors] == ["composer exited with code 1"]
+
+
 def test_pub_outdated_and_advisory_matching():
     packages = parse_pub_outdated({"packages": [
         {"package": "app", "kind": "direct", "current": {"version": "1.0"}, "latest": {"version": "2.0"}, "isCurrentAffectedByAdvisory": True},
@@ -118,6 +200,23 @@ def test_pub_outdated_and_advisory_matching():
     )
 
 
+@pytest.mark.parametrize("data", [[], "unexpected", None])
+def test_dart_audit_reports_unexpected_outdated_json(tmp_path, monkeypatch, data):
+    monkeypatch.setattr(
+        "dependency_audit.dart_stack._dart_command", lambda _checkout, _name: ["dart"]
+    )
+    monkeypatch.setattr(
+        "dependency_audit.dart_stack.run_tool",
+        lambda *_args, **_kwargs: json.dumps(data),
+    )
+
+    report = AuditReport()
+    audit_dart(tmp_path, report)
+
+    assert len(report.errors) == 1
+    assert report.errors[0].message == "dart pub outdated returned unexpected JSON: expected an object"
+
+
 @pytest.mark.parametrize("data", [
     {"advisories": {}},
     {"advisories": [None]},
@@ -138,7 +237,7 @@ def test_dart_audit_continues_after_malformed_package_advisory(tmp_path, monkeyp
         {"package": "broken", "current": {"version": "1.0"}, "isCurrentAffectedByAdvisory": True},
         {"package": "valid", "current": {"version": "2.0"}, "isCurrentAffectedByAdvisory": True},
     ]})
-    monkeypatch.setattr("dependency_audit.dart_stack._resolve_dart_tool", lambda _name: "dart")
+    monkeypatch.setattr("dependency_audit.dart_stack._dart_command", lambda _checkout, _name: ["dart"])
     monkeypatch.setattr("dependency_audit.dart_stack.run_tool", lambda *_args, **_kwargs: outdated)
     monkeypatch.setattr("dependency_audit.dart_stack.fetch_pub_advisories", lambda _package: {})
 
@@ -152,6 +251,61 @@ def test_dart_audit_continues_after_malformed_package_advisory(tmp_path, monkeyp
 
     assert report.advisories[0].id == "OSV-valid"
     assert report.errors == [StackError(Ecosystem.DART, "pub.dev advisory response has invalid advisories")]
+
+
+@pytest.mark.parametrize("pin", [".fvmrc", ".fvm"])
+@pytest.mark.parametrize("is_flutter,tool_name", [(True, "flutter"), (False, "dart")])
+def test_dart_audit_uses_fvm_for_pinned_checkout(tmp_path, monkeypatch, pin, is_flutter, tool_name):
+    if pin == ".fvmrc":
+        (tmp_path / pin).write_text('{"flutter": "3.24.0"}', encoding="utf-8")
+    else:
+        (tmp_path / pin).mkdir()
+    if is_flutter:
+        (tmp_path / "pubspec.yaml").write_text(
+            "dependencies:\n  flutter:\n    sdk: flutter\n", encoding="utf-8"
+        )
+
+    calls = []
+    monkeypatch.setattr(
+        "dependency_audit.dart_stack.shutil.which",
+        lambda name: {"fvm": "C:/tools/fvm.bat"}.get(name),
+    )
+    monkeypatch.setattr("dependency_audit.dart_stack.Settings", lambda: type("S", (), {"get_path": lambda *_: None})())
+    monkeypatch.setattr("dependency_audit.dart_stack.run_tool", lambda command, *_: calls.append(command) or '{"packages": []}')
+
+    report = AuditReport()
+    audit_dart(tmp_path, report)
+
+    assert calls == [["C:/tools/fvm.bat", tool_name, "pub", "outdated", "--json"]]
+    assert report.errors == []
+
+
+def test_dart_audit_does_not_use_fvm_for_unpinned_checkout(tmp_path, monkeypatch):
+    calls = []
+    found = {"fvm": "C:/tools/fvm.bat", "dart": "C:/dart/dart.exe"}
+    monkeypatch.setattr("dependency_audit.dart_stack.shutil.which", found.get)
+    monkeypatch.setattr("dependency_audit.dart_stack.Settings", lambda: type("S", (), {"get_path": lambda *_: None})())
+    monkeypatch.setattr("dependency_audit.dart_stack.run_tool", lambda command, *_: calls.append(command) or '{"packages": []}')
+
+    report = AuditReport()
+    audit_dart(tmp_path, report)
+
+    assert calls == [["C:/dart/dart.exe", "pub", "outdated", "--json"]]
+    assert report.errors == []
+
+
+def test_dart_audit_pinned_without_fvm_keeps_tool_lookup_error(tmp_path, monkeypatch):
+    (tmp_path / ".fvmrc").touch()
+    (tmp_path / "pubspec.yaml").write_text(
+        "dependencies:\n  flutter:\n    sdk: flutter\n", encoding="utf-8"
+    )
+    monkeypatch.setattr("dependency_audit.dart_stack.shutil.which", lambda _name: None)
+    monkeypatch.setattr("dependency_audit.dart_stack.Settings", lambda: type("S", (), {"get_path": lambda *_: None})())
+
+    report = AuditReport()
+    audit_dart(tmp_path, report)
+
+    assert report.errors == [StackError(Ecosystem.DART, "flutter not found")]
 
 
 def test_flutter_detection_reads_pubspec(tmp_path: Path):

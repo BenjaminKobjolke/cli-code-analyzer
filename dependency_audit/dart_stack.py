@@ -1,6 +1,7 @@
 """Dart and Flutter package auditing via pub's advisory metadata."""
 
 import json
+import shutil
 import urllib.error
 import urllib.request
 from collections.abc import Callable
@@ -27,6 +28,8 @@ def is_flutter_project(checkout: Path) -> bool:
 
 
 def parse_pub_outdated(data: dict[str, object], advisories: bool = False) -> list[OutdatedPackage] | list[dict[str, str]]:
+    if not isinstance(data, dict):
+        raise AuditToolError("dart pub outdated returned unexpected JSON: expected an object")
     packages = data.get("packages", [])
     if advisories:
         return [item for item in packages if item.get("isCurrentAffectedByAdvisory")]
@@ -88,27 +91,33 @@ def match_pub_advisories(
     return results
 
 
-def _resolve_dart_tool(name: str) -> str:
-    executable = __import__("shutil").which(name)
+def _dart_command(checkout: Path, name: str) -> list[str]:
+    fvm = shutil.which("fvm")
+    if fvm and ((checkout / ".fvmrc").exists() or (checkout / ".fvm").is_dir()):
+        # Keep the resolved path: on Windows fvm may be a .bat file or shim.
+        return [fvm, name]
+
+    executable = shutil.which(name)
     if executable:
-        return executable
+        return [executable]
     configured = Settings().get_path(name)
     if configured:
-        return configured
+        return [configured]
     raise AuditToolError(f"{name} not found")
 
 
 def audit(checkout: Path, report: AuditReport, fetch: FetchAdvisories = fetch_pub_advisories) -> None:
     tool_name = "flutter" if is_flutter_project(checkout) else "dart"
     try:
-        tool = _resolve_dart_tool(tool_name)
-        output = run_tool([tool, "pub", "outdated", "--json"], checkout)
+        output = run_tool([*_dart_command(checkout, tool_name), "pub", "outdated", "--json"], checkout)
         data = parse_json(output, f"{tool_name} pub outdated")
+        outdated = parse_pub_outdated(data)
+        advisory_packages = parse_pub_outdated(data, advisories=True)
     except (AuditToolError, KeyError, ValueError) as error:
         report.errors.append(StackError(ECOSYSTEM, str(error)))
         return
-    report.outdated.extend(parse_pub_outdated(data))
-    for package in parse_pub_outdated(data, advisories=True):
+    report.outdated.extend(outdated)
+    for package in advisory_packages:
         try:
             current = package.get("current") or {}
             version = current.get("version")

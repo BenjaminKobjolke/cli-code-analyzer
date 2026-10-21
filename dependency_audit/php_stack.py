@@ -2,7 +2,13 @@
 
 from pathlib import Path
 
-from dependency_audit.command import AuditToolError, parse_json, resolve_tool, run_tool
+from dependency_audit.command import (
+    AuditToolError,
+    parse_json,
+    resolve_tool,
+    run_tool,
+    run_tool_result,
+)
 from dependency_audit.models import (
     Advisory,
     AuditReport,
@@ -42,7 +48,11 @@ def parse_composer_audit(text: str, lock: dict[str, object]) -> list[Advisory]:
     return results
 
 
-def parse_composer_outdated(data: dict[str, object]) -> list[OutdatedPackage]:
+def parse_composer_outdated(data: object) -> list[OutdatedPackage]:
+    if data == []:
+        return []
+    if not isinstance(data, dict):
+        raise AuditToolError("composer outdated returned unexpected JSON")
     entries = data.get("locked", data.get("installed", []))
     return [OutdatedPackage(
         ECOSYSTEM, item["name"], item["version"], item["latest"]
@@ -53,9 +63,14 @@ def audit(checkout: Path, report: AuditReport) -> None:
     try:
         lock = parse_json((checkout / LOCK_FILE).read_text(encoding="utf-8"), "composer.lock")
         composer = resolve_tool("composer")
-        output = run_tool([composer, "audit", "--locked", "--format=json", "--no-interaction",
-                           "--abandoned=ignore"], checkout, accepted=tuple(range(256)))
-        report.advisories.extend(parse_composer_audit(output, lock))
+        result = run_tool_result(
+            [composer, "audit", "--locked", "--format=json", "--no-interaction",
+             "--abandoned=ignore"],
+            checkout,
+            accepted=tuple(range(256)),
+        )
+        if result.returncode != 0 or result.stdout.strip():
+            report.advisories.extend(parse_composer_audit(result.stdout, lock))
     except (AuditToolError, KeyError, ValueError) as error:
         report.errors.append(StackError(ECOSYSTEM, str(error)))
     try:
