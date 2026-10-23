@@ -42,6 +42,24 @@ def main():
         from dependency_audit import run_dependency_audit
         sys.exit(run_dependency_audit(args.path, Logger(stream=sys.stderr)))
 
+    if args.most_complex_function:
+        if not args.path:
+            parser.error("--path is required for --most-complex-function")
+        if not args.files_from:
+            parser.error("--files-from is required for --most-complex-function")
+        from function_complexity import run_most_complex_function
+
+        sys.exit(
+            run_most_complex_function(
+                args.path,
+                args.files_from,
+                Logger(stream=sys.stderr),
+                args.diff_base,
+            )
+        )
+    if args.files_from or args.diff_base:
+        parser.error("--files-from and --diff-base require --most-complex-function")
+
     # Validate required arguments for analysis mode
     if not args.language:
         parser.error("--language is required for analysis")

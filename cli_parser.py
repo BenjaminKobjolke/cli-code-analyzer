@@ -20,6 +20,8 @@ Examples:
   python main.py --language python --path ./src --output reports/ --file src/app.py
   python main.py --language python --path ./src --rules rules.json --only-analyzer max_lines_per_file
   python main.py --audit-dependencies --path <checkout>
+  python main.py --most-complex-function --path <checkout> --files-from changed-files.txt
+  python main.py --most-complex-function --path <checkout> --files-from changed-files.txt --diff-base <commit>
         """,
     )
 
@@ -47,6 +49,24 @@ Examples:
         action='store_true',
         default=False,
         help='Audit dependencies in root lock files and print a JSON report.',
+    )
+    parser.add_argument(
+        '--most-complex-function',
+        action='store_true',
+        default=False,
+        help='Report the highest cyclomatic-complexity function in the listed source files as JSON.',
+    )
+    parser.add_argument(
+        '--files-from',
+        metavar='FILE',
+        default=None,
+        help='UTF-8 file containing one project-relative source path per line (requires --most-complex-function).',
+    )
+    parser.add_argument(
+        '--diff-base',
+        metavar='COMMIT',
+        default=None,
+        help='Count only functions touched since this commit (requires --most-complex-function).',
     )
     parser.add_argument(
         '--fix',
