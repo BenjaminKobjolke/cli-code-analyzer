@@ -103,6 +103,9 @@ python main.py --language <language> --path <path> [options]
 | `--cache-max-age` | | No | `60` | Maximum cache age in minutes before it is considered stale. Independent of age, the cache is also invalidated when source files, `rules.json`, or analyzer code change |
 | `--only-analyzer` | | No | - | Run only the named analyzer(s) from `--rules`, skipping every other enabled rule for this run (space- or comma-separated). Names match `rules.json` keys / `--list-analyzers` output. Disables the violation cache; mutually exclusive with `--build-cache`. |
 | `--audit-dependencies` | | No | off | Audit root dependency lock files for known advisories and outdated direct dependencies; prints JSON without changing the checkout. Requires `--path`. |
+| `--most-complex-function` | | No | off | Report the highest cyclomatic-complexity function from the files in `--files-from` as JSON. Requires `--path` and `--files-from`. |
+| `--files-from` | | No | - | UTF-8 text file with one project-relative source path per line; requires `--most-complex-function`. |
+| `--diff-base` | | No | - | With `--most-complex-function`, count only functions touched since this commit. New files count in full. |
 
 ## JSON Output
 
@@ -156,6 +159,62 @@ when no fixed version is known. Outdated entries include ecosystem, package, ins
 and latest version. Error entries include ecosystem and message. The command returns 0 after
 printing JSON, including when a stack reports an error; it returns 2 when the path is missing or
 is not a directory. It writes no files into the checkout.
+
+## Most Complex Function
+
+Report the single function with the highest cyclomatic complexity in a list of changed source
+files. Paths in the input list and JSON output are relative to `--path`, use forward slashes, and
+the function line range is 1-based and inclusive.
+
+```bash
+python main.py --most-complex-function --path <checkout> --files-from changed-files.txt
+python main.py --most-complex-function --path <checkout> --files-from changed-files.txt --diff-base <commit>
+```
+
+`changed-files.txt` is UTF-8 text with one relative path per line. Blank lines and duplicate paths
+are ignored, backslashes are normalized, and missing, unsupported, or outside paths are skipped.
+Supported extensions and output language names are:
+
+| Extensions | Language |
+| --- | --- |
+| `.py` | `python` |
+| `.dart` | `dart` |
+| `.php` | `php` |
+| `.js`, `.mjs`, `.cjs`, `.jsx` | `javascript` |
+| `.ts`, `.tsx` | `typescript` |
+| `.cs` | `csharp` |
+| `.svelte` | `svelte` |
+| `.ahk` | `autohotkey` |
+
+The JSON object has a `function` (or `null`) and an `errors` array. A function includes `file_path`,
+`function_name`, `language`, `start_line`, `end_line`, and integer `complexity`; for example:
+
+```json
+{
+  "function": {
+    "file_path": "src/app/service.py",
+    "function_name": "Service.handle",
+    "language": "python",
+    "start_line": 120,
+    "end_line": 185,
+    "complexity": 17
+  },
+  "errors": []
+}
+```
+
+Ties select the earliest input file, then the function with the lowest start line. Without
+`--diff-base`, every function in each listed file is eligible. With `--diff-base`, only functions
+whose line range contains a changed line are eligible; deletion-only changes touch the line where
+the deletion occurred. New or untracked files count in full, and unchanged files contribute no
+function. The command prints JSON only to stdout and returns 0 even when no function is found or a
+language error is reported. Invalid arguments, an unreadable list, an invalid commit, a missing Git
+executable, or a path outside a Git repository return 2 with the error on stderr. Install lizard
+through the project's dependencies with `pip install -r requirements.txt`.
+
+Known parser limits: Dart arrow-bodied members are not detected; AutoHotkey hotkeys and labels are
+not functions, and its comment and keyword normalization is regex-based; Python and TypeScript
+function names do not include their class name.
 
 ## Violation Cache
 
