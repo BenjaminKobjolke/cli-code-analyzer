@@ -11,6 +11,7 @@ The PMD Duplicates analyzer detects copy-paste code (duplicate code blocks) acro
 - Java
 - JavaScript
 - TypeScript
+- Kotlin
 
 ## Dependencies
 
@@ -31,7 +32,8 @@ The PMD Duplicates analyzer detects copy-paste code (duplicate code blocks) acro
       "python": ["**/__pycache__/**", "*.pyc"],
       "java": ["**/target/**", "**/build/**"],
       "javascript": ["**/node_modules/**", "**/dist/**", "**/build/**"],
-      "typescript": ["**/node_modules/**", "**/dist/**", "**/build/**"]
+      "typescript": ["**/node_modules/**", "**/dist/**", "**/build/**"],
+      "kotlin": ["**/build/**", "**/.gradle/**"]
     }
   }
 }
@@ -129,6 +131,7 @@ Suppressed 4 duplicate finding(s) via exceptions (2 reason(s)):
 | Java | `**/target/**`, `**/build/**` |
 | JavaScript | `**/node_modules/**`, `**/dist/**`, `**/build/**` |
 | TypeScript | `**/node_modules/**`, `**/dist/**`, `**/build/**` |
+| Kotlin | `**/build/**`, `**/.gradle/**` |
 
 ## Output Format
 

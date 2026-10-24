@@ -4,9 +4,9 @@ A flexible command-line tool for analyzing code files based on configurable rule
 
 ## Features
 
-- **Multi-language support**: Supports Flutter/Dart, Python, PHP, C#, JavaScript/TypeScript, Svelte, AutoHotkey, and Arduino/C++
+- **Multi-language support**: Supports Flutter/Dart, Python, PHP, C#, JavaScript/TypeScript, Svelte, AutoHotkey, Kotlin, and Arduino/C++
 - **Multi-language analysis**: Analyze multiple languages in a single run via space-separated or comma-separated arguments
-- **Language aliases**: Shorthand aliases for convenience (`dart` for flutter, `ts`/`js` for javascript, `py` for python, `cs` for csharp, `ahk` for autohotkey, `arduino`/`ino`/`c++` for cpp)
+- **Language aliases**: Shorthand aliases for convenience (`dart` for flutter, `ts`/`js` for javascript, `py` for python, `cs` for csharp, `ahk` for autohotkey, `kt` for kotlin, `arduino`/`ino`/`c++` for cpp)
 - **Configurable rules**: Define custom rules via JSON configuration
 - **Multiple output formats**: Minimal, normal, and verbose output modes
 - **File export capability**: Save analysis reports to files for CI/CD integration
@@ -19,6 +19,7 @@ A flexible command-line tool for analyzing code files based on configurable rule
 - **Dart code metrics**: Integrated [dart_code_linter](https://pub.dev/packages/dart_code_linter) for advanced metrics (cyclomatic complexity, maintainability index, technical debt, etc.)
 - **Python linting**: Integrated [Ruff](https://docs.astral.sh/ruff/) for fast Python linting with 800+ rules
 - **Python structural analysis**: Integrated [pyscn](https://github.com/ludo-technologies/pyscn) for cyclomatic complexity, CFG-based dead code detection, class coupling (CBO), and circular dependency detection
+- **Kotlin function metrics**: Uses lizard to check Kotlin function complexity, length, and parameter count without an external Kotlin toolchain
 - **ESLint integration**: Integrated [ESLint](https://eslint.org/) for JavaScript/TypeScript linting with auto-detection of Svelte projects
 - **Svelte type checking**: Integrated [svelte-check](https://github.com/sveltejs/language-tools/tree/master/packages/svelte-check) for Svelte/TypeScript type checking with configurable compiler warning suppression
 - **TypeScript type checking**: Integrated `tsc --noEmit` for project-wide TypeScript type checking with error code filtering
@@ -184,6 +185,7 @@ Supported extensions and output language names are:
 | `.js`, `.mjs`, `.cjs`, `.jsx` | `javascript` |
 | `.ts`, `.tsx` | `typescript` |
 | `.cs` | `csharp` |
+| `.kt`, `.kts` | `kotlin` |
 | `.svelte` | `svelte` |
 | `.ahk` | `autohotkey` |
 | `.ino`, `.cpp`, `.h`, `.hpp`, `.c`, `.cc` | `cpp` |
@@ -217,6 +219,10 @@ through the project's dependencies with `pip install -r requirements.txt`.
 Known parser limits: Dart arrow-bodied members are not detected; AutoHotkey hotkeys and labels are
 not functions, and its comment and keyword normalization is regex-based; Python and TypeScript
 function names do not include their class name.
+
+Kotlin function parsing is heuristic; lambdas may count toward their enclosing function. See
+[`docs/setup/KOTLIN.md`](docs/setup/KOTLIN.md) and
+[`docs/analyzers/kotlin_complexity.md`](docs/analyzers/kotlin_complexity.md) for setup and thresholds.
 
 ## Violation Cache
 
@@ -1564,6 +1570,7 @@ cli-code-analyzer/
 │   ├── __init__.py            # Rules module
 │   ├── base.py                # Base rule class
 │   ├── max_lines.py           # Max lines per file rule
+│   ├── kotlin_complexity.py   # Kotlin function metric rule
 │   ├── autohotkey_analyze.py  # AutoHotkey syntax/load validation rule (v1/v2)
 │   ├── pmd_duplicates.py      # PMD duplicate code detection rule
 │   ├── pmd_similar_code.py    # PMD similar code detection rule
