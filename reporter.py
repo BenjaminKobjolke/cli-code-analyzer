@@ -27,10 +27,18 @@ class Reporter:
         self.logger = config.logger or Logger()
         self.failures = config.failures or []
         self.fail_on_findings = config.fail_on_findings
+        self.fail_on = LogLevel.ALL if self.fail_on_findings else config.fail_on
 
-    def _should_fail(self, has_errors: bool) -> bool:
-        """Return whether the run should exit non-zero."""
-        return has_errors or bool(self.failures) or (self.fail_on_findings and bool(self.violations))
+    def _should_fail(self) -> bool:
+        """Return whether the report has findings at or above its failure threshold."""
+        failed_severities = {
+            LogLevel.ERROR: {Severity.ERROR},
+            LogLevel.WARNING: {Severity.WARNING, Severity.ERROR},
+            LogLevel.ALL: set(Severity),
+        }[self.fail_on]
+        return bool(self.failures) or any(
+            v.severity in failed_severities for v in self.violations
+        )
 
     def _filter_violations(self, violations: list[Violation], log_level: LogLevel) -> list[Violation]:
         """Filter violations based on log level"""
@@ -46,7 +54,7 @@ class Reporter:
         Generate and print report
 
         Returns:
-            True if the run should exit non-zero
+            True if the run should fail (findings at or above fail_on, or a tool failure)
         """
         # Surface tool failures first — an unrunnable/untrusted tool is a hard
         # error regardless of how many violations were (or weren't) collected.
@@ -54,15 +62,15 @@ class Reporter:
 
         # If output folder is specified, write to files instead of console
         if self.output_folder:
-            base = write_csv_reports(self.violations, self.output_folder, self.max_errors, self.logger)
+            write_csv_reports(self.violations, self.output_folder, self.max_errors, self.logger)
         elif self.output_level == OutputLevel.MINIMAL:
-            base = self._report_minimal()
+            self._report_minimal()
         elif self.output_level == OutputLevel.VERBOSE:
-            base = self._report_verbose()
+            self._report_verbose()
         else:
-            base = self._report_normal()
+            self._report_normal()
 
-        return self._should_fail(base)
+        return self._should_fail()
 
     def _report_failures(self) -> None:
         """Print a dedicated section listing rules whose tool failed to run."""
@@ -81,7 +89,7 @@ class Reporter:
         is available even when --file suppresses other output.
 
         Returns:
-            True if the run should exit non-zero
+            True if the run should fail (findings at or above fail_on, or a tool failure)
         """
         output = build_json(self.violations, self.failures)
 
@@ -92,13 +100,13 @@ class Reporter:
         if self.output_folder:
             write_csv_reports(self.violations, self.output_folder, self.max_errors, self.logger)
 
-        return self._should_fail(output["summary"]["errors"] > 0)
+        return self._should_fail()
 
-    def _report_minimal(self) -> bool:
+    def _report_minimal(self) -> None:
         """Generate minimal output format"""
         if not self.violations:
             self.logger.info("No violations found")
-            return False
+            return
 
         # Group violations by file
         file_violations: dict[str, list[Violation]] = defaultdict(list)
@@ -137,13 +145,11 @@ class Reporter:
         else:  # LogLevel.ALL
             self.logger.info(f"Summary: {total_errors} error(s), {total_warnings} warning(s)")
 
-        return total_errors > 0
-
-    def _report_normal(self) -> bool:
+    def _report_normal(self) -> None:
         """Generate normal output format"""
         if not self.violations:
             self.logger.info("No violations found!")
-            return False
+            return
 
         errors = [v for v in self.violations if v.severity == Severity.ERROR]
         warnings = [v for v in self.violations if v.severity == Severity.WARNING]
@@ -168,15 +174,13 @@ class Reporter:
         else:  # LogLevel.ALL
             self.logger.info(f"Summary: {len(errors)} error(s), {len(warnings)} warning(s), {len(infos)} info(s)")
 
-        return len(errors) > 0
-
-    def _report_verbose(self) -> bool:
+    def _report_verbose(self) -> None:
         """Generate verbose output format"""
         self.logger.info(f"Analyzing {self.file_count} file(s)...\n")
 
         if not self.violations:
             self.logger.info("No violations found!")
-            return False
+            return
 
         errors = [v for v in self.violations if v.severity == Severity.ERROR]
         warnings = [v for v in self.violations if v.severity == Severity.WARNING]
@@ -198,8 +202,6 @@ class Reporter:
             self.logger.info(f"Summary: {len(errors)} error(s), {len(warnings)} warning(s)")
         else:  # LogLevel.ALL
             self.logger.info(f"Summary: {len(errors)} error(s), {len(warnings)} warning(s), {len(infos)} info(s)")
-
-        return len(errors) > 0
 
     def _print_verbose_group(self, label: str, group: list[Violation], excess_template: str | None) -> None:
         """Print one severity group in verbose form."""

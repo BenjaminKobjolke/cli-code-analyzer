@@ -164,10 +164,12 @@ def main():
     #             > filter-mode default (5 for --file / --only-changed) > unlimited.
     # -----------------------------------------------------------
     cli_max_provided = '-m' in sys.argv or '--maxamountoferrors' in sys.argv
-    if not cli_max_provided:
-        from config import Config
+    from config import Config
 
-        rules_max = Config(args.rules).get_global_max_errors()
+    config = Config(args.rules)
+    fail_on = config.get_global_fail_on()
+    if not cli_max_provided:
+        rules_max = config.get_global_max_errors()
         if rules_max is not None:
             args.maxamountoferrors = rules_max
         elif filter_files is not None:
@@ -246,6 +248,7 @@ def main():
                 logger=logger,
                 failures=failures,
                 fail_on_findings=args.fail_on_findings,
+                fail_on=fail_on,
             ))
             reporter.report_json() if args.format == 'json' else reporter.report()
             sys.exit(1)
@@ -267,6 +270,7 @@ def main():
             max_errors=args.maxamountoferrors,
             logger=logger,
             fail_on_findings=args.fail_on_findings,
+            fail_on=fail_on,
         ))
         if args.format == 'json':
             has_errors = reporter.report_json()
@@ -346,6 +350,7 @@ def main():
             logger=logger,
             failures=failures,
             fail_on_findings=args.fail_on_findings,
+            fail_on=fail_on,
         ))
         if args.format == 'json':
             has_errors = reporter.report_json()
@@ -360,7 +365,7 @@ def main():
             for fp in all_file_paths:
                 logger.info(f"- {fp}")
 
-        # Exit with error code if violations found
+        # Exit non-zero when reported findings meet the configured fail_on threshold.
         sys.exit(1 if has_errors else 0)
 
     except ValueError as e:

@@ -12,6 +12,7 @@ class ReportConfig:
     file_count: int
     output_level: OutputLevel
     log_level: LogLevel = LogLevel.ALL
+    fail_on: LogLevel = LogLevel.ERROR
     output_folder: Path | None = None
     max_errors: int | None = None
     logger: Logger | None = None

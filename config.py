@@ -7,6 +7,7 @@ import sys
 from typing import Any
 
 from logger import Logger
+from models import LogLevel
 
 
 class Config:
@@ -45,6 +46,20 @@ class Config:
             Global log level string ('error', 'warning', or 'all'), or None if not set
         """
         return self.rules.get('log_level')
+
+    def get_global_fail_on(self) -> LogLevel:
+        """Get the severity threshold that makes a report fail."""
+        value = self.rules.get('fail_on')
+        if value is None:
+            return LogLevel.ERROR
+
+        try:
+            return LogLevel(value)
+        except (TypeError, ValueError):
+            self.logger.error(
+                "Error: Invalid 'fail_on' value. Valid values are: error, warning, all"
+            )
+            sys.exit(1)
 
     def get_global_exclude_paths(self) -> list[str]:
         """Directories every analyzer skips (`global_exclude_paths`), bare form."""

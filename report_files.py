@@ -51,8 +51,8 @@ def _limit_line_violations(violations: list[Violation], max_errors: int | None) 
 
 
 def write_csv_reports(violations: list[Violation], output_folder: Path,
-                      max_errors: int | None, logger: Logger) -> bool:
-    """Write the line-count CSV plus one CSV per rule. Returns True if any ERROR."""
+                      max_errors: int | None, logger: Logger) -> None:
+    """Write the line-count CSV plus one CSV per rule."""
     line_violations = _limit_line_violations(
         [v for v in violations if v.rule_name == 'max_lines_per_file'], max_errors)
     if line_violations:
@@ -79,8 +79,6 @@ def write_csv_reports(violations: list[Violation], output_folder: Path,
             for v in _limit_by_severity(rule_violations, max_errors):
                 writer.writerow([v.file_path, v.line or '', v.column or '', v.severity.value, v.message])
         logger.info(f"Report saved to: {output_file}")
-
-    return any(v.severity == Severity.ERROR for v in violations)
 
 
 def build_json(violations: list[Violation], failures: list[RuleResult]) -> dict:
