@@ -1586,10 +1586,10 @@ cli-code-analyzer/
 
 ## Exit Codes
 
-- `0`: No errors found (warnings may exist)
-- `1`: Errors found or execution failure
+- By default, `0` means no errors were found and `1` means an error or execution failure occurred. Warnings and informational findings do not fail the run.
+- Set the global `fail_on` key in `rules.json` to `"warning"` to fail on warnings and errors, or `"all"` to fail on findings of any severity. Only findings included after log-level filtering count; execution failures always return `1`. See [Fail on in the rules reference](docs/RULES_JSON.md#fail-on).
 
-With `--fail-on-findings`: `0` only when the report is clean; `1` for any reported violation (any severity) or execution failure. `--loglevel` decides which severities count.
+`--fail-on-findings` overrides `fail_on` and returns `1` for any reported finding, including informational findings, or for an execution failure. `--loglevel` decides which findings are reported.
 
 ## Use Cases
 

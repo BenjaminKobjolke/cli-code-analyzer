@@ -8,6 +8,7 @@ is a single JSON object: top-level keys are either **global settings** or
 ```jsonc
 {
   "log_level": "error",     // global setting
+  "fail_on": "warning",     // global setting
   "max_errors": 20,         // global setting
   "max_lines_per_file": {   // per-rule block
     "enabled": true,
@@ -22,10 +23,26 @@ is a single JSON object: top-level keys are either **global settings** or
 | Key | Type | Default | Meaning |
 |-----|------|---------|---------|
 | `log_level` | `"error"` \| `"warning"` \| `"all"` | `all` | Default severity filter for every rule. See [Log level resolution](#log-level-resolution). |
+| `fail_on` | `"error"` \| `"warning"` \| `"all"` | `error` | Exit 1 when the report contains a finding at or above this severity. See [Fail on](#fail-on). |
 | `max_errors` | positive int | unset (unlimited) | Caps violations reported **per rule/analyzer** (not a global total). See [Max errors](#max-errors). |
 | `global_exclude_paths` | array of dirs | `[]` | Bare directory paths (`".dart_tool"`, `"vendor"`) skipped by file discovery for every analyzer. Merged with the language defaults (`*.g.dart`, `.dart_tool/**`, `venv/**`, …) and with `max_lines_per_file.exclude_paths` / `exclude_patterns`. |
 
 Any other top-level key is treated as a per-rule config block.
+
+## Fail on
+
+The global `fail_on` setting controls which reported findings make the command
+exit with code 1. The default is `"error"`, which preserves the existing
+behavior. Set it to `"warning"` to fail on warnings and errors, or `"all"` to
+also fail on informational findings. Only findings included in the report
+after log-level filtering count; tool execution failures always fail. An invalid
+value exits with code 1 and lists the valid values. The CLI
+`--fail-on-findings` option overrides this setting and fails on any reported
+finding.
+
+For a Tickets Watcher code-quality command that should catch Ruff F401 warnings,
+set `"fail_on": "warning"` so a warning-only report makes
+`tools/analyze_changed_and_new_files.bat` exit 1.
 
 ## Per-rule config blocks
 
