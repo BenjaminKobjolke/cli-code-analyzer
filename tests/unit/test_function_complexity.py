@@ -100,6 +100,16 @@ LANGUAGE_SAMPLES = [
         3,
         id="arduino-cpp",
     ),
+    pytest.param(
+        "sample.kt",
+        "fun simple(): Int = 1\nfun complexFn(x: Int): Int {\n if (x > 0) {\n  if (x > 1) { return 1 }\n }\n return 0\n}\n",
+        "complexFn",
+        "kotlin",
+        2,
+        7,
+        3,
+        id="kotlin",
+    ),
 ]
 
 
