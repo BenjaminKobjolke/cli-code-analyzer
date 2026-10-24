@@ -97,6 +97,7 @@ python main.py --language <language> --path <path> [options]
 | `--maxamountoferrors` | `-m` | No | unlimited | Maximum number of violations to include in reports. When exceeded, keeps the largest violations (e.g., duplicates with most lines) |
 | `--file` | `-F` | No | - | Filter violations to a single file (requires `--path`). Defaults `--maxamountoferrors` to 5. Suppresses progress output. |
 | `--only-changed` | | No | off | Analyze only files new or modified in git vs HEAD (includes untracked, skips deletes). Requires `--path` inside a git repo. Mutually exclusive with `--file`. Defaults `--maxamountoferrors` to 5. |
+| `--fail-on-warnings` | | No | off | Exit 1 when the report includes a WARNING or ERROR after `--loglevel` filtering. INFO never fails the run. |
 | `--list-files` | `-f` | No | off | List all analyzed file paths after analysis |
 | `--list-analyzers` | `-a` | No | - | List available analyzers for a language (or all) |
 | `--format` | | No | `text` | Output format: `text` (default) or `json` |
@@ -647,7 +648,7 @@ python main.py --language flutter --path lib/
 }
 ```
 
-CI/CD will only fail on errors, warnings are ignored.
+CI/CD will only fail on errors, warnings are ignored (unless `--fail-on-warnings` is passed).
 
 **Use Case 2: Focus on Specific Rules**
 ```json
@@ -1595,6 +1596,8 @@ cli-code-analyzer/
 
 - By default, `0` means no errors were found and `1` means an error or execution failure occurred. Warnings and informational findings do not fail the run.
 - Set the global `fail_on` key in `rules.json` to `"warning"` to fail on warnings and errors, or `"all"` to fail on findings of any severity. Only findings included after log-level filtering count; execution failures always return `1`. See [Fail on in the rules reference](docs/RULES_JSON.md#fail-on).
+- With `--fail-on-warnings`, a reported WARNING also exits `1`; INFO never does. `--loglevel error` hides warnings, so they do not fail the run either.
+- Example: `python main.py --language python --path ./src --only-changed --fail-on-warnings`
 
 `--fail-on-findings` overrides `fail_on` and returns `1` for any reported finding, including informational findings, or for an execution failure. `--loglevel` decides which findings are reported.
 
