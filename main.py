@@ -70,8 +70,8 @@ def main():
     if args.file and args.only_changed:
         parser.error("--file and --only-changed cannot be used together")
 
-    # Create logger — quiet when --file is used (suppress progress output for clean JSON)
-    logger = Logger(quiet=bool(args.file))
+    # JSON must remain parseable even when analysis progress is being logged.
+    logger = Logger(quiet=bool(args.file or args.format == 'json'))
 
     # Normalize languages: support both space-separated and comma-separated
     languages = []
@@ -270,6 +270,7 @@ def main():
             max_errors=args.maxamountoferrors,
             logger=logger,
             fail_on_findings=args.fail_on_findings,
+            fail_on_warnings=args.fail_on_warnings,
             fail_on=fail_on,
         ))
         if args.format == 'json':
@@ -350,6 +351,7 @@ def main():
             logger=logger,
             failures=failures,
             fail_on_findings=args.fail_on_findings,
+            fail_on_warnings=args.fail_on_warnings,
             fail_on=fail_on,
         ))
         if args.format == 'json':

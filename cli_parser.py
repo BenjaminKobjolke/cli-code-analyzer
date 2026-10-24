@@ -20,6 +20,7 @@ Examples:
   python main.py --language python --path ./src --output reports/ --file src/app.py
   python main.py --language python --path ./src --rules rules.json --only-analyzer max_lines_per_file
   python main.py --language python --path ./src --only-changed --fail-on-findings
+  python main.py --language python --path ./src --only-changed --fail-on-warnings
   python main.py --audit-dependencies --path <checkout>
   python main.py --most-complex-function --path <checkout> --files-from changed-files.txt
   python main.py --most-complex-function --path <checkout> --files-from changed-files.txt --diff-base <commit>
@@ -137,6 +138,12 @@ Examples:
         action='store_true',
         default=False,
         help='Analyze only files new or modified in git (vs HEAD, includes untracked, skips deletes). Mutually exclusive with --file.',
+    )
+    parser.add_argument(
+        '--fail-on-warnings',
+        action='store_true',
+        default=False,
+        help='Exit 1 when the run reports at least one WARNING (not only ERROR). INFO never fails the run. Default: off.',
     )
     parser.add_argument(
         '-f',

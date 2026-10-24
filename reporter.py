@@ -27,10 +27,15 @@ class Reporter:
         self.logger = config.logger or Logger()
         self.failures = config.failures or []
         self.fail_on_findings = config.fail_on_findings
-        self.fail_on = LogLevel.ALL if self.fail_on_findings else config.fail_on
+        if self.fail_on_findings:
+            self.fail_on = LogLevel.ALL
+        elif config.fail_on_warnings and config.fail_on == LogLevel.ERROR:
+            self.fail_on = LogLevel.WARNING
+        else:
+            self.fail_on = config.fail_on
 
     def _should_fail(self) -> bool:
-        """Return whether the report has findings at or above its failure threshold."""
+        """Return whether reported findings meet the effective failure threshold."""
         failed_severities = {
             LogLevel.ERROR: {Severity.ERROR},
             LogLevel.WARNING: {Severity.WARNING, Severity.ERROR},
@@ -54,7 +59,7 @@ class Reporter:
         Generate and print report
 
         Returns:
-            True if the run should fail (findings at or above fail_on, or a tool failure)
+            True if findings meet the effective threshold or a tool failed.
         """
         # Surface tool failures first — an unrunnable/untrusted tool is a hard
         # error regardless of how many violations were (or weren't) collected.
@@ -89,7 +94,7 @@ class Reporter:
         is available even when --file suppresses other output.
 
         Returns:
-            True if the run should fail (findings at or above fail_on, or a tool failure)
+            True if findings meet the effective threshold or a tool failed.
         """
         output = build_json(self.violations, self.failures)
 

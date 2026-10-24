@@ -26,6 +26,32 @@ def test_warning_only_default_fail_on_keeps_existing_behavior():
 
 
 @pytest.mark.parametrize("output_level", list(OutputLevel))
+def test_fail_on_warnings_fails_for_each_console_output_level(output_level):
+    reporter = _reporter(
+        [_violation(Severity.WARNING)],
+        output_level=output_level,
+        fail_on_warnings=True,
+    )
+
+    assert reporter.report() is True
+
+
+def test_fail_on_warnings_does_not_fail_on_info():
+    assert _reporter(
+        [_violation(Severity.INFO)],
+        fail_on_warnings=True,
+    ).report() is False
+
+
+def test_fail_on_warnings_keeps_stronger_configured_threshold():
+    assert _reporter(
+        [_violation(Severity.INFO)],
+        fail_on_warnings=True,
+        fail_on=LogLevel.ALL,
+    ).report() is True
+
+
+@pytest.mark.parametrize("output_level", list(OutputLevel))
 def test_warning_fails_for_each_console_output_level(output_level):
     reporter = _reporter(
         [_violation(Severity.WARNING)],

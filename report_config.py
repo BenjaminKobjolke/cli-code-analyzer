@@ -18,3 +18,4 @@ class ReportConfig:
     logger: Logger | None = None
     failures: list[RuleResult] | None = None
     fail_on_findings: bool = False
+    fail_on_warnings: bool = False
