@@ -19,6 +19,7 @@ Examples:
   python main.py --language python --path ./src --output reports/ --build-cache
   python main.py --language python --path ./src --output reports/ --file src/app.py
   python main.py --language python --path ./src --rules rules.json --only-analyzer max_lines_per_file
+  python main.py --language python --path ./src --only-changed --fail-on-findings
   python main.py --audit-dependencies --path <checkout>
   python main.py --most-complex-function --path <checkout> --files-from changed-files.txt
   python main.py --most-complex-function --path <checkout> --files-from changed-files.txt --diff-base <commit>
@@ -171,6 +172,15 @@ Examples:
             'Run only the named analyzer(s) from --rules, skipping every other enabled '
             'rule for this run (space- or comma-separated). Names match rules.json keys '
             '/ --list-analyzers output, e.g. max_lines_per_file. Disables the violation cache.'
+        ),
+    )
+    parser.add_argument(
+        '--fail-on-findings',
+        action='store_true',
+        default=False,
+        help=(
+            'Exit 1 when the report lists any violation (ERROR, WARNING or INFO, after '
+            '--loglevel filtering), not only errors.'
         ),
     )
     return parser

@@ -16,3 +16,4 @@ class ReportConfig:
     max_errors: int | None = None
     logger: Logger | None = None
     failures: list[RuleResult] | None = None
+    fail_on_findings: bool = False

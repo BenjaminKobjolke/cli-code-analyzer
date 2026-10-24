@@ -245,6 +245,7 @@ def main():
                 max_errors=args.maxamountoferrors,
                 logger=logger,
                 failures=failures,
+                fail_on_findings=args.fail_on_findings,
             ))
             reporter.report_json() if args.format == 'json' else reporter.report()
             sys.exit(1)
@@ -265,6 +266,7 @@ def main():
             output_folder=output_folder,
             max_errors=args.maxamountoferrors,
             logger=logger,
+            fail_on_findings=args.fail_on_findings,
         ))
         if args.format == 'json':
             has_errors = reporter.report_json()
@@ -343,6 +345,7 @@ def main():
             max_errors=args.maxamountoferrors,
             logger=logger,
             failures=failures,
+            fail_on_findings=args.fail_on_findings,
         ))
         if args.format == 'json':
             has_errors = reporter.report_json()

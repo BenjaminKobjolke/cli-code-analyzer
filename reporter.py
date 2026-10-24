@@ -26,6 +26,11 @@ class Reporter:
         self.max_errors = config.max_errors
         self.logger = config.logger or Logger()
         self.failures = config.failures or []
+        self.fail_on_findings = config.fail_on_findings
+
+    def _should_fail(self, has_errors: bool) -> bool:
+        """Return whether the run should exit non-zero."""
+        return has_errors or bool(self.failures) or (self.fail_on_findings and bool(self.violations))
 
     def _filter_violations(self, violations: list[Violation], log_level: LogLevel) -> list[Violation]:
         """Filter violations based on log level"""
@@ -41,7 +46,7 @@ class Reporter:
         Generate and print report
 
         Returns:
-            True if errors were found, False otherwise
+            True if the run should exit non-zero
         """
         # Surface tool failures first — an unrunnable/untrusted tool is a hard
         # error regardless of how many violations were (or weren't) collected.
@@ -57,7 +62,7 @@ class Reporter:
         else:
             base = self._report_normal()
 
-        return base or bool(self.failures)
+        return self._should_fail(base)
 
     def _report_failures(self) -> None:
         """Print a dedicated section listing rules whose tool failed to run."""
@@ -76,7 +81,7 @@ class Reporter:
         is available even when --file suppresses other output.
 
         Returns:
-            True if errors were found, False otherwise
+            True if the run should exit non-zero
         """
         output = build_json(self.violations, self.failures)
 
@@ -87,7 +92,7 @@ class Reporter:
         if self.output_folder:
             write_csv_reports(self.violations, self.output_folder, self.max_errors, self.logger)
 
-        return output["summary"]["errors"] > 0 or bool(self.failures)
+        return self._should_fail(output["summary"]["errors"] > 0)
 
     def _report_minimal(self) -> bool:
         """Generate minimal output format"""
