@@ -5,6 +5,12 @@
     "warning": 300,
     "error": 500
   },
+  "kotlin_complexity": {
+    "enabled": true,
+    "cyclomatic_complexity": {"warning": 10, "error": 15, "exceptions": []},
+    "function_length": {"warning": 50, "error": 100, "exceptions": []},
+    "parameter_count": {"warning": 5, "error": 8, "exceptions": []}
+  },
   "autohotkey_analyze": {
     "enabled": true
   },
@@ -17,6 +23,7 @@
       "java": ["**/target/**", "**/build/**"],
       "javascript": ["**/node_modules/**", "**/dist/**", "**/build/**"],
       "typescript": ["**/node_modules/**", "**/dist/**", "**/build/**"],
+      "kotlin": ["**/build/**", "**/.gradle/**"],
       "svelte": ["**/node_modules/**", "**/dist/**", "**/build/**", "**/.svelte-kit/**"]
     }
   },
@@ -31,6 +38,7 @@
       "python": ["**/__pycache__/**", "*.pyc"],
       "javascript": ["**/node_modules/**", "**/dist/**", "**/build/**"],
       "typescript": ["**/node_modules/**", "**/dist/**", "**/build/**"],
+      "kotlin": ["**/build/**", "**/.gradle/**"],
       "svelte": ["**/node_modules/**", "**/dist/**", "**/build/**", "**/.svelte-kit/**"]
     }
   },

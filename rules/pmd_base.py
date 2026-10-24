@@ -24,6 +24,7 @@ DEFAULT_EXCLUDE_PATTERNS = {
     'typescript': ['**/node_modules/**', '**/dist/**', '**/build/**'],
     'php': ['**/vendor/**', '**/node_modules/**', '**/.phpstan-cache/**'],
     'cs': ['**/bin/**', '**/obj/**', '**/.vs/**', '**/packages/**'],
+    'kotlin': ['**/build/**', '**/.gradle/**'],
 }
 
 # Language mapping from analyzer to PMD
@@ -42,6 +43,7 @@ LANGUAGE_TO_PMD = {
     'cs': 'cs',
     'cpp': 'cpp',
     'arduino': 'cpp',
+    'kotlin': 'kotlin',
 }
 
 # Windows reserved device names that cause errors when PMD tries to scan them

@@ -18,6 +18,7 @@ DEFAULT_EXCLUDE_PATTERNS = {
     'svelte': ['node_modules/**', 'dist/**', 'build/**', '.svelte-kit/**', '.git/**'],
     'autohotkey': ['.git/**'],
     'cpp': ['.pio/**', 'build/**', '.git/**'],
+    'kotlin': ['build/**', '.gradle/**', '.idea/**', '.git/**'],
 }
 
 
@@ -33,6 +34,7 @@ class FileDiscovery:
         'svelte': ['.svelte'],
         'autohotkey': ['.ahk', '.ah2', '.ahk2'],
         'cpp': ['.ino', '.cpp', '.h', '.hpp', '.c', '.cc'],
+        'kotlin': ['.kt', '.kts'],
     }
 
     def __init__(self, languages: str | list[str], path: str,

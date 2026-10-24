@@ -82,6 +82,12 @@ ANALYZER_REGISTRY = {
         ('pmd_duplicates', 'Duplicate code detection', 'PMD'),
         ('pmd_similar_code', 'Similar code pattern detection', 'PMD'),
     ],
+    'kotlin': [
+        ('max_lines_per_file', 'File length checks', None),
+        ('pmd_duplicates', 'Duplicate code detection', 'PMD'),
+        ('pmd_similar_code', 'Similar code pattern detection', 'PMD'),
+        ('kotlin_complexity', 'Function complexity, length, parameters', 'lizard (pip, bundled)'),
+    ],
 }
 
 # Shorthand and alternative language names that map to canonical names above
@@ -96,6 +102,7 @@ LANGUAGE_ALIASES = {
     'arduino': 'cpp',
     'ino': 'cpp',
     'c++': 'cpp',
+    'kt': 'kotlin',
 }
 
 

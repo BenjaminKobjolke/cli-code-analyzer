@@ -15,6 +15,8 @@ LANGUAGE_BY_EXTENSION = {
     ".ts": "typescript",
     ".tsx": "typescript",
     ".cs": "csharp",
+    ".kt": "kotlin",
+    ".kts": "kotlin",
     ".svelte": "svelte",
     ".ahk": "autohotkey",
     ".ino": "cpp",

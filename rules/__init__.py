@@ -18,6 +18,7 @@ from rules.eslint_analyze import ESLintAnalyzeRule
 from rules.flutter_analyze import FlutterAnalyzeRule
 from rules.graphify_fanout import GraphifyFanoutRule
 from rules.intelephense_analyze import IntelephenseAnalyzeRule
+from rules.kotlin_complexity import KotlinComplexityRule
 from rules.max_lines import MaxLinesRule
 from rules.php_cs_fixer_analyze import PHPCSFixerAnalyzeRule
 from rules.phpstan_analyze import PHPStanAnalyzeRule
@@ -48,6 +49,7 @@ __all__ = [
     'FlutterAnalyzeRule',
     'GraphifyFanoutRule',
     'IntelephenseAnalyzeRule',
+    'KotlinComplexityRule',
     'MaxLinesRule',
     'PHPCSFixerAnalyzeRule',
     'PHPStanAnalyzeRule',

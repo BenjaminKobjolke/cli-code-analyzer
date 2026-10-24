@@ -16,7 +16,12 @@ from path_utils import (
     to_relative_posix,
 )
 from project_wide_rules import FILTER_INCAPABLE, PROJECT_WIDE_ANALYZERS
-from rules import MaxLinesRule, PMDDuplicatesRule, PMDSimilarCodeRule
+from rules import (
+    KotlinComplexityRule,
+    MaxLinesRule,
+    PMDDuplicatesRule,
+    PMDSimilarCodeRule,
+)
 from rules.context import RuleContext
 
 
@@ -228,6 +233,11 @@ class CodeAnalyzer:
         if self._should_run('max_lines_per_file'):
             rule_config = self.config.get_rule('max_lines_per_file')
             rule = MaxLinesRule(self._make_ctx(rule_config))
+            self._run_and_record(rule, file_path)
+
+        if self._should_run('kotlin_complexity'):
+            rule_config = self.config.get_rule('kotlin_complexity')
+            rule = KotlinComplexityRule(self._make_ctx(rule_config))
             self._run_and_record(rule, file_path)
 
     def _run_and_record(self, rule, file_path: Path) -> None:
