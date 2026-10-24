@@ -102,6 +102,7 @@ python main.py --language <language> --path <path> [options]
 | `--build-cache` | | No | off | Build a violation cache in the output folder for fast `--file` queries. Requires `--output`. |
 | `--cache-max-age` | | No | `60` | Maximum cache age in minutes before it is considered stale. Independent of age, the cache is also invalidated when source files, `rules.json`, or analyzer code change |
 | `--only-analyzer` | | No | - | Run only the named analyzer(s) from `--rules`, skipping every other enabled rule for this run (space- or comma-separated). Names match `rules.json` keys / `--list-analyzers` output. Disables the violation cache; mutually exclusive with `--build-cache`. |
+| `--fail-on-findings` | | No | off | Exit 1 when the report lists any violation — ERROR, WARNING or INFO — after `--loglevel` filtering. Without it only errors and tool failures exit 1. |
 | `--audit-dependencies` | | No | off | Audit root dependency lock files for known advisories and outdated direct dependencies; prints JSON without changing the checkout. Requires `--path`. |
 | `--most-complex-function` | | No | off | Report the highest cyclomatic-complexity function from the files in `--files-from` as JSON. Requires `--path` and `--files-from`. |
 | `--files-from` | | No | - | UTF-8 text file with one project-relative source path per line; requires `--most-complex-function`. |
@@ -1587,6 +1588,8 @@ cli-code-analyzer/
 
 - `0`: No errors found (warnings may exist)
 - `1`: Errors found or execution failure
+
+With `--fail-on-findings`: `0` only when the report is clean; `1` for any reported violation (any severity) or execution failure. `--loglevel` decides which severities count.
 
 ## Use Cases
 
