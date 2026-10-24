@@ -77,6 +77,11 @@ ANALYZER_REGISTRY = {
         ('max_lines_per_file', 'File length checks', None),
         ('autohotkey_analyze', 'Syntax/load validation (AHK v1/v2)', 'AutoHotkey'),
     ],
+    'cpp': [
+        ('max_lines_per_file', 'File length checks', None),
+        ('pmd_duplicates', 'Duplicate code detection', 'PMD'),
+        ('pmd_similar_code', 'Similar code pattern detection', 'PMD'),
+    ],
 }
 
 # Shorthand and alternative language names that map to canonical names above
@@ -88,6 +93,9 @@ LANGUAGE_ALIASES = {
     'cs': 'csharp',
     'py': 'python',
     'ahk': 'autohotkey',
+    'arduino': 'cpp',
+    'ino': 'cpp',
+    'c++': 'cpp',
 }
 
 

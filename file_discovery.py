@@ -17,6 +17,7 @@ DEFAULT_EXCLUDE_PATTERNS = {
     'javascript': ['node_modules/**', 'dist/**', 'build/**', 'coverage/**', '.git/**'],
     'svelte': ['node_modules/**', 'dist/**', 'build/**', '.svelte-kit/**', '.git/**'],
     'autohotkey': ['.git/**'],
+    'cpp': ['.pio/**', 'build/**', '.git/**'],
 }
 
 
@@ -31,6 +32,7 @@ class FileDiscovery:
         'javascript': ['.js', '.mjs', '.cjs', '.ts', '.tsx', '.jsx'],
         'svelte': ['.svelte'],
         'autohotkey': ['.ahk', '.ah2', '.ahk2'],
+        'cpp': ['.ino', '.cpp', '.h', '.hpp', '.c', '.cc'],
     }
 
     def __init__(self, languages: str | list[str], path: str,

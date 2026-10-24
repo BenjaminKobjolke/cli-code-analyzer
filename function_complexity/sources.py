@@ -17,6 +17,12 @@ LANGUAGE_BY_EXTENSION = {
     ".cs": "csharp",
     ".svelte": "svelte",
     ".ahk": "autohotkey",
+    ".ino": "cpp",
+    ".cpp": "cpp",
+    ".cc": "cpp",
+    ".c": "cpp",
+    ".h": "cpp",
+    ".hpp": "cpp",
 }
 
 _SCRIPT_TAG = re.compile(r"<script\b[^>]*>(.*?)</script\s*>", re.IGNORECASE | re.DOTALL)

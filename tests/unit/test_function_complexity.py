@@ -90,6 +90,16 @@ LANGUAGE_SAMPLES = [
         3,
         id="autohotkey",
     ),
+    pytest.param(
+        "sample.ino",
+        "void setup() {\n  if (ready) {\n    for (int i = 0; i < 3; ++i) {\n      blink(i);\n    }\n  }\n}\n",
+        "setup",
+        "cpp",
+        1,
+        7,
+        3,
+        id="arduino-cpp",
+    ),
 ]
 
 

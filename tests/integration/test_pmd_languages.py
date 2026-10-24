@@ -46,6 +46,7 @@ def _ext_map(language: str) -> str:
     return {
         "php": "php", "python": "py", "flutter": "dart",
         "csharp": "cs", "javascript": "js", "svelte": "svelte",
+        "cpp": "ino",
     }[language]
 
 
@@ -75,7 +76,7 @@ def _run_pmd_json(language: str, fixture_dir: Path, focus_file: Path, tmp_path: 
 
 # php/python/dart/csharp/javascript all tokenize cleanly under CPD; svelte does not
 # (CPD ecmascript can't parse .svelte script blocks), so it is tested separately.
-DUP_LANGUAGES = ["php", "python", "flutter", "csharp", "javascript"]
+DUP_LANGUAGES = ["php", "python", "flutter", "csharp", "javascript", "cpp"]
 
 
 @pmd_required

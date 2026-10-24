@@ -4,9 +4,9 @@ A flexible command-line tool for analyzing code files based on configurable rule
 
 ## Features
 
-- **Multi-language support**: Supports Flutter/Dart, Python, PHP, C#, JavaScript/TypeScript, Svelte, and AutoHotkey
+- **Multi-language support**: Supports Flutter/Dart, Python, PHP, C#, JavaScript/TypeScript, Svelte, AutoHotkey, and Arduino/C++
 - **Multi-language analysis**: Analyze multiple languages in a single run via space-separated or comma-separated arguments
-- **Language aliases**: Shorthand aliases for convenience (`dart` for flutter, `ts`/`js` for javascript, `py` for python, `cs` for csharp, `ahk` for autohotkey)
+- **Language aliases**: Shorthand aliases for convenience (`dart` for flutter, `ts`/`js` for javascript, `py` for python, `cs` for csharp, `ahk` for autohotkey, `arduino`/`ino`/`c++` for cpp)
 - **Configurable rules**: Define custom rules via JSON configuration
 - **Multiple output formats**: Minimal, normal, and verbose output modes
 - **File export capability**: Save analysis reports to files for CI/CD integration
@@ -87,7 +87,7 @@ python main.py --language <language> --path <path> [options]
 
 | Argument | Short | Required | Default | Description |
 |----------|-------|----------|---------|-------------|
-| `--language` | `-l` | Yes | - | Language(s) to analyze: `flutter`, `python`, `php`, `csharp`, `javascript`, `svelte`, `autohotkey`. Supports multiple languages (space-separated or comma-separated). Aliases: `dart`, `ts`, `js`, `py`, `cs`, `ahk` |
+| `--language` | `-l` | Yes | - | Language(s) to analyze: `flutter`, `python`, `php`, `csharp`, `javascript`, `svelte`, `autohotkey`, `cpp`. Supports multiple languages (space-separated or comma-separated). Aliases: `dart`, `ts`, `js`, `py`, `cs`, `ahk`, `arduino`, `ino`, `c++` |
 | `--path` | `-p` | Yes | - | Path to the code directory (analyzes recursively) or single file to analyze |
 | `--rules` | `-r` | No | `rules.json` | Path to the rules JSON configuration file |
 | `--verbosity` | `-v` | No | `normal` | Output verbosity level: `minimal`, `normal`, or `verbose` |
@@ -185,6 +185,7 @@ Supported extensions and output language names are:
 | `.cs` | `csharp` |
 | `.svelte` | `svelte` |
 | `.ahk` | `autohotkey` |
+| `.ino`, `.cpp`, `.h`, `.hpp`, `.c`, `.cc` | `cpp` |
 
 The JSON object has a `function` (or `null`) and an `errors` array. A function includes `file_path`,
 `function_name`, `language`, `start_line`, `end_line`, and integer `complexity`; for example:
@@ -1541,7 +1542,8 @@ autohotkey_v1_path = C:\Program Files\AutoHotkey\AutoHotkeyU64.exe
 Only the version(s) your scripts use are required. If a needed interpreter is not
 configured, validation for those scripts is skipped (not a failure). See
 [docs/analyzers/autohotkey_analyze.md](docs/analyzers/autohotkey_analyze.md) and
-[docs/setup/AUTOHOTKEY.md](docs/setup/AUTOHOTKEY.md) for details.
+[docs/setup/AUTOHOTKEY.md](docs/setup/AUTOHOTKEY.md) for details. For Arduino/C++, see
+[docs/setup/ARDUINO_CPP.md](docs/setup/ARDUINO_CPP.md).
 
 ## Project Structure
 

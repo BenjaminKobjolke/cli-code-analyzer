@@ -171,6 +171,7 @@ python main.py --language java --path ./src --rules rules.json --output ./report
 
 ## Notes
 
+- Arduino `.ino` files are scanned as temporary `.cpp` copies and findings use the original sketch path.
 - PMD CPD analyzes the entire project at once (not per-file)
 - Generated code files (like `*.g.dart`) should be excluded
 - The analyzer creates a temporary exclusion file that is cleaned up after analysis

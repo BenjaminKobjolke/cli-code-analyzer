@@ -13,6 +13,7 @@ from pathlib import Path
 from models import RuleResult
 from path_utils import resolve_exclude_patterns
 from rules.base import ProjectWideRule
+from rules.pmd_temp_copies import copy_ino_as_cpp, sanitize_shebang_files
 
 # Default exclude patterns per language (glob patterns)
 DEFAULT_EXCLUDE_PATTERNS = {
@@ -39,6 +40,8 @@ LANGUAGE_TO_PMD = {
     'csharp': 'cs',
     'svelte': 'ecmascript',
     'cs': 'cs',
+    'cpp': 'cpp',
+    'arduino': 'cpp',
 }
 
 # Windows reserved device names that cause errors when PMD tries to scan them
@@ -126,35 +129,6 @@ def filter_pmd_stderr(stderr: str) -> str:
     return '\n'.join(filtered)
 
 
-def sanitize_shebang_files(scan_files: list[Path], logger) -> tuple[dict[str, str], list[Path]]:
-    """Copy shebang-led files to temp copies with the shebang line blanked.
-
-    CPD's ecmascript lexer cannot parse ``#!`` shebang lines and skips the whole
-    file with a lexical error. The shebang is replaced by an empty line so all
-    other line numbers stay identical. Returns (temp->original path mapping,
-    temp paths for cleanup).
-    """
-    mapping: dict[str, str] = {}
-    temps: list[Path] = []
-    for f in scan_files:
-        try:
-            with open(f, encoding='utf-8', errors='ignore') as fh:
-                first = fh.readline()
-                if not first.startswith('#!'):
-                    continue
-                rest = fh.read()
-            fd, tmp = tempfile.mkstemp(suffix=Path(f).suffix, prefix='pmd_shebang_')
-            with open(fd, 'w', encoding='utf-8') as out:
-                out.write('\n' + rest)
-        except OSError as e:
-            logger.warning(f"Warning: Could not sanitize shebang file {f}: {e}")
-            continue
-        tmp_path = Path(tmp).resolve()
-        mapping[str(tmp_path)] = str(Path(f).resolve())
-        temps.append(tmp_path)
-    return mapping, temps
-
-
 def run_cpd(rule, cmd_base: list[str], directory: Path, exclude_paths: list[str],
             exclude_patterns: list[str], filtered: list[Path] | None,
             pmd_language: str | None = None) -> RuleResult:
@@ -177,13 +151,14 @@ def run_cpd(rule, cmd_base: list[str], directory: Path, exclude_paths: list[str]
             rule, directory, exclude_paths, exclude_patterns,
         )
 
-    shebang_map: dict[str, str] = {}
-    if pmd_language == 'ecmascript' and scan_files:
-        shebang_map, shebang_temps = sanitize_shebang_files(scan_files, rule.logger)
-        if shebang_map:
-            temps.extend(shebang_temps)
-            orig_to_tmp = {orig: tmp for tmp, orig in shebang_map.items()}
-            scan_files = [Path(orig_to_tmp.get(str(Path(f).resolve()), str(f))) for f in scan_files]
+    temp_copy_map: dict[str, str] = {}
+    if scan_files and pmd_language in {'ecmascript', 'cpp'}:
+        copy_files = sanitize_shebang_files if pmd_language == 'ecmascript' else copy_ino_as_cpp
+        temp_copy_map, copy_temps = copy_files(scan_files, rule.logger)
+        if temp_copy_map:
+            temps.extend(copy_temps)
+            orig_to_tmp = {original: temporary for temporary, original in temp_copy_map.items()}
+            scan_files = [Path(orig_to_tmp.get(str(Path(file).resolve()), str(file))) for file in scan_files]
 
     file_list = write_temp_path_list(scan_files, 'pmd_files_', rule.logger)
     if file_list is None:
@@ -198,7 +173,7 @@ def run_cpd(rule, cmd_base: list[str], directory: Path, exclude_paths: list[str]
             if filtered_stderr:
                 rule.logger.warning(f"PMD CPD warning: {filtered_stderr}")
         stdout = result.stdout
-        for tmp, orig in shebang_map.items():
+        for tmp, orig in temp_copy_map.items():
             stdout = stdout.replace(tmp, orig)
             stdout = stdout.replace(tmp.replace('\\', '/'), orig)
         return rule._result_from_pmd_stdout(stdout)
