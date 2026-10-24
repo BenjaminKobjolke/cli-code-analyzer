@@ -103,4 +103,5 @@ python main.py --language php --path ./src --rules rules.json --verbosity error
 - The `timeout` setting controls how long to wait for the LSP to process all files
 - For large projects, you may need to increase the timeout value
 - The `ignore_unused_underscore` option filters hints about intentionally unused variables (e.g., `$_response`)
+- Findings in the analyzer-generated `.php-cs-fixer.dist.php` are always skipped; no `exclude_patterns` entry is needed
 - Can be used alongside PHPStan for complementary static analysis coverage

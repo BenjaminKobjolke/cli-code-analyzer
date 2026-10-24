@@ -5,6 +5,7 @@ from pathlib import Path
 
 from models import RuleResult, Severity, Violation
 from rules.base import ProjectWideRule
+from rules.php_cs_fixer_analyze import GENERATED_FIXER_CONFIG
 
 
 class IntelephenseAnalyzeRule(ProjectWideRule):
@@ -64,6 +65,10 @@ class IntelephenseAnalyzeRule(ProjectWideRule):
                 ignore_patterns=exclude_patterns,
                 timeout=timeout,
             )
+            # This generated file references PHP-CS-Fixer classes available only to the analyzer.
+            diagnostics = [
+                diag for diag in diagnostics if Path(diag.file_path).name != GENERATED_FIXER_CONFIG
+            ]
 
             violations = []
             for diag in diagnostics:

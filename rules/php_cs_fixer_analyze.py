@@ -11,7 +11,8 @@ from rules.php_cs_fixer_report import parse_fixer_json, write_fixer_csv
 DEFAULT_EXCLUDE_PATHS = ['vendor', '.git']
 
 # Config file names in order of priority
-FIXER_CONFIG_FILES = ['.php-cs-fixer.dist.php', '.php-cs-fixer.php']
+GENERATED_FIXER_CONFIG = '.php-cs-fixer.dist.php'
+FIXER_CONFIG_FILES = [GENERATED_FIXER_CONFIG, '.php-cs-fixer.php']
 
 
 class PHPCSFixerAnalyzeRule(ProjectWideRule):
@@ -96,7 +97,7 @@ return (new PhpCsFixer\\Config())
 
     def _create_fixer_config(self, exclude_paths: list[str], rules: str) -> Path:
         """Create a new PHP-CS-Fixer config file."""
-        config_path = self.base_path / '.php-cs-fixer.dist.php'
+        config_path = self.base_path / GENERATED_FIXER_CONFIG
         content = self._generate_fixer_config(exclude_paths, rules)
         config_path.write_text(content, encoding='utf-8')
         self.logger.info(f"  Created config: {config_path.name}")
