@@ -1,10 +1,13 @@
 """Git integration for changed files and changed source lines."""
 
+import os
 import re
 import subprocess
 from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
+
+CHANGED_SINCE_ENV = "CLI_ANALYZER_CHANGED_SINCE"
 
 
 class GitNotAvailableError(RuntimeError):
@@ -38,22 +41,62 @@ def find_repo_root(path: Path) -> Path | None:
     return None
 
 
-def get_changed_files(repo_root: Path) -> set[Path]:
-    """Return absolute paths of files new or modified vs HEAD (incl. untracked).
+def changed_since_from_env() -> str | None:
+    """Return the configured base commit, treating a blank value as unset."""
+    return os.environ.get(CHANGED_SINCE_ENV, "").strip() or None
 
-    Excludes deleted files. For renames, returns the new path only.
+
+def get_changed_files(repo_root: Path, since: str | None = None) -> set[Path]:
+    """Return changed paths, optionally including tracked changes since a commit.
+
+    The current status supplies untracked files and preserves HEAD-only behavior
+    when ``since`` is unset. A commit range adds tracked files changed between
+    that commit and the working tree. Deleted paths are excluded; renames use
+    their new path.
     """
-    cmd = ['git', '-C', str(repo_root), 'status', '--porcelain=v1', '-z', '--untracked-files=all']
+    repo_root = repo_root.resolve()
+    status = _run_git(
+        repo_root,
+        'status',
+        '--porcelain=v1',
+        '-z',
+        '--untracked-files=all',
+        operation='git status',
+    )
+    files = _parse_porcelain_z(status, repo_root)
+    if since is None:
+        return files
+
     try:
-        result = subprocess.run(cmd, capture_output=True, check=False)
-    except FileNotFoundError as e:
-        raise GitNotAvailableError("git executable not found in PATH") from e
+        _run_git(
+            repo_root,
+            'rev-parse',
+            '--verify',
+            '--quiet',
+            f'{since}^{{commit}}',
+            operation='git rev-parse',
+        )
+    except GitNotAvailableError as error:
+        raise GitNotAvailableError(
+            f"{CHANGED_SINCE_ENV}='{since}' is not a commit in {repo_root}"
+        ) from error
 
-    if result.returncode != 0:
-        stderr = result.stderr.decode('utf-8', errors='replace').strip()
-        raise GitNotAvailableError(f"git status failed: {stderr}")
-
-    return _parse_porcelain_z(result.stdout, repo_root)
+    diff = _run_git(
+        repo_root,
+        'diff',
+        '--name-only',
+        '-z',
+        '-M',
+        '--diff-filter=d',
+        since,
+        operation='git diff',
+    )
+    files.update(
+        (repo_root / path.decode('utf-8', errors='replace')).resolve()
+        for path in diff.split(b'\0')
+        if path
+    )
+    return files
 
 
 def get_changed_lines(root: Path, base: str) -> DiffChanges:

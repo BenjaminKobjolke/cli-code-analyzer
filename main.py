@@ -132,14 +132,19 @@ def main():
         filter_mode = "file"
 
     if args.only_changed:
-        from git_changes import GitNotAvailableError, find_repo_root, get_changed_files
+        from git_changes import (
+            GitNotAvailableError,
+            changed_since_from_env,
+            find_repo_root,
+            get_changed_files,
+        )
 
         repo_root = find_repo_root(base_path_resolved)
         if repo_root is None:
             print(f"Error: --only-changed requires a git repo; '{args.path}' is not inside one", file=sys.stderr)
             sys.exit(1)
         try:
-            changed = get_changed_files(repo_root)
+            changed = get_changed_files(repo_root, changed_since_from_env())
         except GitNotAvailableError as e:
             print(f"Error: {e}", file=sys.stderr)
             sys.exit(1)

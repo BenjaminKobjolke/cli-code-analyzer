@@ -137,7 +137,9 @@ Examples:
         '--only-changed',
         action='store_true',
         default=False,
-        help='Analyze only files new or modified in git (vs HEAD, includes untracked, skips deletes). Mutually exclusive with --file.',
+        help='Analyze only files new or modified in git (vs HEAD, includes untracked, skips deletes). Set '
+        'CLI_ANALYZER_CHANGED_SINCE=<commit> to also include files changed since that commit. '
+        'Mutually exclusive with --file.',
     )
     parser.add_argument(
         '--fail-on-warnings',
