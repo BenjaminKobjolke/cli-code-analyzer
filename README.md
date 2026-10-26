@@ -96,7 +96,7 @@ python main.py --language <language> --path <path> [options]
 | `--loglevel` | `-L` | No | `all` | Filter violations by severity: `error`, `warning`, or `all` |
 | `--maxamountoferrors` | `-m` | No | unlimited | Maximum number of violations to include in reports. When exceeded, keeps the largest violations (e.g., duplicates with most lines) |
 | `--file` | `-F` | No | - | Filter violations to a single file (requires `--path`). Defaults `--maxamountoferrors` to 5. Suppresses progress output. |
-| `--only-changed` | | No | off | Analyze only files new or modified in git vs HEAD (includes untracked, skips deletes). Requires `--path` inside a git repo. Mutually exclusive with `--file`. Defaults `--maxamountoferrors` to 5. |
+| `--only-changed` | | No | off | Analyze only files new or modified in git vs HEAD (includes untracked, skips deletes). Set `CLI_ANALYZER_CHANGED_SINCE=<commit>` to also include files changed since a commit. Requires `--path` inside a git repo. Mutually exclusive with `--file`. Defaults `--maxamountoferrors` to 5. |
 | `--fail-on-warnings` | | No | off | Exit 1 when the report includes a WARNING or ERROR after `--loglevel` filtering. INFO never fails the run. |
 | `--list-files` | `-f` | No | off | List all analyzed file paths after analysis |
 | `--list-analyzers` | `-a` | No | - | List available analyzers for a language (or all) |
@@ -450,12 +450,24 @@ python main.py --language flutter --path ./lib --file ./lib/screens/home.dart -m
 
 Use `--only-changed` to report violations only for files that are new or modified vs git `HEAD` (includes untracked, skips deletes). Project-wide analyzers still run on the whole tree, but the report is filtered to the changed set — same mechanism as `--file`, just for many files at once.
 
+Set `CLI_ANALYZER_CHANGED_SINCE` to a commit to include tracked files changed between that commit and the working tree, along with current untracked files. This covers committed and uncommitted changes; deletions stay skipped and renames are reported by their new path. An unset or blank value keeps the usual `HEAD`-only behavior. An invalid value prints an error naming the variable and exits with code 1. The variable only affects `--only-changed`.
+
 ```bash
 # Only the files dirty in git
 python main.py --language flutter --path ./lib --only-changed --rules rules.json
 
+# Include files changed since a commit (POSIX)
+CLI_ANALYZER_CHANGED_SINCE=abc123 python main.py --language flutter --path ./lib --only-changed --rules rules.json
+
 # Pair with --output for cache fast-path on repeat runs
 python main.py --language flutter --path ./lib --only-changed --output ./reports
+```
+
+On Windows Command Prompt, set the variable before running the command:
+
+```bat
+set CLI_ANALYZER_CHANGED_SINCE=abc123
+python main.py --language flutter --path .\lib --only-changed --rules rules.json
 ```
 
 **When to use:**
