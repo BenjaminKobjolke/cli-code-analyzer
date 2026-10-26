@@ -38,6 +38,10 @@ from PATH / configured tool settings.
 | `exclude_patterns` | array | [] | Glob patterns converted to PHPStan `excludePaths` |
 | `analyze_path` | string/array | project root | Path or paths analyzed in full-project mode |
 
+With `--only-changed` or `--file`, changed PHP files matching `exclude_patterns`
+are not passed to PHPStan. If all changed PHP files are excluded, PHPStan is
+skipped and reports no findings.
+
 ## Bootstrap Files
 
 Use `bootstrap_files` when a project needs its own autoloader, constants, or
