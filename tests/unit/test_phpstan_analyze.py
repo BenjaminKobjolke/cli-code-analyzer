@@ -72,6 +72,57 @@ def test_run_phpstan_uses_bootstrap_files_with_changed_file_scope(tmp_path: Path
     assert f"- {(tmp_path / 'vendor').as_posix()} (?)" in seen["config"]
 
 
+def test_phpstan_skips_when_every_changed_file_is_excluded(tmp_path: Path):
+    excluded = tmp_path / "tests" / "Helpers" / "DbRevisionBatchTest.php"
+    excluded.parent.mkdir(parents=True)
+    excluded.write_text("<?php\n", encoding="utf-8")
+    rule = _rule(
+        tmp_path,
+        {"exclude_patterns": ["tests/**"]},
+        filter_files={"tests/Helpers/DbRevisionBatchTest.php"},
+    )
+    calls = []
+    rule._run_subprocess = lambda *args, **kwargs: calls.append((args, kwargs))
+
+    result = rule._run_phpstan_check("phpstan")
+
+    assert result.status == RuleStatus.OK
+    assert result.violations == []
+    assert calls == []
+
+
+def test_phpstan_passes_only_non_excluded_changed_files(tmp_path: Path):
+    excluded = tmp_path / "tests" / "FooTest.php"
+    source = tmp_path / "src" / "Foo.php"
+    excluded.parent.mkdir(parents=True)
+    source.parent.mkdir(parents=True)
+    excluded.write_text("<?php\n", encoding="utf-8")
+    source.write_text("<?php\n", encoding="utf-8")
+    rule = _rule(
+        tmp_path,
+        {"exclude_patterns": ["tests/**"]},
+        filter_files={"tests/FooTest.php", "src/Foo.php"},
+    )
+    seen = {}
+
+    def fake_run(cmd, *_args, **_kwargs):
+        seen["cmd"] = cmd
+        return SimpleNamespace(
+            returncode=0,
+            stdout='{"totals":{"errors":0,"file_errors":0},"files":[],"errors":[]}',
+            stderr="",
+        )
+
+    rule._run_subprocess = fake_run
+
+    result = rule._run_phpstan_check("phpstan")
+
+    assert result.status == RuleStatus.OK
+    assert result.violations == []
+    assert str(source) in seen["cmd"]
+    assert str(excluded) not in seen["cmd"]
+
+
 def test_phpstan_merges_batches_and_empty_files_list(tmp_path: Path, monkeypatch):
     monkeypatch.setattr('rules.filter_scope.MAX_COMMAND_CHARS', 240)
     names = {f'deep/{i:03d}_long_name.php' for i in range(4)}
