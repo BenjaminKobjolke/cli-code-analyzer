@@ -10,6 +10,7 @@ from models import RuleResult, Severity, Violation
 from rules.base import ProjectWideRule
 from rules.phpstan_config import (
     build_phpstan_config,
+    is_excluded_path,
     resolve_bootstrap_files,
     resolve_config_file,
     resolve_exclude_dirs,
@@ -78,8 +79,14 @@ class PHPStanAnalyzeRule(ProjectWideRule):
         paths = analyze_path if isinstance(analyze_path, list) else [analyze_path]
         paths = [p if Path(p).is_absolute() else str(self.base_path / p) for p in paths]
         try:
-            commands = self._scoped_commands(cmd, ('.php',), paths)
+            commands = self._scoped_commands(
+                cmd,
+                ('.php',),
+                paths,
+                exclude=lambda path: is_excluded_path(path, exclude_dirs),
+            )
             if commands is None:
+                self.logger.info("Skipping PHPStan: no changed PHP files outside exclude_patterns")
                 return self._ok([])
             documents = self._run_json('PHPStan', commands, self.base_path)
             data = {'files': {}, 'errors': []}

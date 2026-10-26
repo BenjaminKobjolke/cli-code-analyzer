@@ -1,5 +1,7 @@
 """PHPStan temporary config generation."""
 
+import fnmatch
+import os
 from pathlib import Path
 
 
@@ -31,6 +33,20 @@ def resolve_exclude_dirs(base_path: Path, config: dict) -> list[str]:
             pattern = pattern.replace('/**', '').replace('**/', '')
         exclude_dirs.append((base_path / pattern).as_posix())
     return exclude_dirs
+
+
+def is_excluded_path(path: Path, exclude_dirs: list[str]) -> bool:
+    """Mirror PHPStan excludePaths so explicit targets are dropped consistently."""
+    normalized_path = os.path.normcase(path.as_posix())
+    for exclude_dir in exclude_dirs:
+        normalized_exclude = os.path.normcase(Path(exclude_dir).as_posix())
+        if normalized_path == normalized_exclude or normalized_path.startswith(
+            normalized_exclude.rstrip(os.sep) + os.sep
+        ):
+            return True
+        if fnmatch.fnmatchcase(normalized_path, normalized_exclude):
+            return True
+    return False
 
 
 def build_phpstan_config(config_file: Path | None, bootstrap_files: list[str], exclude_dirs: list[str]) -> str:

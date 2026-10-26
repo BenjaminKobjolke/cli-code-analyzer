@@ -8,6 +8,7 @@ base.py so the core base class stays focused. The host class supplies
 
 import json
 import subprocess
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
@@ -22,13 +23,18 @@ class ToolOutputError(Exception):
 class FilterScopeMixin:
     """Resolve the active file filter to tool arguments."""
 
-    def _filtered_paths(self, extensions: tuple[str, ...] | None = None) -> list[Path] | None:
+    def _filtered_paths(
+        self,
+        extensions: tuple[str, ...] | None = None,
+        exclude: Callable[[Path], bool] | None = None,
+    ) -> list[Path] | None:
         """Absolute paths of the filter set under base_path, matching extensions.
 
         Returns None when no filter is active (caller runs whole-project mode).
-        Returns [] when a filter is set but no file matches this language; the
-        caller MUST short-circuit, since passing zero paths makes most CLIs fall
-        back to scanning the CWD. Deleted files drop out (only existing paths).
+        Returns [] when a filter is set but no file matches this language or all
+        matching files are excluded; the caller MUST short-circuit, since passing
+        zero paths makes most CLIs fall back to scanning the CWD. Deleted files
+        drop out (only existing paths).
         """
         if self.filter_files is None or self.base_path is None:
             return None
@@ -37,12 +43,13 @@ class FilterScopeMixin:
             if extensions and not rel.lower().endswith(extensions):
                 continue
             p = self.base_path / rel
-            if p.exists():
+            if p.exists() and not (exclude and exclude(p)):
                 paths.append(p)
         return paths
 
     def _scope_args(self, extensions: tuple[str, ...] | None = None,
-                    whole_project: list[str] | None = None) -> list[str] | None:
+                    whole_project: list[str] | None = None,
+                    exclude: Callable[[Path], bool] | None = None) -> list[str] | None:
         """CLI path args for a project-wide tool. Single source for the scope branch.
 
         Returns None  => filter set but no matching files; caller does `return self._ok([])`.
@@ -50,7 +57,7 @@ class FilterScopeMixin:
         `whole_project` is [] for cwd-based tools (dart/flutter) and
         [str(self.base_path)] for path-arg tools (ruff/eslint/phpstan).
         """
-        targets = self._filtered_paths(extensions)
+        targets = self._filtered_paths(extensions, exclude)
         if targets is None:
             return whole_project or []
         if not targets:
@@ -58,9 +65,10 @@ class FilterScopeMixin:
         return [str(p) for p in targets]
 
     def _scoped_commands(self, cmd: list[str], extensions: tuple[str, ...] | None = None,
-                         whole_project: list[str] | None = None) -> list[list[str]] | None:
+                         whole_project: list[str] | None = None,
+                         exclude: Callable[[Path], bool] | None = None) -> list[list[str]] | None:
         """Build complete commands, splitting only a filtered file list."""
-        scope = self._scope_args(extensions, whole_project)
+        scope = self._scope_args(extensions, whole_project, exclude)
         if scope is None:
             return None
         if self.filter_files is None:
