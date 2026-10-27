@@ -7,7 +7,6 @@ import lizard
 from file_discovery import FileDiscovery
 from models import RuleResult, Severity, Violation
 from rules.base import BaseRule
-from rules.context import RuleContext
 
 METRICS = (
     ("cyclomatic_complexity", "cyclomatic_complexity", "cyclomatic complexity"),

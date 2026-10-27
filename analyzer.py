@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from analyzer_registry import get_analyzers_for_language
+from analyzer_support import resolve_log_level
 from config import Config
 from file_discovery import FileDiscovery
 from logger import Logger
@@ -209,7 +210,12 @@ class CodeAnalyzer:
         for v in self.violations:
             vp = v.file_path.replace('\\', '/')
             for filter_rel in self.filter_files:
-                if vp == filter_rel or vp.endswith('/' + filter_rel) or filter_rel.endswith('/' + vp):
+                matches_filter = any((
+                    vp == filter_rel,
+                    vp.endswith('/' + filter_rel),
+                    filter_rel.endswith('/' + vp),
+                ))
+                if matches_filter:
                     filtered.append(v)
                     break
         self.violations = filtered
@@ -284,33 +290,5 @@ class CodeAnalyzer:
         return len(self.files)
 
     def _resolve_log_level(self, rule_name: str) -> LogLevel:
-        """Resolve log level for a rule using precedence: CLI > per-rule > global > default.
-
-        Args:
-            rule_name: Name of the rule
-
-        Returns:
-            Resolved LogLevel enum value
-        """
-        # 1. CLI flag has highest priority
-        if self.cli_log_level is not None:
-            return self.cli_log_level
-
-        # 2. Per-rule log level from rules.json
-        rule_log_level_str = self.config.get_rule_log_level(rule_name)
-        if rule_log_level_str:
-            try:
-                return LogLevel(rule_log_level_str)
-            except ValueError:
-                self.logger.warning(f"Warning: Invalid log_level '{rule_log_level_str}' for rule '{rule_name}', using default")
-
-        # 3. Global log level from rules.json
-        global_log_level_str = self.config.get_global_log_level()
-        if global_log_level_str:
-            try:
-                return LogLevel(global_log_level_str)
-            except ValueError:
-                self.logger.warning(f"Warning: Invalid global log_level '{global_log_level_str}', using default")
-
-        # 4. Default to ALL
-        return LogLevel.ALL
+        """Resolve log level for a rule using the configured precedence."""
+        return resolve_log_level(self.cli_log_level, self.config, self.logger, rule_name)

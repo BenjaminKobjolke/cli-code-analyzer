@@ -2,14 +2,10 @@
 Base rule class for all code analysis rules
 """
 
-import csv
-import os
 import shutil
-import signal
 import subprocess
 import sys
 from abc import ABC, abstractmethod
-from collections.abc import Callable
 from fnmatch import fnmatch
 from pathlib import Path
 from typing import Any
@@ -18,23 +14,11 @@ from logger import Logger
 from models import LogLevel, RuleResult, RuleStatus, Severity, Violation
 from rules.context import RuleContext
 from rules.filter_scope import FilterScopeMixin
+from rules.process_utils import kill_process_tree
+from rules.reporting import ViolationReportMixin
 
 
-def _kill_tree(process: subprocess.Popen[str]) -> None:
-    if sys.platform == 'win32':
-        subprocess.run(
-            ['taskkill', '/T', '/F', '/PID', str(process.pid)],
-            capture_output=True,
-            check=False,
-        )
-    else:
-        try:
-            os.killpg(process.pid, signal.SIGKILL)
-        except ProcessLookupError:
-            pass
-
-
-class BaseRule(FilterScopeMixin, ABC):
+class BaseRule(FilterScopeMixin, ViolationReportMixin, ABC):
     """Abstract base class for all rules"""
 
     # Subclasses set this so RuleResults are stamped with a stable name. Falls
@@ -149,9 +133,12 @@ class BaseRule(FilterScopeMixin, ABC):
 
         for exception in exceptions:
             pattern = exception.get('file', '').replace('\\', '/')
-            if (self._match_file_path(rel_path_base, pattern) or
-                (rel_path_rules and self._match_file_path(rel_path_rules, pattern)) or
-                self._match_file_path(filename_only, pattern)):
+            matches_exception = any((
+                self._match_file_path(rel_path_base, pattern),
+                bool(rel_path_rules) and self._match_file_path(rel_path_rules, pattern),
+                self._match_file_path(filename_only, pattern),
+            ))
+            if matches_exception:
                 return self._build_threshold_dict(exception, threshold_config)
 
         return self._build_threshold_dict(None, threshold_config)
@@ -199,7 +186,7 @@ class BaseRule(FilterScopeMixin, ABC):
         try:
             stdout, stderr = process.communicate(timeout=timeout)
         except subprocess.TimeoutExpired as error:
-            _kill_tree(process)
+            kill_process_tree(process)
             process.communicate()
             raise error
         return subprocess.CompletedProcess(cmd, process.returncode, stdout, stderr)
@@ -270,29 +257,6 @@ class BaseRule(FilterScopeMixin, ABC):
             return ['fvm', 'dart']
         path = self._get_tool_path('dart')
         return [path] if path else []
-
-    def _write_violations_csv(self, output_file: Path, violations: list[Violation],
-                               headers: list[str], row_mapper: Callable[[Violation], list]) -> None:
-        """Write violations to CSV, sorted by severity, limited by max_errors."""
-        if not violations:
-            return
-
-        severity_order = {Severity.ERROR: 0, Severity.WARNING: 1, Severity.INFO: 2}
-        sorted_violations = sorted(violations, key=lambda v: severity_order.get(v.severity, 3))
-
-        if self.max_errors and len(sorted_violations) > self.max_errors:
-            sorted_violations = sorted_violations[:self.max_errors]
-
-        try:
-            with open(output_file, 'w', encoding='utf-8', newline='') as f:
-                writer = csv.writer(f)
-                writer.writerow(headers)
-                for v in sorted_violations:
-                    writer.writerow(row_mapper(v))
-            self.logger.info(f"Report saved to: {output_file}")
-        except Exception as e:
-            self.logger.error(f"Error writing CSV: {e}")
-
 
 class ProjectWideRule(BaseRule):
     """Base for rules that run once per project regardless of file count.
