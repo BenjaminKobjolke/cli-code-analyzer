@@ -95,11 +95,13 @@ class PHPStanAnalyzeRule(ProjectWideRule):
                 files = document.get('files') if isinstance(document, dict) else None
                 has_valid_document_shape = (
                     isinstance(document, dict)
-                    and isinstance(files, (dict, list))
                     and isinstance(document.get('errors'), list)
+                )
+                has_acceptable_files_shape = (
+                    isinstance(files, (dict, list))
                     and not (isinstance(files, list) and files)
                 )
-                if not has_valid_document_shape:
+                if not has_valid_document_shape or not has_acceptable_files_shape:
                     raise ValueError('PHPStan returned unexpected JSON structure')
                 if isinstance(files, dict):
                     if any(not isinstance(file_data, dict) or not isinstance(file_data.get('messages'), list)
