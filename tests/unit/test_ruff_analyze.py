@@ -36,6 +36,33 @@ def test_ruff_merges_batches_then_caps(tmp_path: Path, monkeypatch):
     assert len(result.violations) == 2
 
 
+def test_ruff_excludes_are_attached_and_apply_to_explicit_filter_files(tmp_path: Path):
+    target = tmp_path / "vend" / "thing.py"
+    target.parent.mkdir()
+    target.touch()
+    rule = RuffAnalyzeRule(RuleContext(
+        config={"exclude_patterns": ["vend/**"]},
+        base_path=tmp_path,
+        filter_files={"vend/thing.py"},
+        max_errors=2,
+        logger=Logger(quiet=True),
+    ))
+    calls = []
+
+    def run(cmd, _cwd):
+        calls.append(cmd)
+        return SimpleNamespace(returncode=0, stdout="[]", stderr="")
+
+    rule._run_subprocess = run
+    result = rule._run_ruff_check("ruff")
+
+    assert result.status == RuleStatus.OK
+    assert len(calls) == 1
+    assert "--force-exclude" in calls[0]
+    assert "--exclude=vend/**" in calls[0]
+    assert "--exclude" not in calls[0]
+
+
 def test_ruff_rejects_untrusted_output(tmp_path: Path):
     rule = _rule(tmp_path)
     for output in ('', 'not json', '{}'):

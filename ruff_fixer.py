@@ -27,7 +27,7 @@ for _stream in (sys.stdout, sys.stderr):
         _stream.reconfigure(encoding="utf-8", errors="replace")
 
 from logger import Logger  # noqa: E402
-from path_utils import resolve_exclude_patterns  # noqa: E402
+from path_utils import resolve_exclude_patterns, ruff_exclude_args  # noqa: E402
 from settings import Settings  # noqa: E402
 
 
@@ -90,8 +90,9 @@ def build_fix_command(ruff_path: str, path: str, ruff_config: dict,
     ignore += [rule for rule in UNSAFE_FIX_RULES if rule not in ignore]
     cmd.extend(['--ignore', ','.join(ignore)])
 
-    for pattern in resolve_exclude_patterns(ruff_config.get('exclude_patterns'), languages):
-        cmd.extend(['--exclude', pattern])
+    cmd.extend(ruff_exclude_args(
+        resolve_exclude_patterns(ruff_config.get('exclude_patterns'), languages)
+    ))
 
     cmd.append(path)
     return cmd

@@ -44,8 +44,10 @@ def test_f401_is_blocked():
 def test_per_language_exclude_dict_is_expanded():
     config = {"exclude_patterns": {"python": ["target/**", "venv/**"]}}
     cmd = build_fix_command("ruff", ".", config, dry_run=False, languages=["python"])
-    assert "target/**" in cmd
-    assert "venv/**" in cmd
+    assert "--exclude=target/**" in cmd
+    assert "--exclude=venv/**" in cmd
+    assert "--force-exclude" in cmd
+    assert "--exclude" not in cmd
     assert "python" not in cmd
 
 

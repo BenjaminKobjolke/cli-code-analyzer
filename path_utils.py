@@ -24,6 +24,20 @@ def resolve_exclude_patterns(exclude_config, languages: Iterable[str]) -> list[s
     return list(exclude_config)
 
 
+def ruff_exclude_args(patterns: Iterable[str]) -> list[str]:
+    """Build Ruff CLI args that preserve excludes on Windows and explicit paths.
+
+    Ruff's Windows binary expands unquoted arguments itself, while
+    ``subprocess.list2cmdline`` does not quote patterns without spaces. Joining
+    each pattern to its flag passes it through intact; ``--force-exclude`` also
+    makes Ruff honor it for paths supplied explicitly by changed-file filters.
+    """
+    patterns = list(patterns)
+    if not patterns:
+        return []
+    return ["--force-exclude", *(f"--exclude={pattern}" for pattern in patterns)]
+
+
 def dir_paths_to_patterns(exclude_paths: Iterable[str] | None) -> list[str]:
     """Turn bare directory paths (`.dart_tool`, `vendor`) into `dir/**` globs.
 

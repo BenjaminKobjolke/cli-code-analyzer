@@ -12,7 +12,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from file_discovery import FileDiscovery
-from path_utils import resolve_exclude_patterns
+from path_utils import resolve_exclude_patterns, ruff_exclude_args
 
 BASE = Path("/repo")
 TARGET_FILE = BASE / "target/fman/Plugins/Core/core/commands/__init__.py"
@@ -43,6 +43,16 @@ def test_dict_form_merges_multiple_languages_without_duplicates():
 
 def test_none_yields_nothing():
     assert resolve_exclude_patterns(None, ["python"]) == []
+
+
+def test_ruff_exclude_args_keep_patterns_attached_and_force_explicit_paths():
+    assert ruff_exclude_args(["target/**", "venv/**"]) == [
+        "--force-exclude", "--exclude=target/**", "--exclude=venv/**",
+    ]
+
+
+def test_ruff_exclude_args_are_empty_without_patterns():
+    assert ruff_exclude_args([]) == []
 
 
 def test_file_discovery_honours_dict_form():

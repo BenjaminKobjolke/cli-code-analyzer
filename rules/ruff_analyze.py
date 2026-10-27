@@ -6,7 +6,7 @@ import csv
 from pathlib import Path
 
 from models import LogLevel, RuleResult, Severity, Violation
-from path_utils import resolve_exclude_patterns
+from path_utils import resolve_exclude_patterns, ruff_exclude_args
 from rules.base import ProjectWideRule
 
 
@@ -47,8 +47,9 @@ class RuffAnalyzeRule(ProjectWideRule):
             cmd.extend(['--ignore', ','.join(self.config['ignore'])])
 
         # Add exclude patterns (config may be a flat list or a per-language dict)
-        for pattern in resolve_exclude_patterns(self.config.get('exclude_patterns'), ['python']):
-            cmd.extend(['--exclude', pattern])
+        cmd.extend(ruff_exclude_args(
+            resolve_exclude_patterns(self.config.get('exclude_patterns'), ['python'])
+        ))
 
         # Add paths to analyze: changed files when filtering, else the whole base path.
         try:
