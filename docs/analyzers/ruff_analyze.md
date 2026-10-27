@@ -58,7 +58,7 @@ Or download from: https://docs.astral.sh/ruff/installation/
 | `enabled` | boolean | true | Enable/disable this analyzer |
 | `select` | array | [] | Rule codes to enable |
 | `ignore` | array | [] | Rule codes to ignore |
-| `exclude_patterns` | array or object | [] | Directories/patterns to exclude. Either a flat array, or an object keyed by language (`{"python": ["target/**"]}`) — every analyzer that takes exclusions accepts both forms. |
+| `exclude_patterns` | array or object | [] | Directories/patterns to exclude. Either a flat array, or an object keyed by language (`{"python": ["target/**"]}`) — every analyzer that takes exclusions accepts both forms. Ruff receives `--exclude=<pattern>` with `--force-exclude`, so exclusions apply on Windows and to files passed explicitly by `--only-changed`. |
 
 ### Common Rule Codes
 
