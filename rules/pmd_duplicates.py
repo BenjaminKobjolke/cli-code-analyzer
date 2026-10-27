@@ -233,13 +233,17 @@ class PMDDuplicatesRule(PMDCpdRule):
         for exc in exceptions:
             file_pat = exc['file']
             dup_of = exc['duplicate_of']
-            if self._path_matches(rel_path, file_pat) and (
-                not dup_of or any(self._matches_any(o, dup_of) for o in other_paths)
-            ):
+            matches_file = self._path_matches(rel_path, file_pat)
+            matches_duplicate = not dup_of or any(
+                self._matches_any(other, dup_of) for other in other_paths
+            )
+            if matches_file and matches_duplicate:
                 return exc
-            if dup_of and self._matches_any(rel_path, dup_of) and any(
-                self._path_matches(o, file_pat) for o in other_paths
-            ):
+            matches_reverse_path = bool(dup_of) and self._matches_any(rel_path, dup_of)
+            matches_reverse_pair = matches_reverse_path and any(
+                self._path_matches(other, file_pat) for other in other_paths
+            )
+            if matches_reverse_pair:
                 return exc
         return None
 

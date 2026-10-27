@@ -223,7 +223,8 @@ def _parse_porcelain_z(raw: bytes, repo_root: Path) -> set[Path]:
             continue
 
         # Skip pure deletes (no file on disk).
-        if xy == ' D' or xy == 'D ' or xy == 'DD':
+        is_pure_delete = xy in (' D', 'D ', 'DD')
+        if is_pure_delete:
             continue
         # Mixed states with D in one slot but content in the other (e.g. 'AD', 'MD'):
         # the working-tree side is gone, skip.

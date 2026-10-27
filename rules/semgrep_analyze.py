@@ -4,7 +4,7 @@ Semgrep pattern-scanning rule (project-wide, multi-language)
 
 from pathlib import Path
 
-from models import RuleResult, Violation
+from models import RuleResult, RuleStatus, Violation
 from rules.base import ProjectWideRule
 from rules.filter_scope import ToolOutputError
 
@@ -35,8 +35,9 @@ class SemgrepAnalyzeRule(ProjectWideRule):
                 return self._ok([])
             data = {'results': [], 'errors': []}
             for document in self._run_json('Semgrep', commands, self.base_path, {0, 1}):
-                if not isinstance(document, dict) or not isinstance(document.get('results'), list) \
-                        or not isinstance(document.get('errors'), list):
+                if not isinstance(document, dict):
+                    raise ToolOutputError('Semgrep returned unexpected JSON structure')
+                if not isinstance(document.get('results'), list) or not isinstance(document.get('errors'), list):
                     raise ToolOutputError('Semgrep returned unexpected JSON structure')
                 data['results'].extend(document['results'])
                 data['errors'].extend(document['errors'])
@@ -61,6 +62,18 @@ class SemgrepAnalyzeRule(ProjectWideRule):
                 self.output_folder / 'semgrep_analyze.csv', violations,
                 ['file', 'line', 'column', 'severity', 'message'],
                 lambda v: [v.file_path, v.line, v.column, v.severity.value, v.message])
+
+        if data['errors']:
+            error_messages = [
+                str(error.get('message', error)) if isinstance(error, dict) else str(error)
+                for error in data['errors']
+            ]
+            return RuleResult(
+                rule_name=self._result_name(),
+                status=RuleStatus.FAILED,
+                violations=violations,
+                message='Semgrep reported errors: ' + '; '.join(error_messages),
+            )
 
         return self._ok(violations)
 

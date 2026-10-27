@@ -42,6 +42,13 @@ def _analyze_file(lizard: object, source_file: SourceFile) -> list[object]:
     ).function_list
 
 
+def _function_is_unchanged(changes, file_path: Path, function) -> bool:
+    """Return whether a function is outside the supplied change set."""
+    return file_path not in changes.new_files and not changes.touches(
+        file_path, function.start_line, function.end_line
+    )
+
+
 def run_most_complex_function(
     path: str,
     files_from: str,
@@ -100,11 +107,7 @@ def run_most_complex_function(
             continue
         for function in sorted(functions, key=lambda item: item.start_line):
             file_path = Path(source_file.file_path)
-            if (
-                changes is not None
-                and file_path not in changes.new_files
-                and not changes.touches(file_path, function.start_line, function.end_line)
-            ):
+            if changes is not None and _function_is_unchanged(changes, file_path, function):
                 continue
             candidate = FunctionComplexity(
                 file_path=source_file.file_path,

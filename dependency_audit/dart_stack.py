@@ -7,7 +7,7 @@ import urllib.request
 from collections.abc import Callable
 from pathlib import Path
 
-from dependency_audit.command import AuditToolError, parse_json, resolve_tool, run_tool
+from dependency_audit.command import AuditToolError, parse_json, run_tool
 from dependency_audit.models import (
     Advisory,
     AuditReport,
@@ -39,7 +39,10 @@ def parse_pub_outdated(data: dict[str, object], advisories: bool = False) -> lis
             continue
         current = item.get("current") or {}
         latest = item.get("latest") or {}
-        if current.get("version") and latest.get("version") and current["version"] != latest["version"]:
+        current_version = current.get("version")
+        latest_version = latest.get("version")
+        has_different_versions = bool(current_version and latest_version) and current_version != latest_version
+        if has_different_versions:
             outdated.append(OutdatedPackage(ECOSYSTEM, item["package"], current["version"], latest["version"]))
     return outdated
 

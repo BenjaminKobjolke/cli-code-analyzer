@@ -24,8 +24,13 @@ def parse_eslint_json(data: list[dict], get_relative_path, logger) -> list[Viola
     """Parse ESLint --format json output into violations."""
     violations: list[Violation] = []
     for file_result in data:
-        if not isinstance(file_result, dict) or not isinstance(file_result.get('filePath'), str) \
-                or not isinstance(file_result.get('messages'), list):
+        if not isinstance(file_result, dict):
+            raise ValueError('ESLint returned unexpected file result structure')
+        has_valid_file_result = (
+            isinstance(file_result.get('filePath'), str)
+            and isinstance(file_result.get('messages'), list)
+        )
+        if not has_valid_file_result:
             raise ValueError('ESLint returned unexpected file result structure')
         file_path = file_result['filePath']
         for message in file_result['messages']:

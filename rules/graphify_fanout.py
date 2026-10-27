@@ -270,6 +270,11 @@ class GraphifyFanoutRule(ProjectWideRule):
     @staticmethod
     def _parse_line(location: Any) -> int | None:
         """graphify stores locations like 'L12'; extract the number if present."""
-        if isinstance(location, str) and location.startswith('L') and location[1:].isdigit():
-            return int(location[1:])
-        return None
+        if not isinstance(location, str):
+            return None
+        if not location.startswith('L'):
+            return None
+        line_number = location[1:]
+        if not line_number.isdigit():
+            return None
+        return int(line_number)

@@ -66,7 +66,8 @@ class PHPStanAnalyzeRule(ProjectWideRule):
         config_file = resolve_config_file(self.base_path, self.config)
         bootstrap_files = resolve_bootstrap_files(self.base_path, self.config)
         exclude_dirs = resolve_exclude_dirs(self.base_path, self.config)
-        if config_file or bootstrap_files or exclude_dirs:
+        has_custom_config = any((config_file, bootstrap_files, exclude_dirs))
+        if has_custom_config:
             neon = build_phpstan_config(config_file, bootstrap_files, exclude_dirs)
             fd, neon_path = tempfile.mkstemp(suffix='.neon', text=True)
             with os.fdopen(fd, 'w', encoding='utf-8') as f:
@@ -91,15 +92,20 @@ class PHPStanAnalyzeRule(ProjectWideRule):
             documents = self._run_json('PHPStan', commands, self.base_path)
             data = {'files': {}, 'errors': []}
             for document in documents:
-                if not isinstance(document, dict) or not isinstance(document.get('files'), (dict, list)) \
-                        or not isinstance(document.get('errors'), list) or \
-                        (isinstance(document['files'], list) and document['files']):
+                files = document.get('files') if isinstance(document, dict) else None
+                has_valid_document_shape = (
+                    isinstance(document, dict)
+                    and isinstance(files, (dict, list))
+                    and isinstance(document.get('errors'), list)
+                    and not (isinstance(files, list) and files)
+                )
+                if not has_valid_document_shape:
                     raise ValueError('PHPStan returned unexpected JSON structure')
-                if isinstance(document['files'], dict):
+                if isinstance(files, dict):
                     if any(not isinstance(file_data, dict) or not isinstance(file_data.get('messages'), list)
-                           for file_data in document['files'].values()):
+                           for file_data in files.values()):
                         raise ValueError('PHPStan returned unexpected file result structure')
-                    data['files'].update(document['files'])
+                    data['files'].update(files)
                 data['errors'].extend(document['errors'])
             violations = self._parse_phpstan_json(data)
         except FileNotFoundError:

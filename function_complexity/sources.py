@@ -69,7 +69,9 @@ def read_paths(root: Path, files_from: Path) -> list[SourceFile]:
         except (OSError, ValueError):
             continue
         language = LANGUAGE_BY_EXTENSION.get(resolved.suffix.lower())
-        if language is None or not resolved.is_file() or relative_path in seen:
+        if language is None:
+            continue
+        if not resolved.is_file() or relative_path in seen:
             continue
         seen.add(relative_path)
         paths.append(SourceFile(resolved, relative_path, language))
