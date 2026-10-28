@@ -50,5 +50,6 @@
     "tools\\run_tests.bat": "test",
     "tools\\run_integration_tests.bat": "test",
     "tools\\analyze_changed_and_new_files.bat": "code_quality"
-  }
+  },
+  "project_id": 12287
 }
