@@ -97,6 +97,7 @@ The pipeline flows: `main.py` (CLI parsing) -> `CodeAnalyzer` (orchestration) ->
 
 - **Project-wide** (most analyzers): Run once via `analyzer.py:analyze()`. The rule's `check()` is called once, often using an `_executed` flag to prevent re-runs. Examples: `dart_analyze`, `pmd_duplicates`, `ruff_analyze`, `eslint_analyze`.
 - **Per-file** (`max_lines_per_file`): Run in `analyzer.py:_check_file()` for every discovered file.
+- Package-aware Dart rules run once per package when `--path` has no root `pubspec.yaml` and contains package manifests.
 
 ### Log level resolution
 

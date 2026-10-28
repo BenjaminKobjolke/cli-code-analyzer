@@ -12,6 +12,12 @@ This guide explains how to set up cli-code-analyzer for Flutter/Dart projects.
 
 ## Quick Start
 
+When `--path` points to a workspace folder without a root `pubspec.yaml`, the Dart package rules
+discover package manifests below that folder and run once for each package. Rules that require a
+package setting or tool dependency report a failure with the package path when it is missing.
+Nested package manifests inside a discovered package (such as an `example/` package) are not
+treated as separate workspace packages.
+
 ```bash
 python main.py --language flutter --path /path/to/your/project/lib
 ```

@@ -196,6 +196,6 @@ python main.py --language dart --path ./lib --rules rules.json --output ./report
 ## Notes
 
 - Analyzes metrics at file, class, and function levels
-- Requires `pubspec.yaml` with dart_code_linter in dev_dependencies
+- Requires `pubspec.yaml` with dart_code_linter in `dev_dependencies` for each analyzed package. When the selected root has no pubspec, package manifests are discovered below it and each package is checked; a package missing the dependency fails the analyzer and is named in the message.
 - Generates intermediate `report.json` (cleaned up by default)
 - Uses `dart run dart_code_linter:metrics analyze` internally
