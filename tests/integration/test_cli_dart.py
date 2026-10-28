@@ -80,3 +80,29 @@ def test_cli_dart_unused_code_confirms_source_references(tmp_path):
     messages = [v['message'] for v in data['violations'] if v['rule_name'] == 'dart_unused_code']
     assert any("Unused class 'Dead'" in message for message in messages)
     assert not any("Unused class 'Keys'" in message for message in messages)
+
+
+def test_cli_dart_unused_files_checks_each_rootless_workspace_package(tmp_path):
+    packages = ("alpha", "beta")
+    for package in packages:
+        package_root = tmp_path / "packages" / package
+        lib = package_root / "lib"
+        lib.mkdir(parents=True)
+        (package_root / "pubspec.yaml").write_text(
+            f"name: {package}\n", encoding="utf-8")
+        (lib / "main.dart").write_text("void main() {}\n", encoding="utf-8")
+        (lib / "orphan.dart").write_text("class Orphan {}\n", encoding="utf-8")
+
+    rules = tmp_path / "rules.json"
+    rules.write_text(json.dumps({"dart_unused_files": {"enabled": True}}), encoding="utf-8")
+    cmd = [sys.executable, str(ROOT / "main.py"), "--language", "flutter", "--path",
+           str(tmp_path), "--rules", str(rules), "--format", "json"]
+
+    result = subprocess.run(cmd, capture_output=True, text=True, timeout=60, check=False)
+    text = result.stdout.strip()
+    data = json.loads(text[text.find("{"):text.rfind("}") + 1])
+
+    assert not data["failures"], data["failures"]
+    found = {v["file_path"].replace("\\", "/") for v in data["violations"]
+             if v["rule_name"] == "dart_unused_files"}
+    assert found == {f"packages/{package}/lib/orphan.dart" for package in packages}

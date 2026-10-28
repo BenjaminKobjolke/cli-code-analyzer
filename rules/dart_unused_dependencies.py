@@ -7,16 +7,16 @@ from pathlib import Path
 import yaml
 
 from models import RuleResult, Violation
-from rules.base import ProjectWideRule
+from rules.dart_package_rule import DartPackageRule
 from rules.dart_utils import collect_dart_files, parse_imports
 
 
-class DartUnusedDependenciesRule(ProjectWideRule):
+class DartUnusedDependenciesRule(DartPackageRule):
     """Find packages listed in pubspec.yaml that are never imported in code."""
 
     rule_name = 'dart_unused_dependencies'
 
-    def _run(self, _file_path: Path) -> RuleResult:
+    def _run_package(self, _file_path: Path) -> RuleResult:
         self.logger.info("\nRunning dart unused dependencies check...")
 
         project_root = self._find_pubspec()
@@ -84,7 +84,7 @@ class DartUnusedDependenciesRule(ProjectWideRule):
             if pkg not in used_in_lib:
                 rel_scan = ', '.join(dep_scan_paths)
                 violations.append(Violation(
-                    file_path='pubspec.yaml',
+                    file_path=self._workspace_relative('pubspec.yaml') or 'pubspec.yaml',
                     rule_name='dart_unused_dependencies',
                     severity=severity,
                     message=f"Package '{pkg}' is listed in pubspec.yaml dependencies but never imported in {rel_scan}"
@@ -95,7 +95,7 @@ class DartUnusedDependenciesRule(ProjectWideRule):
             if pkg not in used_in_test and pkg not in used_in_lib:
                 rel_scan = ', '.join(dev_scan_paths)
                 violations.append(Violation(
-                    file_path='pubspec.yaml',
+                    file_path=self._workspace_relative('pubspec.yaml') or 'pubspec.yaml',
                     rule_name='dart_unused_dependencies',
                     severity=severity,
                     message=f"Package '{pkg}' is listed in pubspec.yaml dev_dependencies but never imported in {rel_scan}"

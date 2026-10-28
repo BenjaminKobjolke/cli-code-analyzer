@@ -6,7 +6,7 @@ from collections import deque
 from pathlib import Path
 
 from models import RuleResult, Severity, Violation
-from rules.base import ProjectWideRule
+from rules.dart_package_rule import DartPackageRule
 from rules.dart_utils import (
     collect_dart_files,
     get_package_name,
@@ -16,12 +16,12 @@ from rules.dart_utils import (
 )
 
 
-class DartUnusedFilesRule(ProjectWideRule):
+class DartUnusedFilesRule(DartPackageRule):
     """Find .dart files that are never imported/exported by any other file in the project."""
 
     rule_name = 'dart_unused_files'
 
-    def _run(self, _file_path: Path) -> RuleResult:
+    def _run_package(self, _file_path: Path) -> RuleResult:
         self.logger.info("\nRunning dart unused files check...")
 
         project_root = self._find_pubspec()

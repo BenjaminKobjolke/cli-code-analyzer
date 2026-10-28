@@ -12,6 +12,27 @@ DART_SKIP_DIRECTORIES = frozenset({'.dart_tool', 'build', '.git', 'ios', 'androi
                                    'web', 'linux', 'macos', 'windows'})
 
 
+def find_dart_package_roots(base_path: Path) -> list[Path]:
+    """Find pub packages without descending into a package's nested directories."""
+    roots = []
+
+    def raise_walk_error(error: OSError) -> None:
+        raise error
+
+    for root, dirs, _ in os.walk(base_path, onerror=raise_walk_error):
+        current = Path(root)
+        if (current / 'pubspec.yaml').is_file():
+            roots.append(current)
+            dirs.clear()
+            continue
+        dirs[:] = [name for name in dirs
+                   if name not in DART_SKIP_DIRECTORIES
+                   and name != 'node_modules'
+                   and not name.startswith('.')]
+
+    return sorted(roots)
+
+
 def collect_project_dart_files(project_root: Path) -> list[Path]:
     """All .dart files of a project, skipping build, cache and platform folders."""
     files = []

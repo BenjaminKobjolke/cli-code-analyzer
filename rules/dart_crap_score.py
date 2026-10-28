@@ -19,14 +19,14 @@ import yaml
 
 from models import RuleResult, Violation
 from rules._crap import CrapScoreMixin, crap_score
-from rules.base import ProjectWideRule
 from rules.context import RuleContext
 from rules.dart_crap_io import DartCrapIOMixin
+from rules.dart_package_rule import DartPackageRule
 
 DEFAULT_EXCLUDE = ['*.g.dart', '*.freezed.dart']
 
 
-class DartCrapScoreRule(CrapScoreMixin, DartCrapIOMixin, ProjectWideRule):
+class DartCrapScoreRule(CrapScoreMixin, DartCrapIOMixin, DartPackageRule):
     """Per-function CRAP score for Dart/Flutter projects."""
 
     rule_name = 'dart_crap_score'
@@ -35,7 +35,7 @@ class DartCrapScoreRule(CrapScoreMixin, DartCrapIOMixin, ProjectWideRule):
         super().__init__(ctx)
         self.project_root: Path | None = None
 
-    def _run(self, _file_path: Path) -> RuleResult:
+    def _run_package(self, _file_path: Path) -> RuleResult:
         self.logger.info("\nRunning dart_crap_score check...")
 
         self.project_root = self._find_pubspec()

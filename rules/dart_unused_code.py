@@ -6,7 +6,7 @@ import re
 from pathlib import Path
 
 from models import RuleResult, Violation
-from rules.base import ProjectWideRule
+from rules.dart_package_rule import DartPackageRule
 from rules.dart_utils import collect_dart_files, collect_project_dart_files
 
 # Optional dependency: dart-lsp-mcp
@@ -17,12 +17,12 @@ except ImportError:
     HAS_DART_LSP = False
 
 
-class DartUnusedCodeRule(ProjectWideRule):
+class DartUnusedCodeRule(DartPackageRule):
     """Find unused classes, functions, enums, mixins, typedefs, extensions across the project using LSP."""
 
     rule_name = 'dart_unused_code'
 
-    def _run(self, _file_path: Path) -> RuleResult:
+    def _run_package(self, _file_path: Path) -> RuleResult:
         self.logger.info("\nRunning dart unused code check...")
 
         if not HAS_DART_LSP:

@@ -6,7 +6,7 @@ Uses dart-lsp-mcp for accurate type analysis.
 from pathlib import Path
 
 from models import RuleResult, Violation
-from rules.base import ProjectWideRule
+from rules.dart_package_rule import DartPackageRule
 from rules.dart_utils import collect_dart_files
 
 # Optional dependency: dart-lsp-mcp
@@ -31,12 +31,12 @@ DEFAULT_DISPOSABLE_TYPES = {
 }
 
 
-class DartMissingDisposeRule(ProjectWideRule):
+class DartMissingDisposeRule(DartPackageRule):
     """Detect controllers/subscriptions/timers created as fields but never disposed."""
 
     rule_name = 'dart_missing_dispose'
 
-    def _run(self, _file_path: Path) -> RuleResult:
+    def _run_package(self, _file_path: Path) -> RuleResult:
         self.logger.info("\nRunning dart missing dispose check...")
 
         if not HAS_DART_LSP:

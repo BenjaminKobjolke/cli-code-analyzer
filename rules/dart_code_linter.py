@@ -12,11 +12,11 @@ from typing import Any, ClassVar
 import yaml
 
 from models import RuleResult, Severity, Violation
-from rules.base import ProjectWideRule
 from rules.context import RuleContext
+from rules.dart_package_rule import DartPackageRule
 
 
-class DartCodeLinterRule(ProjectWideRule):
+class DartCodeLinterRule(DartPackageRule):
     """Rule to analyze Dart/Flutter code metrics using dart_code_linter"""
 
     rule_name = 'dart_code_linter'
@@ -25,7 +25,7 @@ class DartCodeLinterRule(ProjectWideRule):
         super().__init__(ctx)
         self.project_root = None
 
-    def _run(self, _file_path: Path) -> RuleResult:
+    def _run_package(self, _file_path: Path) -> RuleResult:
         self.logger.info("\nChecking dart_code_linter metrics...")
 
         dart_cmd = self._get_dart_command()
@@ -170,7 +170,13 @@ class DartCodeLinterRule(ProjectWideRule):
         # metric scope is implied by the placement.
         applicable += thresholds[metric_id].get('exceptions', [])
         tc = {**thresholds[metric_id], 'exceptions': applicable}
-        eff = self._get_threshold_for_file(Path(file_path), tc, metric_id)
+        workspace_path = self._workspace_relative(file_path)
+        threshold_path = Path(file_path)
+        if workspace_path:
+            threshold_root = self.base_path or self._package_root
+            if threshold_root is not None:
+                threshold_path = threshold_root / workspace_path
+        eff = self._get_threshold_for_file(threshold_path, tc, metric_id)
         err_th, warn_th = eff.get('error'), eff.get('warning')
         if err_th == 0 and warn_th == 0:
             return None
@@ -188,7 +194,7 @@ class DartCodeLinterRule(ProjectWideRule):
             return None
 
         try:
-            rel_path = self._get_relative_path(Path(file_path))
+            rel_path = workspace_path or self._get_relative_path(Path(file_path))
         except Exception:
             rel_path = file_path
 

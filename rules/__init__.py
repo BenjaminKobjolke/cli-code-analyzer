@@ -9,6 +9,7 @@ from rules.dart_code_linter import DartCodeLinterRule
 from rules.dart_crap_score import DartCrapScoreRule
 from rules.dart_import_rules import DartImportRulesRule
 from rules.dart_missing_dispose import DartMissingDisposeRule
+from rules.dart_package_rule import DartPackageRule
 from rules.dart_test_coverage import DartTestCoverageRule
 from rules.dart_unused_code import DartUnusedCodeRule
 from rules.dart_unused_dependencies import DartUnusedDependenciesRule
@@ -40,6 +41,7 @@ __all__ = [
     'DartCrapScoreRule',
     'DartImportRulesRule',
     'DartMissingDisposeRule',
+    'DartPackageRule',
     'DartTestCoverageRule',
     'DartUnusedCodeRule',
     'DartUnusedDependenciesRule',

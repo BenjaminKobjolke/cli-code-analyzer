@@ -7,7 +7,7 @@ from fnmatch import fnmatch
 from pathlib import Path
 
 from models import RuleResult, Violation
-from rules.base import ProjectWideRule
+from rules.dart_package_rule import DartPackageRule
 from rules.dart_utils import (
     collect_dart_files,
     get_package_name,
@@ -16,12 +16,12 @@ from rules.dart_utils import (
 )
 
 
-class DartImportRulesRule(ProjectWideRule):
+class DartImportRulesRule(DartPackageRule):
     """Enforce architecture layer boundaries via configurable forbidden import rules."""
 
     rule_name = 'dart_import_rules'
 
-    def _run(self, _file_path: Path) -> RuleResult:
+    def _run_package(self, _file_path: Path) -> RuleResult:
         self.logger.info("\nRunning dart import rules check...")
 
         project_root = self._find_pubspec()

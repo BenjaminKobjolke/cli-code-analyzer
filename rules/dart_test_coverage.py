@@ -6,15 +6,15 @@ import re
 from pathlib import Path
 
 from models import RuleResult, Severity, Violation
-from rules.base import ProjectWideRule
+from rules.dart_package_rule import DartPackageRule
 
 
-class DartTestCoverageRule(ProjectWideRule):
+class DartTestCoverageRule(DartPackageRule):
     """Run Flutter tests and check coverage against configurable thresholds."""
 
     rule_name = 'dart_test_coverage'
 
-    def _run(self, _file_path: Path) -> RuleResult:
+    def _run_package(self, _file_path: Path) -> RuleResult:
         self.logger.info("\nRunning dart test coverage check...")
 
         project_root = self._find_pubspec()
@@ -174,7 +174,8 @@ class DartTestCoverageRule(ProjectWideRule):
                 if not excluded and current_total > 0:
                     # Normalize file path
                     try:
-                        rel_path = self._get_relative_path(Path(current_file))
+                        rel_path = (self._workspace_relative(current_file)
+                                    or self._get_relative_path(Path(current_file)))
                     except Exception:
                         rel_path = current_file
 

@@ -10,11 +10,11 @@ from typing import Any
 import yaml
 
 from models import RuleResult, Severity, Violation
-from rules.base import ProjectWideRule
 from rules.context import RuleContext
+from rules.dart_package_rule import DartPackageRule
 
 
-class FlutterAnalyzeRule(ProjectWideRule):
+class FlutterAnalyzeRule(DartPackageRule):
     """Rule to analyze Flutter code using flutter analyze"""
 
     rule_name = 'flutter_analyze'
@@ -23,7 +23,7 @@ class FlutterAnalyzeRule(ProjectWideRule):
         super().__init__(ctx)
         self.project_root = None
 
-    def _run(self, _file_path: Path) -> RuleResult:
+    def _run_package(self, _file_path: Path) -> RuleResult:
         self.logger.info("\nRunning flutter analyze...")
 
         if not self._is_flutter_project():
@@ -123,9 +123,12 @@ class FlutterAnalyzeRule(ProjectWideRule):
     def _create_violation(self, data: dict[str, Any]) -> Violation:
         """Create a Violation object from parsed data dict."""
         try:
-            file_path = Path(data['file_path'])
-            rel_path = str(file_path.resolve().relative_to(self.project_root)) if self.project_root else self._get_relative_path(file_path)
-        except (ValueError, Exception):
+            rel_path = self._workspace_relative(data['file_path'])
+            if rel_path is None:
+                file_path = Path(data['file_path'])
+                rel_path = (str(file_path.resolve().relative_to(self.project_root))
+                            if self.project_root else self._get_relative_path(file_path))
+        except Exception:
             rel_path = data['file_path']
 
         return Violation(
