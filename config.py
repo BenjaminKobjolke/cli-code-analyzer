@@ -34,10 +34,11 @@ class Config:
         """Get configuration for a specific rule"""
         return self.rules.get(rule_name, {})
 
-    def is_rule_enabled(self, rule_name: str) -> bool:
-        """Check if a rule is enabled"""
-        rule = self.get_rule(rule_name)
-        return rule.get('enabled', False)
+    def is_rule_enabled(self, rule_name: str, default_enabled: bool = False) -> bool:
+        """Check whether a configured rule is enabled, with an absent-entry default."""
+        if rule_name not in self.rules:
+            return default_enabled
+        return self.get_rule(rule_name).get('enabled', False)
 
     def get_global_log_level(self) -> str:
         """Get global log level from rules configuration.

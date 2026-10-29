@@ -75,9 +75,22 @@ def write_csv_reports(violations: list[Violation], output_folder: Path,
         output_file = output_folder / CSV_FILENAME_MAP.get(rule_name, f'{rule_name}.csv')
         with open(output_file, 'w', encoding='utf-8', newline='') as f:
             writer = csv.writer(f)
-            writer.writerow(['file_path', 'line', 'column', 'severity', 'message'])
+            writer.writerow([
+                'file_path', 'line', 'column', 'severity', 'message',
+                'function_name', 'confidence', 'evidence', 'recommendation',
+            ])
             for v in _limit_by_severity(rule_violations, max_errors):
-                writer.writerow([v.file_path, v.line or '', v.column or '', v.severity.value, v.message])
+                writer.writerow([
+                    v.file_path,
+                    v.line or '',
+                    v.column or '',
+                    v.severity.value,
+                    v.message,
+                    v.function_name or '',
+                    v.confidence or '',
+                    v.evidence or '',
+                    v.recommendation or '',
+                ])
         logger.info(f"Report saved to: {output_file}")
 
 
@@ -99,6 +112,15 @@ def build_json(violations: list[Violation], failures: list[RuleResult]) -> dict:
             d["column"] = v.column
         if v.line_count is not None:
             d["line_count"] = v.line_count
+        for field_name in (
+            "function_name",
+            "confidence",
+            "evidence",
+            "recommendation",
+        ):
+            value = getattr(v, field_name)
+            if value is not None:
+                d[field_name] = value
         violation_dicts.append(d)
 
     return {

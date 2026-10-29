@@ -13,6 +13,8 @@ ANALYZER_REGISTRY = {
         ('max_lines_per_file', 'File length checks', None),
         ('pmd_duplicates', 'Duplicate code detection', 'PMD'),
         ('pmd_similar_code', 'Similar code pattern detection', 'PMD'),
+        ('phpmd_analyze', 'PHP maintainability analysis', 'PHPMD'),
+        ('php_function_quality', 'Function-level quality metrics', 'lizard (pip, bundled)'),
         ('phpstan_analyze', 'Static analysis', 'PHPStan (composer)'),
         ('php_cs_fixer', 'Code style checking', 'PHP-CS-Fixer (composer)'),
         ('intelephense_analyze', 'LSP diagnostics', 'Intelephense (npm)'),

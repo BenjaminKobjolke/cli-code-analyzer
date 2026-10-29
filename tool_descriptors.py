@@ -126,6 +126,19 @@ TOOLS: list[ToolDescriptor] = [
         error_label="PHP-CS-Fixer",
     ),
     ToolDescriptor(
+        name="phpmd",
+        section="phpmd",
+        key="phpmd_path",
+        install_msgs=(
+            "\nPHPMD executable not found in PATH.",
+            "Install with: composer require --dev phpmd/phpmd",
+        ),
+        prompt_msg="\nEnter path to phpmd executable (or press Enter to skip): ",
+        skip_msg="Skipping phpmd analyze rule. Install PHPMD and configure later.",
+        saved_label="PHPMD",
+        error_label="PHPMD",
+    ),
+    ToolDescriptor(
         name="dotnet",
         section="dotnet",
         key="dotnet_path",

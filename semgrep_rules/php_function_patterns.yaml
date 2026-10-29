@@ -1,0 +1,202 @@
+rules:
+  - id: php-potential-n-plus-one
+    languages: [php]
+    severity: WARNING
+    message: >-
+      Potential N+1 risk: a repository or database lookup runs inside a loop. Batch the lookup,
+      preload records, or cache results by the lookup key. This is a risk to review, not proof
+      that the call accesses a database.
+    metadata:
+      category: performance
+      confidence: medium
+      evidence: repository receiver, configured lookup method, and loop context
+      recommendation: Batch or preload the lookup, or cache results by lookup key.
+    patterns:
+      - pattern-inside: |
+          foreach ($COLLECTION as $ITEM) {
+            ...
+          }
+      - pattern: $RECEIVER->$METHOD(...)
+      - metavariable-regex:
+          metavariable: $RECEIVER
+          regex: (?i).*(repo|repository|entitymanager|manager|database|connection|\bdb\b).*
+      - metavariable-regex:
+          metavariable: $METHOD
+          regex: (?i)^(findbyid|findactivebyid|findoneby|findby|find|findmany|query|select|execute|fetch|fetchall)$
+
+  - id: php-nested-database-loop-risk
+    languages: [php]
+    severity: WARNING
+    message: >-
+      Potential repeated database work in nested loops: a repository or query operation is
+      nested under two loops. Move the lookup out, batch it, or cache by key; review whether the
+      receiver actually performs database work.
+    metadata:
+      category: performance
+      confidence: medium
+      evidence: repository receiver, configured query method, and nested loop context
+      recommendation: Move the query outside the loops, batch it, or cache results by key.
+    patterns:
+      - pattern-inside: |
+          foreach ($OUTER as $OUTER_ITEM) {
+            ...
+            foreach ($INNER as $INNER_ITEM) {
+              ...
+            }
+            ...
+          }
+      - pattern: $RECEIVER->$METHOD(...)
+      - metavariable-regex:
+          metavariable: $RECEIVER
+          regex: (?i).*(repo|repository|entitymanager|manager|database|connection|\bdb\b).*
+      - metavariable-regex:
+          metavariable: $METHOD
+          regex: (?i)^(findbyid|findactivebyid|findoneby|findby|find|findmany|query|select|execute|fetch|fetchall)$
+
+  - id: php-repeated-expensive-operation
+    languages: [php]
+    severity: WARNING
+    message: >-
+      Potential repeated expensive operation: the same repository or database call with the
+      same argument appears more than once in a function. Store the result once or confirm that
+      repeating the operation is required.
+    metadata:
+      category: performance
+      confidence: medium
+      evidence: identical receiver, method, and argument in repeated calls
+      recommendation: Store and reuse the result when the repeated call is unnecessary.
+    patterns:
+      - pattern-inside: |
+          function $FUNCTION(...) {
+            ...
+          }
+      - pattern: |
+          $RECEIVER->$METHOD($ARG);
+          ...
+          $RECEIVER->$METHOD($ARG);
+      - metavariable-regex:
+          metavariable: $RECEIVER
+          regex: (?i).*(repo|repository|entitymanager|manager|database|connection|\bdb\b).*
+      - metavariable-regex:
+          metavariable: $METHOD
+          regex: (?i)^(findbyid|findactivebyid|findoneby|findby|find|findmany|query|select|execute|fetch|fetchall)$
+
+  - id: php-repeated-validation
+    languages: [php]
+    severity: WARNING
+    message: >-
+      Potential repeated validation: the same validation call with the same value appears more
+      than once in a function. Reuse the validation result or confirm the repeated check is
+      required.
+    metadata:
+      category: maintainability
+      confidence: medium
+      evidence: identical validator receiver, method, and argument in repeated calls
+      recommendation: Reuse the validation result when repeating the check is unnecessary.
+    patterns:
+      - pattern-inside: |
+          function $FUNCTION(...) {
+            ...
+          }
+      - pattern: |
+          $VALIDATOR->$METHOD($VALUE);
+          ...
+          $VALIDATOR->$METHOD($VALUE);
+      - metavariable-regex:
+          metavariable: $VALIDATOR
+          regex: (?i).*(validat|validator|assert|constraint).*
+      - metavariable-regex:
+          metavariable: $METHOD
+          regex: (?i)^(validate|assertvalid|check|isvalid)$
+
+  - id: php-many-dependencies
+    languages: [php]
+    severity: WARNING
+    message: >-
+      Potential hard-to-test function: at least four parameters look like injected services or
+      collaborators. Consider grouping related work behind a focused collaborator.
+    metadata:
+      category: maintainability
+      confidence: medium
+      evidence: four dependency-like parameter names in one function signature
+      recommendation: Group related work behind a focused collaborator.
+    patterns:
+      - pattern: |
+          function $FUNCTION($DEPENDENCY1, $DEPENDENCY2, $DEPENDENCY3, $DEPENDENCY4, ...) {
+            ...
+          }
+      - metavariable-regex:
+          metavariable: $DEPENDENCY1
+          regex: (?i).*(repository|repo|service|manager|client|mailer|renderer|gateway|provider|factory).*
+      - metavariable-regex:
+          metavariable: $DEPENDENCY2
+          regex: (?i).*(repository|repo|service|manager|client|mailer|renderer|gateway|provider|factory).*
+      - metavariable-regex:
+          metavariable: $DEPENDENCY3
+          regex: (?i).*(repository|repo|service|manager|client|mailer|renderer|gateway|provider|factory).*
+      - metavariable-regex:
+          metavariable: $DEPENDENCY4
+          regex: (?i).*(repository|repo|service|manager|client|mailer|renderer|gateway|provider|factory).*
+
+  - id: php-mixed-responsibilities
+    languages: [php]
+    severity: WARNING
+    message: >-
+      Potential mixed responsibilities: this function combines repository/database access with
+      rendering or message delivery. Consider separating data loading from presentation or
+      delivery; confirm that these operations represent separate responsibilities.
+    metadata:
+      category: maintainability
+      confidence: medium
+      evidence: data-access call and delivery call in one loop
+      recommendation: Separate data loading from presentation or message delivery.
+    patterns:
+      - pattern-inside: |
+          foreach ($COLLECTION as $ITEM) {
+            ...
+          }
+      - pattern: |
+          $VALUE = $REPOSITORY->findById(...);
+          ...
+          $MAILER->send(...);
+      - metavariable-regex:
+          metavariable: $REPOSITORY
+          regex: (?i).*(repo|repository|manager|database|connection|\bdb\b).*
+
+  - id: php-hardcoded-fallback
+    languages: [php]
+    severity: WARNING
+    message: >-
+      Potential hard-coded fallback text: a literal string is used when a value is absent.
+      Consider a named constant or translation entry if this text is user-facing or reused.
+    metadata:
+      category: maintainability
+      confidence: low
+      evidence: literal string on the fallback side of a null-coalescing expression
+      recommendation: Use a named constant or translation entry if the text is user-facing or reused.
+    pattern-regex: \?\?\s*(['"])[^'"\r\n]+['"]
+
+  - id: php-duplicate-sensitive-counting
+    languages: [php]
+    severity: WARNING
+    message: >-
+      Potential duplicate-sensitive aggregation: a count is incremented while iterating request,
+      queue, item, or record data. Confirm the input is unique or deduplicate before counting.
+      This is a risk signal, not proof that duplicate entries exist.
+    metadata:
+      category: maintainability
+      confidence: low
+      evidence: increment operation inside a loop over collection-like data
+      recommendation: Confirm input uniqueness or deduplicate before counting.
+    patterns:
+      - pattern-inside: |
+          foreach ($ITEMS as $ITEM) {
+            ...
+          }
+      - pattern: $COUNT++;
+      - metavariable-regex:
+          metavariable: $ITEMS
+          regex: (?i).*(queue|request|item|record|result).*
+      - metavariable-regex:
+          metavariable: $COUNT
+          regex: (?i).*(count|total|number|quantity).*

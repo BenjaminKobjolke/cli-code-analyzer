@@ -56,7 +56,10 @@ def _run_pmd_json(language: str, fixture_dir: Path, focus_file: Path, tmp_path: 
 
     --file silences logger output (quiet mode) so stdout is pure JSON.
     """
-    rules = {"pmd_duplicates": {"enabled": True, "minimum_tokens": 50}}
+    rules = {
+        "pmd_duplicates": {"enabled": True, "minimum_tokens": 50},
+        "phpmd_analyze": {"enabled": False},
+    }
     rules_file = tmp_path / "rules.json"
     rules_file.write_text(json.dumps(rules), encoding="utf-8")
     cmd = [

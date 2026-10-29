@@ -252,7 +252,30 @@
   "semgrep_analyze": {
     "enabled": true,
     "config": null,
-    "exclude_patterns": ["node_modules", ".venv", "venv", "vendor", "build", "dist", ".dart_tool", "*.g.dart", "*.freezed.dart"]
+    "exclude_patterns": ["node_modules", ".venv", "venv", "vendor", "build", "dist", ".dart_tool", "*.g.dart", "*.freezed.dart"],
+    "php_exclude_patterns": ["vendor"],
+    "repository_receiver_patterns": [".*(repo|repository|entitymanager|manager|database|connection|\\bdb\\b).*"],
+    "repository_method_patterns": ["^(findbyid|findactivebyid|findoneby|findby|find|findmany|query|select|execute|fetch|fetchall)$"],
+    "php_rules": {
+      "php-potential-n-plus-one": true,
+      "php-nested-database-loop-risk": true,
+      "php-repeated-expensive-operation": true,
+      "php-repeated-validation": true,
+      "php-many-dependencies": true,
+      "php-mixed-responsibilities": true,
+      "php-hardcoded-fallback": true,
+      "php-duplicate-sensitive-counting": true
+    },
+    "php_rule_severity": {
+      "php-potential-n-plus-one": "warning",
+      "php-nested-database-loop-risk": "warning",
+      "php-repeated-expensive-operation": "warning",
+      "php-repeated-validation": "warning",
+      "php-many-dependencies": "warning",
+      "php-mixed-responsibilities": "warning",
+      "php-hardcoded-fallback": "warning",
+      "php-duplicate-sensitive-counting": "warning"
+    }
   },
   "python_crap_score": {
     "enabled": false,
@@ -264,5 +287,17 @@
     "error": 30,
     "exclude_patterns": ["**/__pycache__/**", "*.pyc", "**/.venv/**", "**/venv/**"],
     "exceptions": []
+  },
+  "php_function_quality": {
+    "enabled": true,
+    "function_length": {"warning": 50, "error": 100, "exceptions": []},
+    "cyclomatic_complexity": {"warning": 10, "error": 15, "exceptions": []},
+    "cognitive_complexity": {"warning": 15, "error": 25, "exceptions": []},
+    "nesting_depth": {"warning": 4, "error": 6, "exceptions": []},
+    "parameter_count": {"warning": 5, "error": 8, "exceptions": []},
+    "exclude_patterns": ["vendor/**", "**/vendor/**"]
+  },
+  "phpmd_analyze": {
+    "enabled": true
   }
 }

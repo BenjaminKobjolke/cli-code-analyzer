@@ -22,6 +22,8 @@ from rules.intelephense_analyze import IntelephenseAnalyzeRule
 from rules.kotlin_complexity import KotlinComplexityRule
 from rules.max_lines import MaxLinesRule
 from rules.php_cs_fixer_analyze import PHPCSFixerAnalyzeRule
+from rules.php_function_quality import PHPFunctionQualityRule
+from rules.phpmd_analyze import PHPMDAnalyzeRule
 from rules.phpstan_analyze import PHPStanAnalyzeRule
 from rules.pmd_duplicates import PMDDuplicatesRule
 from rules.pmd_similar_code import PMDSimilarCodeRule
@@ -54,6 +56,8 @@ __all__ = [
     'KotlinComplexityRule',
     'MaxLinesRule',
     'PHPCSFixerAnalyzeRule',
+    'PHPFunctionQualityRule',
+    'PHPMDAnalyzeRule',
     'PHPStanAnalyzeRule',
     'PMDDuplicatesRule',
     'PMDSimilarCodeRule',

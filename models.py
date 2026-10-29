@@ -4,6 +4,7 @@ Data models for the code analyzer
 
 from dataclasses import dataclass, field
 from enum import Enum
+from typing import Literal
 
 
 class Severity(Enum):
@@ -37,6 +38,10 @@ class Violation:
     line_count: int = None
     line: int = None      # Source line number (1-based)
     column: int = None    # Source column number (1-based)
+    function_name: str | None = None
+    confidence: Literal["high", "medium", "low"] | None = None
+    evidence: str | None = None
+    recommendation: str | None = None
 
 
 class RuleStatus(Enum):

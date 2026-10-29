@@ -168,6 +168,7 @@ class Reporter:
             for violation in group:
                 self.logger.info(f"  {violation.file_path}")
                 self.logger.info(f"    {violation.message}")
+                self._report_violation_details(violation)
                 self.logger.info()
 
         # Summary
@@ -224,4 +225,17 @@ class Reporter:
                 detail = excess_template.format(excess=excess)
                 self.logger.info(f"    Lines: {violation.line_count} / {threshold} ({detail})")
             self.logger.info(f"    Message: {violation.message}")
+            self._report_violation_details(violation)
             self.logger.info()
+
+    def _report_violation_details(self, violation: Violation) -> None:
+        """Print optional function context only when a finding provides it."""
+        details = (
+            ("Function", violation.function_name),
+            ("Confidence", violation.confidence),
+            ("Evidence", violation.evidence),
+            ("Recommendation", violation.recommendation),
+        )
+        for label, value in details:
+            if value is not None:
+                self.logger.info(f"    {label}: {value}")

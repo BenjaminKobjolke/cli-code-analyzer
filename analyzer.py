@@ -20,10 +20,17 @@ from project_wide_rules import FILTER_INCAPABLE, PROJECT_WIDE_ANALYZERS
 from rules import (
     KotlinComplexityRule,
     MaxLinesRule,
+    PHPFunctionQualityRule,
     PMDDuplicatesRule,
     PMDSimilarCodeRule,
 )
 from rules.context import RuleContext
+
+PHP_DEFAULT_ANALYZERS = frozenset({
+    'phpmd_analyze',
+    'php_function_quality',
+    'semgrep_analyze',
+})
 
 
 @dataclass(frozen=True)
@@ -87,14 +94,19 @@ class CodeAnalyzer:
         return analyzers
 
     def _should_run(self, analyzer_name: str) -> bool:
-        """Check if an analyzer should run (in language set AND enabled in rules).
+        """Check language registration, rule enablement, and requested filtering.
 
         When only_analyzers is set (--only-analyzer), it further narrows the set —
-        it never re-enables an analyzer disabled in rules.json.
+        it never re-enables an analyzer disabled in rules.json. A small set of
+        PHP analyzers defaults on only when its rule entry is absent.
         """
         if self.only_analyzers is not None and analyzer_name not in self.only_analyzers:
             return False
-        return analyzer_name in self._enabled_analyzers and self.config.is_rule_enabled(analyzer_name)
+        php_default = analyzer_name in PHP_DEFAULT_ANALYZERS and 'php' in self.languages
+        return analyzer_name in self._enabled_analyzers and self.config.is_rule_enabled(
+            analyzer_name,
+            default_enabled=php_default,
+        )
 
     def _get_languages_for_analyzer(self, analyzer_name: str) -> list[str]:
         """Get which of the requested languages have a given analyzer registered."""
@@ -177,6 +189,8 @@ class CodeAnalyzer:
                     continue
                 self._print_language_header(analyzer_name)
                 rule_config = self.config.get_rule(analyzer_name)
+                if analyzer_name == 'semgrep_analyze':
+                    rule_config = {**rule_config, '_selected_languages': self.languages}
                 rule = RuleClass(self._make_ctx(rule_config))
                 self._run_and_record(rule, self.files[0])
 
@@ -244,6 +258,11 @@ class CodeAnalyzer:
         if self._should_run('kotlin_complexity'):
             rule_config = self.config.get_rule('kotlin_complexity')
             rule = KotlinComplexityRule(self._make_ctx(rule_config))
+            self._run_and_record(rule, file_path)
+
+        if self._should_run('php_function_quality'):
+            rule_config = self.config.get_rule('php_function_quality')
+            rule = PHPFunctionQualityRule(self._make_ctx(rule_config))
             self._run_and_record(rule, file_path)
 
     def _run_and_record(self, rule, file_path: Path) -> None:
