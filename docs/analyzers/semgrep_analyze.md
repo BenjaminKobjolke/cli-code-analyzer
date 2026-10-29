@@ -2,7 +2,7 @@
 
 ## Overview
 
-Project-wide pattern scanning using [semgrep](https://github.com/semgrep/semgrep). Ships with bundled rules in `semgrep_rules/` that flag complex boolean conditions (3+ operands), e.g. `if (a && b && c)`. Registered for flutter, python, php, csharp, javascript and svelte (semgrep scans the `.js`/`.ts` files of Svelte projects, not `.svelte` markup). Not available for AutoHotkey.
+Project-wide pattern scanning using [semgrep](https://github.com/semgrep/semgrep). Ships with bundled rules in `semgrep_rules/` that flag complex boolean conditions (3+ operands), e.g. `if (a && b && c)`, plus potential PHP performance and maintainability risks. Registered for flutter, python, php, csharp, javascript and svelte (semgrep scans the `.js`/`.ts` files of Svelte projects, not `.svelte` markup). Not available for AutoHotkey.
 
 Note: Dart is an *experimental* language in semgrep Community Edition — parsing works well in practice (~100% parsed lines on real Flutter projects) but very new syntax may be skipped.
 
@@ -32,6 +32,40 @@ Semgrep runs natively on Windows (no WSL/Docker needed) since the Fall 2025 rele
 | `config` | string \| null | `null` | Semgrep `--config` value. `null` = bundled `semgrep_rules/` directory. Accepts a path (relative to `--path` or absolute) to a YAML file/directory, or a semgrep registry ref like `"p/default"` (needs network) |
 | `exclude_patterns` | array | see above | Passed to semgrep as `--exclude`. Use **simple name globs** (`venv`, `*.g.dart`), matched against file/directory names — NOT path globs. `**/venv/**`-style patterns break semgrep's target resolution on Windows (it starts scanning `venv\..`, i.e. the whole project) |
 
+### PHP rule options
+
+These options apply to the bundled PHP rules when `config` is `null`. `php_exclude_patterns`
+adds PHP-specific Semgrep excludes. The receiver and method entries are regular-expression
+alternatives matched case-insensitively; matching both still indicates only a potential database
+operation. Receiver expressions must match the full captured name, so use `.*` when matching a
+name fragment. A method name by itself never establishes database access.
+
+```json
+"semgrep_analyze": {
+  "enabled": true,
+  "config": null,
+  "php_exclude_patterns": ["vendor"],
+  "repository_receiver_patterns": [".*(repo|repository|entitymanager|manager|database|connection|\\bdb\\b).*"],
+  "repository_method_patterns": ["^(findbyid|findactivebyid|findoneby|findby|find|findmany|query|select|execute|fetch|fetchall)$"],
+  "php_rules": {
+    "php-potential-n-plus-one": true,
+    "php-hardcoded-fallback": false
+  },
+  "php_rule_severity": {
+    "php-potential-n-plus-one": "warning",
+    "php-duplicate-sensitive-counting": "info"
+  }
+}
+```
+
+Every PHP rule is enabled by default. A missing entry in `php_rules` stays enabled; set an
+individual entry to `false` to disable it. Supported rule IDs are `php-potential-n-plus-one`,
+`php-nested-database-loop-risk`, `php-repeated-expensive-operation`, `php-repeated-validation`,
+`php-many-dependencies`, `php-mixed-responsibilities`, `php-hardcoded-fallback`, and
+`php-duplicate-sensitive-counting`. `php_rule_severity` accepts `info`, `warning`, or `error`.
+When a custom Semgrep `config` is selected, the receiver and method patterns do not rewrite that
+custom ruleset, but rule switches and severity overrides still apply to matching PHP finding IDs.
+
 Violation severity comes from each semgrep rule's `severity:` (INFO/WARNING/ERROR) in the YAML. Log-level filtering and `--maxamountoferrors` apply as usual.
 
 ## Bundled rules
@@ -42,6 +76,11 @@ Violation severity comes from each semgrep rule's `severity:` (INFO/WARNING/ERRO
 - `complex-boolean-condition-python`: same for `and`/`or`.
 
 Add your own rules by dropping more YAML files into `semgrep_rules/`, or point `config` at a project-local rules directory.
+
+PHP findings are hypotheses based on source patterns. A repository-like receiver and a configured
+lookup method are required for query-risk rules, but neither proves that a database is contacted.
+Repeated-call, fallback, responsibility, and duplicate-count findings also need review in the
+surrounding code; safe batching or caching can make similar code intentional.
 
 ## Filter mode
 

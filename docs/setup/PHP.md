@@ -8,6 +8,8 @@ This guide explains how to set up cli-code-analyzer for PHP projects.
 - PHP 8.4+
 - Composer
 - PMD (optional, for duplicate code detection)
+- PHPMD (optional, function-level complexity and design checks)
+- Lizard (bundled Python dependency, function-level metrics)
 - Semgrep (optional, pattern scanning: `pip install semgrep`) — see [semgrep_analyze](../analyzers/semgrep_analyze.md)
 
 ## Quick Start
@@ -34,6 +36,22 @@ This guide explains how to set up cli-code-analyzer for PHP projects.
 | `phpstan_analyze` | Static analysis using PHPStan |
 | `php_cs_fixer` | Code style checking using PHP-CS-Fixer |
 | `intelephense_analyze` | LSP-based diagnostics using Intelephense |
+| `phpmd_analyze` | PHPMD function complexity, path complexity, size, and parameter checks |
+| `php_function_quality` | Lizard-backed function length and complexity thresholds |
+| `semgrep_analyze` | Includes potential PHP performance and maintainability patterns |
+
+The PHP-specific analyzers are enabled automatically in PHP scans when their entries are absent.
+Install PHPMD and Semgrep to use those external tools; missing tools are reported as analyzer
+failures. Lizard is included with the analyzer's Python dependencies.
+
+Set an analyzer's `enabled` field to `false` in the project rules file to opt out. Each function
+metric's `warning` and `error` limits are configurable, and path exceptions can tune thresholds
+for individual files. Semgrep's PHP checks have independent switches, severity overrides, path
+exclusions, and configurable repository receiver and lookup-method regular expressions; see
+[semgrep_analyze](../analyzers/semgrep_analyze.md). The receiver and method patterns reduce noise
+but cannot prove a database operation, so those reports are potential risks to review. The
+function quality analyzer estimates cognitive complexity and nesting from source text. This
+release includes deterministic checks only; it does not send source code to an AI service.
 
 ## Example Configuration
 
