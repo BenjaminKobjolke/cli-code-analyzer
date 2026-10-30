@@ -38,11 +38,12 @@ excludes, so `vendor` remains excluded even when no setting is provided. Whole-p
 the files selected by PHP file discovery directly to PHPMD. This keeps the same source scope while
 preventing PHPMD from recursively parsing excluded dependency folders.
 
-## Windows workers, timeout, and cache
+## Workers, timeout, and cache
 
-On Windows the analyzer passes `--threads=1` to PHPMD so PDepend parses files without starting
-parallel worker processes. Other platforms keep PDepend's default thread behavior. Each PHPMD
-subprocess is bounded by the analyzer's existing 300-second timeout; if it expires, PHPMD is
+The analyzer passes `--threads=1` on every platform so PDepend parses files without starting
+parallel worker processes. This keeps worker diagnostics from corrupting PDepend's framed result
+stream on large scopes. It does not reduce the selected PHP file scope or discard findings. Each
+PHPMD subprocess is bounded by the analyzer's existing 300-second timeout; if it expires, PHPMD is
 reported as failed with a timeout message instead of leaving the analyzer waiting indefinitely.
 
 PDepend prefers a writable user cache (`XDG_CACHE_HOME` or `HOME/.cache`) and only falls back to

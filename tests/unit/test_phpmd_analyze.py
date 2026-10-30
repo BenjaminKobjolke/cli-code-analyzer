@@ -64,9 +64,9 @@ def test_phpmd_invokes_xml_report_with_scoped_php_files(tmp_path: Path, monkeypa
 
 @pytest.mark.parametrize(
     ("platform", "expected_threads"),
-    [("win32", ["--threads=1"]), ("linux", [])],
+    [("win32", ["--threads=1"]), ("linux", ["--threads=1"])],
 )
-def test_phpmd_uses_single_pdepend_thread_only_on_windows(
+def test_phpmd_uses_single_pdepend_thread_to_avoid_worker_streams(
     tmp_path: Path, monkeypatch, platform: str, expected_threads: list[str]
 ):
     rule = _rule(tmp_path)
@@ -90,6 +90,64 @@ def test_phpmd_uses_single_pdepend_thread_only_on_windows(
         [argument for argument in command if argument.startswith("--threads")]
         == expected_threads
     )
+
+
+def test_phpmd_large_scope_keeps_all_files_and_findings(tmp_path: Path, monkeypatch):
+    rule = _rule(tmp_path)
+    files = [tmp_path / "src" / f"File{index:03}.php" for index in range(555)]
+    for source in files:
+        source.parent.mkdir(parents=True, exist_ok=True)
+        source.write_text("<?php\n", encoding="utf-8")
+    (tmp_path / "src" / "Example.php").unlink()
+
+    commands = []
+    monkeypatch.setattr(rule, "_get_tool_path", lambda *_args: "phpmd")
+    monkeypatch.setattr("rules.phpmd_analyze.get_bundled_php_tool_path", lambda *_args: None)
+
+    def report_each_scoped_file(command, _cwd):
+        commands.append(command)
+        scoped_files = command[2:command.index("--format")]
+        report = "".join(
+            f'<file name="{path}"><violation beginline="1" '
+            'rule="ExcessiveMethodLength">finding</violation></file>'
+            for path in scoped_files
+        )
+        return subprocess.CompletedProcess(command, 0, f"<pmd>{report}</pmd>", "")
+
+    monkeypatch.setattr(rule, "_run_subprocess", report_each_scoped_file)
+
+    result = rule.check(files[0])
+
+    assert result.status == RuleStatus.OK
+    assert len(commands) > 1
+    assert all("--threads=1" in command for command in commands)
+    assert {item.file_path for item in result.violations} == {
+        f"src/{source.name}" for source in files
+    }
+    assert len(result.violations) == len(files)
+
+
+def test_phpmd_worker_stream_corruption_is_reported_as_failure(
+    tmp_path: Path, monkeypatch
+):
+    rule = _rule(tmp_path)
+    monkeypatch.setattr(rule, "_get_tool_path", lambda *_args: "phpmd")
+    monkeypatch.setattr("rules.phpmd_analyze.get_bundled_php_tool_path", lambda *_args: None)
+    monkeypatch.setattr(
+        rule,
+        "_run_subprocess",
+        lambda command, _cwd: subprocess.CompletedProcess(
+            command,
+            1,
+            "",
+            'In WorkerProtocol.php line 85: Corrupt worker stream, expected a frame header',
+        ),
+    )
+
+    result = rule.check(tmp_path / "src" / "Example.php")
+
+    assert result.status == RuleStatus.FAILED
+    assert "Corrupt worker stream" in result.message
 
 
 def test_phpmd_timeout_is_reported_as_a_failed_result(tmp_path: Path, monkeypatch):

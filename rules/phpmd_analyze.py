@@ -1,7 +1,6 @@
 """Project-wide PHPMD analysis for PHP maintainability rules."""
 
 import subprocess
-import sys
 import xml.etree.ElementTree as ElementTree
 from pathlib import Path
 
@@ -87,8 +86,9 @@ class PHPMDAnalyzeRule(ProjectWideRule):
                     '--exclude', ','.join(exclude_patterns),
                     '--ignore-violations-on-exit', '--no-progress',
                 ])
-                if sys.platform == 'win32':
-                    command.append('--threads=1')
+                # PDepend's worker protocol shares stdout with its framed results. Keep
+                # PHPMD in-process so worker diagnostics cannot corrupt the XML run output.
+                command.append('--threads=1')
                 try:
                     result = self._run_subprocess(command, self.base_path)
                 except subprocess.TimeoutExpired as error:
