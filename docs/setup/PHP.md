@@ -44,9 +44,14 @@ This guide explains how to set up cli-code-analyzer for PHP projects.
 The PHP-specific analyzers are enabled automatically in PHP scans when their entries are absent.
 PHPMD 3 is bundled in the analyzer's `php/composer.json` development dependencies and is found
 under `php/vendor/bin` after the Composer setup above. If that bundled executable is missing, the
-analyzer retains its external fallback: a `phpmd` on `PATH`, the configured settings path, or the
-interactive path prompt. Semgrep remains an optional external tool; missing tools are reported as
-analyzer failures. Lizard is included with the analyzer's Python dependencies.
+analyzer retains its external fallback: a `phpmd` on `PATH`, a project-local Composer executable
+under the analyzed project's `vendor/bin` (including Composer's Windows `.bat` launcher), the
+configured settings path, or the interactive path prompt. To use PHPMD installed by a PHP project,
+run `composer require --dev phpmd/phpmd` in that project; the analyzer discovers its `vendor/bin`
+launcher automatically after PATH and `node_modules/.bin` lookups. If PHPMD is still unavailable,
+the analyzer reports a failure rather than treating the check as clean. Semgrep remains an optional
+external tool; missing tools are reported as analyzer failures. Lizard is included with the
+analyzer's Python dependencies.
 
 Set an analyzer's `enabled` field to `false` in the project rules file to opt out. Each function
 metric's `warning` and `error` limits are configurable, and path exceptions can tune thresholds

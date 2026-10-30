@@ -10,10 +10,13 @@ It is registered for PHP scans and is enabled by default when its rule entry is 
 `enabled` to `false` to opt out. PHPMD 3 is included in the analyzer's PHP Composer development
 dependencies. From the analyzer checkout, run `cd php && composer install` (or `php/install.bat`)
 to install it under `php/vendor/bin`. The analyzer checks that bundled executable first, then
-falls back to an external `phpmd` on `PATH`, the configured settings path, or the interactive
-path prompt. The Composer executable wrapper uses the PHP selected by the calling project's
-`PATH`. If PHPMD is unavailable or returns invalid output, the analyzer reports a failed rule
-result instead of treating the scan as clean.
+falls back to an external `phpmd` on `PATH`, a Composer-installed executable in the analyzed
+project's `vendor/bin`, the configured settings path, or the interactive path prompt. To install
+PHPMD in a PHP project, run `composer require --dev phpmd/phpmd`; project-local discovery checks
+the bare launcher and Composer's `.bat`/`.cmd` Windows launchers after PATH and `node_modules/.bin`.
+The Composer executable wrapper uses the PHP selected by the calling project's `PATH`. If PHPMD is
+unavailable or returns invalid output, the analyzer reports a failed rule result instead of treating
+the scan as clean.
 
 ## Configuration
 

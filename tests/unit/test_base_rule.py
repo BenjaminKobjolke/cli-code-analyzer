@@ -5,6 +5,7 @@ import sys
 import threading
 import time
 from pathlib import Path
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -12,6 +13,7 @@ from logger import Logger
 from models import LogLevel, Severity, Violation
 from rules.base import BaseRule
 from rules.context import RuleContext
+from settings import Settings
 
 
 class _NoopRule(BaseRule):
@@ -144,6 +146,42 @@ def test_get_relative_path_outside_base_returns_absolute(tmp_path: Path):
     other = tmp_path.parent / "elsewhere.py"
     other.write_text("")
     assert rule._get_relative_path(other) == str(other)
+
+
+@pytest.mark.parametrize("launcher", ["phpmd", "phpmd.bat", "phpmd.cmd"])
+def test_get_tool_path_finds_project_composer_phpmd_launcher(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, launcher: str
+):
+    project_path = tmp_path / launcher.replace(".", "_")
+    vendor_bin = project_path / "vendor" / "bin"
+    vendor_bin.mkdir(parents=True)
+    executable = vendor_bin / launcher
+    executable.touch()
+    rule = _NoopRule(_ctx(base_path=project_path, language="php"))
+    rule._settings = MagicMock(spec=Settings)
+
+    monkeypatch.setattr("rules.base.shutil.which", lambda _name: None)
+
+    assert rule._get_tool_path("phpmd") == str(executable)
+    rule.settings.get_path.assert_not_called()
+
+
+def test_get_tool_path_falls_back_to_configured_path_without_composer_phpmd(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    configured_path = tmp_path / "configured-phpmd"
+    configured_path.touch()
+    project_path = tmp_path / "php-project"
+    project_path.mkdir()
+    rule = _NoopRule(_ctx(base_path=project_path, language="php"))
+    settings = MagicMock(spec=Settings)
+    settings.get_path.return_value = str(configured_path)
+    rule._settings = settings
+
+    monkeypatch.setattr("rules.base.shutil.which", lambda _name: None)
+
+    assert rule._get_tool_path("phpmd") == str(configured_path)
+    settings.get_path.assert_called_once_with("phpmd")
 
 
 def test_get_threshold_for_file_picks_matching_exception(tmp_path: Path):

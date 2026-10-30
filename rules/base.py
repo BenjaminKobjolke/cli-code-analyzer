@@ -202,7 +202,7 @@ class BaseRule(FilterScopeMixin, ViolationReportMixin, ABC):
         return subprocess.CompletedProcess(cmd, process.returncode, stdout, stderr)
 
     def _get_tool_path(self, tool_name: str, settings_name: str | None = None) -> str | None:
-        """Get tool path from PATH, local node_modules, settings, or prompt user.
+        """Get tool path from PATH, local package bins, settings, or prompt user.
 
         `tool_name` is the executable name (PATH/node_modules lookup). `settings_name`
         is the Settings key; defaults to `tool_name` when they match (most tools).
@@ -218,6 +218,12 @@ class BaseRule(FilterScopeMixin, ViolationReportMixin, ABC):
                 local_bin = self.base_path / 'node_modules' / '.bin' / (tool_name + suffix)
                 if local_bin.exists():
                     return str(local_bin)
+
+            if self.language == 'php':
+                for suffix in ['.bat', '.cmd', '']:
+                    local_bin = self.base_path / 'vendor' / 'bin' / (tool_name + suffix)
+                    if local_bin.exists():
+                        return str(local_bin)
 
         tool_path = self.settings.get_path(settings_name)
         if not tool_path:
