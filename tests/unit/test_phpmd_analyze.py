@@ -1,6 +1,8 @@
 import subprocess
 from pathlib import Path
 
+import pytest
+
 from logger import Logger
 from models import RuleStatus, Severity
 from project_wide_rules import PROJECT_WIDE_ANALYZERS
@@ -67,6 +69,24 @@ def test_phpmd_maps_supported_function_findings_and_ignores_unknown_rules(tmp_pa
     assert "too long" in violation.message
 
 
+def test_phpmd_ignores_php_deprecation_notices_before_xml(tmp_path: Path):
+    rule = _rule(tmp_path)
+    report = '''
+    Deprecated: Deprecated PHP runtime behavior in vendor code on line 42
+
+    <?xml version="1.0" encoding="UTF-8" ?>
+    <pmd version="1"><file name="src/Example.php" /></pmd>'''
+
+    assert rule._parse_report(report) == []
+
+
+def test_phpmd_rejects_unexpected_text_before_xml(tmp_path: Path):
+    rule = _rule(tmp_path)
+
+    with pytest.raises(ValueError, match="unexpected text before its XML report"):
+        rule._parse_report('Warning: PHPMD failed unexpectedly\n<pmd />')
+
+
 def test_phpmd_findings_include_function_and_review_details(tmp_path: Path):
     rule = _rule(tmp_path)
     report = '''<pmd><file name="src/Example.php">
@@ -125,7 +145,7 @@ def test_phpmd_nonzero_exit_is_a_failure(tmp_path: Path, monkeypatch):
     monkeypatch.setattr(
         rule,
         "_run_subprocess",
-        lambda command, cwd: subprocess.CompletedProcess(command, 1, "<pmd />", "invalid ruleset"),
+        lambda command, _cwd: subprocess.CompletedProcess(command, 1, "<pmd />", "invalid ruleset"),
     )
 
     result = rule.check(tmp_path / "src" / "Example.php")
@@ -141,7 +161,7 @@ def test_phpmd_malformed_and_empty_reports_are_failures(tmp_path: Path, monkeypa
     monkeypatch.setattr(
         rule,
         "_run_subprocess",
-        lambda command, cwd: subprocess.CompletedProcess(command, 0, next(output), ""),
+        lambda command, _cwd: subprocess.CompletedProcess(command, 0, next(output), ""),
     )
 
     malformed = rule.check(tmp_path / "src" / "Example.php")

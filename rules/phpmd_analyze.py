@@ -73,6 +73,19 @@ class PHPMDAnalyzeRule(ProjectWideRule):
 
     def _parse_report(self, output: str) -> list[Violation]:
         """Parse PHPMD XML and retain supported function-level rules."""
+        xml_start = output.find('<?xml')
+        if xml_start < 0:
+            xml_start = output.find('<pmd')
+        if xml_start > 0:
+            # PHP can emit runtime deprecations on stdout before PHPMD's XML.
+            preamble = output[:xml_start].splitlines()
+            if any(
+                line.strip() and not line.strip().lstrip('\ufeff').startswith('Deprecated:')
+                for line in preamble
+            ):
+                raise ValueError('PHPMD returned unexpected text before its XML report')
+            output = output[xml_start:]
+
         root = ElementTree.fromstring(output)
         if root.tag != 'pmd':
             raise ValueError('PHPMD returned an unexpected XML root element')
