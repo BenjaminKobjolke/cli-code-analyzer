@@ -8,6 +8,7 @@ from pathlib import Path
 
 from models import RuleResult, Severity, Violation
 from rules.base import ProjectWideRule
+from rules.php_tool_paths import get_bundled_php_tool_path
 from rules.phpstan_config import (
     build_phpstan_config,
     is_excluded_path,
@@ -22,23 +23,11 @@ class PHPStanAnalyzeRule(ProjectWideRule):
 
     rule_name = 'phpstan_analyze'
 
-    def _get_bundled_phpstan_path(self) -> str | None:
-        """Get PHPStan path from bundled php/vendor/bin folder."""
-        script_dir = Path(__file__).parent.parent
-        paths = [
-            script_dir / 'php' / 'vendor' / 'bin' / 'phpstan.bat',
-            script_dir / 'php' / 'vendor' / 'bin' / 'phpstan',
-        ]
-        for p in paths:
-            if p.exists():
-                return str(p)
-        return None
-
     def _run(self, _file_path: Path) -> RuleResult:
         self.logger.info("\nRunning PHPStan check...")
 
         # First check bundled php/vendor/bin folder
-        phpstan_path = self._get_bundled_phpstan_path()
+        phpstan_path = get_bundled_php_tool_path('phpstan')
         if not phpstan_path:
             phpstan_path = self._get_tool_path('phpstan')
         if not phpstan_path:

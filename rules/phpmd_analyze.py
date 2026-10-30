@@ -7,8 +7,8 @@ from file_discovery import DEFAULT_EXCLUDE_PATTERNS
 from models import RuleResult, Severity, Violation
 from rules.base import ProjectWideRule
 from rules.filter_scope import ToolOutputError
+from rules.php_tool_paths import get_bundled_php_tool_path
 
-_RULESETS = 'codesize,design'
 # PHPMD scans --path recursively, so mirror the PHP file-discovery excludes (vendor/** -> */vendor/*).
 # PDepend matches the raw OS path, so each folder needs both separator forms.
 _EXCLUDES = ','.join(
@@ -41,7 +41,9 @@ class PHPMDAnalyzeRule(ProjectWideRule):
 
     def _run(self, _file_path: Path) -> RuleResult:
         self.logger.info('\nRunning PHPMD check...')
-        phpmd_path = self._get_tool_path('phpmd')
+        phpmd_path = get_bundled_php_tool_path('phpmd')
+        if not phpmd_path:
+            phpmd_path = self._get_tool_path('phpmd')
         if not phpmd_path:
             return self._failed('PHPMD executable not found')
         if not self.base_path:
@@ -49,7 +51,7 @@ class PHPMDAnalyzeRule(ProjectWideRule):
 
         try:
             commands = self._scoped_commands(
-                [phpmd_path], ('.php',), [str(self.base_path)]
+                [phpmd_path, 'analyze'], ('.php',), [str(self.base_path)]
             )
             if commands is None:
                 self.logger.info('Skipping PHPMD: no PHP files in the selected scope')
@@ -58,7 +60,11 @@ class PHPMDAnalyzeRule(ProjectWideRule):
             violations = []
             for command in commands:
                 command.extend([
-                    'xml', _RULESETS, '--exclude', _EXCLUDES, '--ignore-violations-on-exit'
+                    '--format', 'xml',
+                    '--ruleset', 'codesize', '--ruleset', 'design',
+                    '--suffixes', 'php',
+                    '--exclude', _EXCLUDES,
+                    '--ignore-violations-on-exit', '--no-progress',
                 ])
                 result = self._run_subprocess(command, self.base_path)
                 if result.returncode != 0:
@@ -90,7 +96,10 @@ class PHPMDAnalyzeRule(ProjectWideRule):
             # PHP can emit runtime deprecations on stdout before PHPMD's XML.
             preamble = output[:xml_start].splitlines()
             if any(
-                line.strip() and not line.strip().lstrip('\ufeff').startswith('Deprecated:')
+                line.strip()
+                and not line.strip().lstrip('\ufeff').startswith(
+                    ('Deprecated:', 'PHP Deprecated:')
+                )
                 for line in preamble
             ):
                 raise ValueError('PHPMD returned unexpected text before its XML report')

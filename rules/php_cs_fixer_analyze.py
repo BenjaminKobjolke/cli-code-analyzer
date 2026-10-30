@@ -6,6 +6,7 @@ from pathlib import Path
 from models import RuleResult
 from rules.base import ProjectWideRule
 from rules.php_cs_fixer_report import parse_fixer_json, write_fixer_csv
+from rules.php_tool_paths import get_bundled_php_tool_path
 
 # Default paths to exclude if none specified
 DEFAULT_EXCLUDE_PATHS = ['vendor', '.git']
@@ -19,18 +20,6 @@ class PHPCSFixerAnalyzeRule(ProjectWideRule):
     """Rule to analyze PHP code style using PHP-CS-Fixer in dry-run mode"""
 
     rule_name = 'php_cs_fixer'
-
-    def _get_bundled_fixer_path(self) -> str | None:
-        """Get PHP-CS-Fixer path from bundled php/vendor/bin folder."""
-        script_dir = Path(__file__).parent.parent
-        paths = [
-            script_dir / 'php' / 'vendor' / 'bin' / 'php-cs-fixer.bat',
-            script_dir / 'php' / 'vendor' / 'bin' / 'php-cs-fixer',
-        ]
-        for p in paths:
-            if p.exists():
-                return str(p)
-        return None
 
     def _get_exclude_paths(self) -> list[str]:
         """Get exclude paths from config, with defaults if not specified."""
@@ -156,7 +145,7 @@ return (new PhpCsFixer\\Config())
         self.logger.info("\nRunning PHP-CS-Fixer check...")
 
         # First check bundled php/vendor/bin folder
-        fixer_path = self._get_bundled_fixer_path()
+        fixer_path = get_bundled_php_tool_path('php-cs-fixer')
         if not fixer_path:
             fixer_path = self._get_tool_path('php-cs-fixer', 'php_cs_fixer')
         if not fixer_path:

@@ -27,6 +27,7 @@ def test_phpmd_invokes_xml_report_with_scoped_php_files(tmp_path: Path, monkeypa
     calls = []
 
     monkeypatch.setattr(rule, "_get_tool_path", lambda *_args: "phpmd")
+    monkeypatch.setattr("rules.phpmd_analyze.get_bundled_php_tool_path", lambda *_args: None)
     monkeypatch.setattr(
         rule,
         "_run_subprocess",
@@ -40,8 +41,13 @@ def test_phpmd_invokes_xml_report_with_scoped_php_files(tmp_path: Path, monkeypa
     assert result.status == RuleStatus.OK
     assert len(calls) == 1
     command, cwd = calls[0]
-    assert command[:2] == ["phpmd", str(tmp_path / "src" / "Example.php")]
-    assert command[2:4] == ["xml", "codesize,design"]
+    assert command[:3] == ["phpmd", "analyze", str(tmp_path / "src" / "Example.php")]
+    assert command[command.index("--format") + 1] == "xml"
+    assert command.count("--ruleset") == 2
+    assert command[command.index("--ruleset") + 1] == "codesize"
+    second_ruleset = command.index("--ruleset", command.index("--ruleset") + 1)
+    assert command[second_ruleset + 1] == "design"
+    assert command[command.index("--suffixes") + 1] == "php"
     assert "--ignore-violations-on-exit" in command
     assert cwd == tmp_path
 
@@ -51,6 +57,7 @@ def test_phpmd_excludes_dependency_folders_by_default(tmp_path: Path, monkeypatc
     calls = []
 
     monkeypatch.setattr(rule, "_get_tool_path", lambda *_args: "phpmd")
+    monkeypatch.setattr("rules.phpmd_analyze.get_bundled_php_tool_path", lambda *_args: None)
     monkeypatch.setattr(
         rule,
         "_run_subprocess",
@@ -66,6 +73,30 @@ def test_phpmd_excludes_dependency_folders_by_default(tmp_path: Path, monkeypatc
     assert "*/vendor/*" in excludes
     assert "*\\vendor\\*" in excludes
     assert "*/node_modules/*" in excludes
+
+
+def test_phpmd_prefers_bundled_executable_to_global_lookup(tmp_path: Path, monkeypatch):
+    rule = _rule(tmp_path)
+    commands = []
+    monkeypatch.setattr(
+        "rules.phpmd_analyze.get_bundled_php_tool_path",
+        lambda *_args: "bundled/phpmd",
+    )
+    monkeypatch.setattr(
+        rule, "_get_tool_path", lambda *_args: pytest.fail("global lookup should not run")
+    )
+    monkeypatch.setattr(
+        rule,
+        "_run_subprocess",
+        lambda command, _cwd: commands.append(command) or subprocess.CompletedProcess(
+            command, 0, "<pmd />", ""
+        ),
+    )
+
+    result = rule.check(tmp_path / "src" / "Example.php")
+
+    assert result.status == RuleStatus.OK
+    assert commands[0][0] == "bundled/phpmd"
 
 
 def test_phpmd_maps_supported_function_findings_and_ignores_unknown_rules(tmp_path: Path):
@@ -100,6 +131,33 @@ def test_phpmd_ignores_php_deprecation_notices_before_xml(tmp_path: Path):
     <pmd version="1"><file name="src/Example.php" /></pmd>'''
 
     assert rule._parse_report(report) == []
+
+    php_prefixed_report = '''
+    PHP Deprecated: A PHP 8.5 runtime notice in vendor code on line 42
+    <?xml version="1.0" encoding="UTF-8" ?>
+    <pmd version="1"><file name="src/Example.php" /></pmd>'''
+    assert rule._parse_report(php_prefixed_report) == []
+
+
+def test_phpmd_successful_run_keeps_xml_separate_from_php_deprecation_stderr(
+    tmp_path: Path, monkeypatch
+):
+    rule = _rule(tmp_path)
+    monkeypatch.setattr("rules.phpmd_analyze.get_bundled_php_tool_path", lambda *_args: None)
+    monkeypatch.setattr(rule, "_get_tool_path", lambda *_args: "phpmd")
+    monkeypatch.setattr(
+        rule,
+        "_run_subprocess",
+        lambda command, _cwd: subprocess.CompletedProcess(
+            command, 0, '<?xml version="1.0"?><pmd version="1" />',
+            "Deprecated: PHP 8.5 runtime notice in vendor code on line 42",
+        ),
+    )
+
+    result = rule.check(tmp_path / "src" / "Example.php")
+
+    assert result.status == RuleStatus.OK
+    assert result.violations == []
 
 
 def test_phpmd_rejects_unexpected_text_before_xml(tmp_path: Path):
@@ -153,6 +211,7 @@ def test_phpmd_is_registered_as_a_project_wide_analyzer():
 
 def test_phpmd_missing_executable_is_a_failure(tmp_path: Path, monkeypatch):
     rule = _rule(tmp_path)
+    monkeypatch.setattr("rules.phpmd_analyze.get_bundled_php_tool_path", lambda *_args: None)
     monkeypatch.setattr(rule, "_get_tool_path", lambda *_args: None)
 
     result = rule.check(tmp_path / "src" / "Example.php")
@@ -163,6 +222,7 @@ def test_phpmd_missing_executable_is_a_failure(tmp_path: Path, monkeypatch):
 
 def test_phpmd_nonzero_exit_is_a_failure(tmp_path: Path, monkeypatch):
     rule = _rule(tmp_path)
+    monkeypatch.setattr("rules.phpmd_analyze.get_bundled_php_tool_path", lambda *_args: None)
     monkeypatch.setattr(rule, "_get_tool_path", lambda *_args: "phpmd")
     monkeypatch.setattr(
         rule,
@@ -178,6 +238,7 @@ def test_phpmd_nonzero_exit_is_a_failure(tmp_path: Path, monkeypatch):
 
 def test_phpmd_malformed_and_empty_reports_are_failures(tmp_path: Path, monkeypatch):
     rule = _rule(tmp_path)
+    monkeypatch.setattr("rules.phpmd_analyze.get_bundled_php_tool_path", lambda *_args: None)
     monkeypatch.setattr(rule, "_get_tool_path", lambda *_args: "phpmd")
     output = iter(("not xml", ""))
     monkeypatch.setattr(
