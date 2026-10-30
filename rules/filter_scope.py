@@ -66,8 +66,15 @@ class FilterScopeMixin:
 
     def _scoped_commands(self, cmd: list[str], extensions: tuple[str, ...] | None = None,
                          whole_project: list[str] | None = None,
-                         exclude: Callable[[Path], bool] | None = None) -> list[list[str]] | None:
-        """Build complete commands, splitting only a filtered file list."""
+                         exclude: Callable[[Path], bool] | None = None,
+                         explicit_files: list[Path] | None = None) -> list[list[str]] | None:
+        """Build complete commands, splitting file lists below the command limit."""
+        if explicit_files is not None:
+            scope = [str(path) for path in explicit_files]
+            if not scope:
+                return None
+            return self._file_commands(cmd, scope)
+
         scope = self._scope_args(extensions, whole_project, exclude)
         if scope is None:
             return None
@@ -77,6 +84,11 @@ class FilterScopeMixin:
                 raise ToolOutputError(f"command exceeds {MAX_COMMAND_CHARS} characters")
             return [command]
 
+        return self._file_commands(cmd, scope)
+
+    @staticmethod
+    def _file_commands(cmd: list[str], scope: list[str]) -> list[list[str]]:
+        """Batch explicit file arguments without exceeding the command limit."""
         commands: list[list[str]] = []
         current = cmd.copy()
         for path in scope:

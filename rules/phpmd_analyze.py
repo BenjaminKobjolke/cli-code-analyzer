@@ -5,15 +5,15 @@ import sys
 import xml.etree.ElementTree as ElementTree
 from pathlib import Path
 
-from file_discovery import DEFAULT_EXCLUDE_PATTERNS
+from file_discovery import DEFAULT_EXCLUDE_PATTERNS, FileDiscovery
 from models import RuleResult, Severity, Violation
 from path_utils import resolve_exclude_patterns
 from rules.base import ProjectWideRule
 from rules.filter_scope import ToolOutputError
 from rules.php_tool_paths import get_bundled_php_tool_path
 
-# PHPMD scans --path recursively, so mirror the PHP file-discovery excludes (vendor/** -> */vendor/*).
-# PDepend matches the raw OS path, so each folder needs both separator forms.
+# Keep PHPMD exclusions aligned with discovery. PDepend matches raw OS paths, so each folder needs
+# both separator forms.
 _DEFAULT_EXCLUDES = tuple(
     f"*{sep}{pattern.removesuffix('/**')}{sep}*"
     for pattern in DEFAULT_EXCLUDE_PATTERNS['php']
@@ -58,9 +58,18 @@ class PHPMDAnalyzeRule(ProjectWideRule):
                 self.config.get('exclude_patterns'), ('php',)
             ))
             exclude_patterns = list(dict.fromkeys(exclude_patterns))
-            commands = self._scoped_commands(
-                [phpmd_path, 'analyze'], ('.php',), [str(self.base_path)]
-            )
+            command = [phpmd_path, 'analyze']
+            if self.filter_files is None:
+                php_files = FileDiscovery(
+                    'php', str(self.base_path), self.config.get('exclude_patterns')
+                ).discover()
+                commands = self._scoped_commands(
+                    command, ('.php',), explicit_files=php_files
+                )
+            else:
+                commands = self._scoped_commands(
+                    command, ('.php',), [str(self.base_path)]
+                )
             if commands is None:
                 self.logger.info('Skipping PHPMD: no PHP files in the selected scope')
                 return self._ok([])

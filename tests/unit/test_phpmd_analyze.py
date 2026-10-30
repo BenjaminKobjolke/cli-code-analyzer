@@ -108,11 +108,18 @@ def test_phpmd_timeout_is_reported_as_a_failed_result(tmp_path: Path, monkeypatc
     assert "timed out" in result.message.lower()
 
 
-def test_phpmd_project_scan_excludes_dependencies_and_keeps_project_root(
+def test_phpmd_project_scan_uses_discovered_files_and_keeps_exclusions(
     tmp_path: Path, monkeypatch
 ):
     rule = _rule(tmp_path)
     calls = []
+    source = tmp_path / "src" / "Example.php"
+    vendor_file = tmp_path / "vendor" / "dependency.php"
+    node_module_file = tmp_path / "node_modules" / "dependency.php"
+    vendor_file.parent.mkdir(parents=True)
+    node_module_file.parent.mkdir(parents=True)
+    vendor_file.write_text("<?php\n", encoding="utf-8")
+    node_module_file.write_text("<?php\n", encoding="utf-8")
 
     monkeypatch.setattr(rule, "_get_tool_path", lambda *_args: "phpmd")
     monkeypatch.setattr("rules.phpmd_analyze.get_bundled_php_tool_path", lambda *_args: None)
@@ -120,15 +127,22 @@ def test_phpmd_project_scan_excludes_dependencies_and_keeps_project_root(
         rule,
         "_run_subprocess",
         lambda command, _cwd: calls.append(command) or subprocess.CompletedProcess(
-            command, 0, '<pmd version="1" />', ""
+            command, 0,
+            '<pmd version="1"><file name="src/Example.php">'
+            '<violation beginline="2" rule="ExcessiveMethodLength">long</violation>'
+            '</file></pmd>',
+            "",
         ),
     )
 
-    rule.check(tmp_path / "src" / "Example.php")
+    result = rule.check(source)
 
     command = calls[0]
+    file_args = command[2:command.index("--format")]
+    assert file_args == [str(source)]
+    assert result.status == RuleStatus.OK
     excludes = command[command.index("--exclude") + 1].split(",")
-    assert command[:3] == ["phpmd", "analyze", str(tmp_path)]
+    assert [violation.file_path for violation in result.violations] == ["src/Example.php"]
     assert "*/vendor/*" in excludes
     assert "*\\vendor\\*" in excludes
     assert "*/node_modules/*" in excludes
@@ -147,6 +161,12 @@ def test_phpmd_project_scan_combines_configured_exclusions(
 ):
     rule = _rule(tmp_path, config={"exclude_patterns": exclude_patterns})
     calls = []
+    generated_file = tmp_path / "generated" / "generated.php"
+    fixture_file = tmp_path / "tests" / "fixtures" / "fixture.php"
+    generated_file.parent.mkdir(parents=True)
+    fixture_file.parent.mkdir(parents=True)
+    generated_file.write_text("<?php\n", encoding="utf-8")
+    fixture_file.write_text("<?php\n", encoding="utf-8")
 
     monkeypatch.setattr(rule, "_get_tool_path", lambda *_args: "phpmd")
     monkeypatch.setattr("rules.phpmd_analyze.get_bundled_php_tool_path", lambda *_args: None)
@@ -162,7 +182,8 @@ def test_phpmd_project_scan_combines_configured_exclusions(
 
     assert result.status == RuleStatus.OK
     command = calls[0]
-    assert command[:3] == ["phpmd", "analyze", str(tmp_path)]
+    file_args = command[2:command.index("--format")]
+    assert file_args == [str(tmp_path / "src" / "Example.php")]
     excludes = command[command.index("--exclude") + 1].split(",")
     assert "*/vendor/*" in excludes
     assert "generated/**" in excludes

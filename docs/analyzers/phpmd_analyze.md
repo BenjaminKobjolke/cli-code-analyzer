@@ -33,8 +33,9 @@ the global log level, and the maximum-finding limit apply as for other analyzers
 
 `exclude_patterns` accepts a flat list of PHP path patterns or a language-keyed object such as
 `{"php": ["vendor/**", "generated/**"]}`. The configured patterns are added to the default
-excludes, so `vendor` remains excluded even when no setting is provided. The project root stays
-the PHPMD scan target, which keeps application PHP files in scope.
+excludes, so `vendor` remains excluded even when no setting is provided. Whole-project scans pass
+the files selected by PHP file discovery directly to PHPMD. This keeps the same source scope while
+preventing PHPMD from recursively parsing excluded dependency folders.
 
 ## Windows workers, timeout, and cache
 

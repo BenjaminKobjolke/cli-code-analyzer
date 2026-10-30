@@ -93,6 +93,25 @@ def test_scoped_commands_batch_long_file_lists(tmp_path: Path):
     assert sorted(path for c in commands for path in c[2:]) == sorted(str(tmp_path / n) for n in names)
 
 
+def test_scoped_commands_batch_explicit_project_files(tmp_path: Path):
+    names = {f"deep/folder_{i:03d}_long_name/file_{i:03d}_long_name.php" for i in range(150)}
+    _touch(tmp_path, *names)
+    rule = _NoopRule(_ctx(base_path=tmp_path))
+    files = [tmp_path / name for name in names]
+
+    commands = rule._scoped_commands(['phpmd', 'analyze'], ('.php',), explicit_files=files)
+
+    assert len(commands) > 1
+    assert all(
+        command[:2] == ['phpmd', 'analyze']
+        and len(list2cmdline(command)) <= MAX_COMMAND_CHARS
+        for command in commands
+    )
+    assert sorted(path for command in commands for path in command[2:]) == sorted(
+        str(path) for path in files
+    )
+
+
 def test_scoped_commands_keep_small_scope_together_and_reject_one_oversize_path(tmp_path: Path, monkeypatch):
     _touch(tmp_path, 'a.py', 'b.py')
     rule = _NoopRule(_ctx(base_path=tmp_path, filter_files={'a.py', 'b.py'}))
