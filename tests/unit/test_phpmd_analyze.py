@@ -9,6 +9,15 @@ from project_wide_rules import PROJECT_WIDE_ANALYZERS
 from rules.context import RuleContext
 from rules.phpmd_analyze import PHPMDAnalyzeRule
 
+_PHPMD_2_15_OUTPUT = '''Deprecated: Optional parameter $child declared before required parameter $parent is implicitly treated as a required parameter in vendor/pdepend/src/Parser.php on line 223
+
+Deprecated: Creation of dynamic property PDepend\\Parser\\Token::$image is deprecated in vendor/pdepend/src/Parser.php on line 481
+
+PHP Deprecated: Return type of PHPMD\\Rule\\AbstractRule::getPriority() should either be compatible with ... in vendor/phpmd/src/Rule/AbstractRule.php on line 58
+
+<?xml version="1.0" encoding="UTF-8" ?>
+<pmd version="2.15.0"><file name="src/Example.php" /></pmd>'''
+
 
 def _rule(tmp_path: Path, filter_files=None, config=None) -> PHPMDAnalyzeRule:
     source = tmp_path / "src" / "Example.php"
@@ -162,19 +171,7 @@ def test_phpmd_maps_supported_function_findings_and_ignores_unknown_rules(tmp_pa
 
 def test_phpmd_ignores_php_deprecation_notices_before_xml(tmp_path: Path):
     rule = _rule(tmp_path)
-    report = '''
-    Deprecated: Deprecated PHP runtime behavior in vendor code on line 42
-
-    <?xml version="1.0" encoding="UTF-8" ?>
-    <pmd version="1"><file name="src/Example.php" /></pmd>'''
-
-    assert rule._parse_report(report) == []
-
-    php_prefixed_report = '''
-    PHP Deprecated: A PHP 8.5 runtime notice in vendor code on line 42
-    <?xml version="1.0" encoding="UTF-8" ?>
-    <pmd version="1"><file name="src/Example.php" /></pmd>'''
-    assert rule._parse_report(php_prefixed_report) == []
+    assert rule._parse_report(_PHPMD_2_15_OUTPUT) == []
 
 
 def test_phpmd_successful_run_keeps_xml_separate_from_php_deprecation_stderr(
@@ -187,7 +184,7 @@ def test_phpmd_successful_run_keeps_xml_separate_from_php_deprecation_stderr(
         rule,
         "_run_subprocess",
         lambda command, _cwd: subprocess.CompletedProcess(
-            command, 0, '<?xml version="1.0"?><pmd version="1" />',
+            command, 0, _PHPMD_2_15_OUTPUT,
             "Deprecated: PHP 8.5 runtime notice in vendor code on line 42",
         ),
     )
