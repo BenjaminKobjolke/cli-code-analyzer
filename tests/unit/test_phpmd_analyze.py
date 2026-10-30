@@ -325,20 +325,54 @@ def test_phpmd_missing_executable_is_a_failure(tmp_path: Path, monkeypatch):
     assert "PHPMD executable not found" in result.message
 
 
-def test_phpmd_nonzero_exit_is_a_failure(tmp_path: Path, monkeypatch):
+@pytest.mark.parametrize(
+    "stderr",
+    ["invalid ruleset"],
+)
+def test_phpmd_nonzero_exit_is_a_failure(tmp_path: Path, monkeypatch, stderr: str):
     rule = _rule(tmp_path)
     monkeypatch.setattr("rules.phpmd_analyze.get_bundled_php_tool_path", lambda *_args: None)
     monkeypatch.setattr(rule, "_get_tool_path", lambda *_args: "phpmd")
     monkeypatch.setattr(
         rule,
         "_run_subprocess",
-        lambda command, _cwd: subprocess.CompletedProcess(command, 1, "<pmd />", "invalid ruleset"),
+        lambda command, _cwd: subprocess.CompletedProcess(command, 1, "<pmd />", stderr),
     )
 
     result = rule.check(tmp_path / "src" / "Example.php")
 
     assert result.status == RuleStatus.FAILED
     assert "exit 1" in result.message
+
+
+def test_phpmd_recursive_inheritance_case_completes_with_scoped_findings(
+    tmp_path: Path, monkeypatch
+):
+    source_file = tmp_path / "src" / "Example.php"
+    rule = _rule(tmp_path, {"src/Example.php"})
+    report = '''<pmd version="2.15.0"><file name="src/Example.php">
+      <violation beginline="12" rule="ExcessiveMethodLength" class="Example" method="run">
+        Method exceeds the configured length.
+      </violation>
+    </file></pmd>'''
+    calls = []
+    monkeypatch.setattr("rules.phpmd_analyze.get_bundled_php_tool_path", lambda *_args: None)
+    monkeypatch.setattr(rule, "_get_tool_path", lambda *_args: "phpmd")
+    monkeypatch.setattr(
+        rule,
+        "_run_subprocess",
+        lambda command, _cwd: calls.append(command)
+        or subprocess.CompletedProcess(command, 0, report, ""),
+    )
+
+    result = rule.check(source_file)
+
+    assert result.status == RuleStatus.OK
+    assert len(result.violations) == 1
+    assert result.violations[0].file_path == "src/Example.php"
+    assert result.violations[0].line == 12
+    assert "ExcessiveMethodLength" in result.violations[0].message
+    assert calls[0][:3] == ["phpmd", "analyze", str(source_file)]
 
 
 def test_phpmd_malformed_and_empty_reports_are_failures(tmp_path: Path, monkeypatch):
