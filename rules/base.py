@@ -2,9 +2,11 @@
 Base rule class for all code analysis rules
 """
 
+import contextlib
 import shutil
 import subprocess
 import sys
+import threading
 from abc import ABC, abstractmethod
 from fnmatch import fnmatch
 from pathlib import Path
@@ -187,7 +189,15 @@ class BaseRule(FilterScopeMixin, ViolationReportMixin, ABC):
             stdout, stderr = process.communicate(timeout=timeout)
         except subprocess.TimeoutExpired as error:
             kill_process_tree(process)
-            process.communicate()
+            try:
+                process.communicate(timeout=1)
+            except subprocess.TimeoutExpired:
+                process.kill()
+                for pipe in (process.stdout, process.stderr):
+                    if pipe is not None:
+                        threading.Thread(target=pipe.close, daemon=True).start()
+                with contextlib.suppress(subprocess.TimeoutExpired):
+                    process.wait(timeout=1)
             raise error
         return subprocess.CompletedProcess(cmd, process.returncode, stdout, stderr)
 
