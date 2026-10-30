@@ -2,6 +2,7 @@ import os
 import signal
 import subprocess
 import sys
+import threading
 import time
 from pathlib import Path
 
@@ -75,6 +76,41 @@ def test_run_subprocess_timeout_kills_grandchild(tmp_path: Path):
     if not gone:
         _force_kill(child_pid)
     assert gone
+
+
+def test_run_subprocess_timeout_does_not_wait_for_inherited_pipes(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    pid_file = tmp_path / "pipe_holder.pid"
+    code = (
+        "import pathlib, subprocess, sys, time; "
+        "child = subprocess.Popen([sys.executable, '-c', 'import time; time.sleep(60)']); "
+        "pathlib.Path(sys.argv[1]).write_text(str(child.pid)); time.sleep(60)"
+    )
+    # Simulate a failed tree kill: the parent exits but its descendant still owns the pipes.
+    monkeypatch.setattr("rules.base.kill_process_tree", lambda process: process.kill())
+    rule = _NoopRule(_ctx())
+    result: dict[str, Exception] = {}
+
+    def run_subprocess() -> None:
+        try:
+            rule._run_subprocess([sys.executable, "-c", code, str(pid_file)], timeout=1)
+        except Exception as error:
+            result["error"] = error
+
+    worker = threading.Thread(target=run_subprocess, daemon=True)
+    worker.start()
+    worker.join(timeout=3)
+    completed_without_external_cleanup = not worker.is_alive()
+
+    child_pid = int(pid_file.read_text())
+    try:
+        assert completed_without_external_cleanup
+        assert isinstance(result.get("error"), subprocess.TimeoutExpired)
+        assert _process_exists(child_pid)
+    finally:
+        _force_kill(child_pid)
+        worker.join(timeout=2)
 
 
 def test_run_subprocess_returns_completed_process():
