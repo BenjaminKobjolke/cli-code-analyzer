@@ -46,6 +46,28 @@ def test_phpmd_invokes_xml_report_with_scoped_php_files(tmp_path: Path, monkeypa
     assert cwd == tmp_path
 
 
+def test_phpmd_excludes_dependency_folders_by_default(tmp_path: Path, monkeypatch):
+    rule = _rule(tmp_path)
+    calls = []
+
+    monkeypatch.setattr(rule, "_get_tool_path", lambda *_args: "phpmd")
+    monkeypatch.setattr(
+        rule,
+        "_run_subprocess",
+        lambda command, _cwd: calls.append(command) or subprocess.CompletedProcess(
+            command, 0, '<pmd version="1" />', ""
+        ),
+    )
+
+    rule.check(tmp_path / "src" / "Example.php")
+
+    command = calls[0]
+    excludes = command[command.index("--exclude") + 1].split(",")
+    assert "*/vendor/*" in excludes
+    assert "*\\vendor\\*" in excludes
+    assert "*/node_modules/*" in excludes
+
+
 def test_phpmd_maps_supported_function_findings_and_ignores_unknown_rules(tmp_path: Path):
     rule = _rule(tmp_path)
     report = '''<?xml version="1.0"?>

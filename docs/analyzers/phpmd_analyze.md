@@ -23,3 +23,22 @@ rule result instead of treating the scan as clean.
 
 The PHPMD rulesets are currently fixed to `codesize,design`. Rule-level severity filtering,
 the global log level, and the maximum-finding limit apply as for other analyzers.
+
+## Excluded folders
+
+PHPMD always skips the default PHP excludes from file discovery: `vendor`, `node_modules`,
+`.git`, and `.phpstan-cache`. They are passed to PHPMD as `--exclude` patterns and match a
+folder of that exact name at any depth, so a project with several Composer subprojects skips
+every one of them:
+
+```
+project/
+├── vendor/                 skipped
+├── api/vendor/             skipped
+├── tools/compat/vendor/    skipped
+└── src/VendorService.php   analyzed (not a folder named vendor)
+```
+
+Each folder is passed with both `/` and `\` separators (`*/vendor/*,*\vendor\*`), because
+PHPMD matches the patterns against the raw operating-system path. The list is fixed and cannot
+be changed in the rules file.

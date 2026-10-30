@@ -3,11 +3,19 @@
 import xml.etree.ElementTree as ElementTree
 from pathlib import Path
 
+from file_discovery import DEFAULT_EXCLUDE_PATTERNS
 from models import RuleResult, Severity, Violation
 from rules.base import ProjectWideRule
 from rules.filter_scope import ToolOutputError
 
 _RULESETS = 'codesize,design'
+# PHPMD scans --path recursively, so mirror the PHP file-discovery excludes (vendor/** -> */vendor/*).
+# PDepend matches the raw OS path, so each folder needs both separator forms.
+_EXCLUDES = ','.join(
+    f"*{sep}{pattern.removesuffix('/**')}{sep}*"
+    for pattern in DEFAULT_EXCLUDE_PATTERNS['php']
+    for sep in ('/', '\\')
+)
 _SUPPORTED_RULES = {
     'CyclomaticComplexity',
     'NPathComplexity',
@@ -49,7 +57,9 @@ class PHPMDAnalyzeRule(ProjectWideRule):
 
             violations = []
             for command in commands:
-                command.extend(['xml', _RULESETS, '--ignore-violations-on-exit'])
+                command.extend([
+                    'xml', _RULESETS, '--exclude', _EXCLUDES, '--ignore-violations-on-exit'
+                ])
                 result = self._run_subprocess(command, self.base_path)
                 if result.returncode != 0:
                     raise ToolOutputError(
