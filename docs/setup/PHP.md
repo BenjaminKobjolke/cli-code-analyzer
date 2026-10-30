@@ -8,7 +8,8 @@ This guide explains how to set up cli-code-analyzer for PHP projects.
 - PHP 8.4+
 - Composer
 - PMD (optional, for duplicate code detection)
-- PHPMD (optional, function-level complexity and design checks)
+- Composer dependencies from the analyzer checkout (includes PHPMD 3 for function-level
+  complexity and design checks)
 - Lizard (bundled Python dependency, function-level metrics)
 - Semgrep (optional, pattern scanning: `pip install semgrep`) — see [semgrep_analyze](../analyzers/semgrep_analyze.md)
 
@@ -21,7 +22,7 @@ This guide explains how to set up cli-code-analyzer for PHP projects.
    # or: composer install
    ```
 
-2. Run analysis:
+2. Run analysis (the Composer setup installs the bundled PHPMD executable):
    ```bash
    python main.py --language php --path /path/to/your/project
    ```
@@ -41,8 +42,11 @@ This guide explains how to set up cli-code-analyzer for PHP projects.
 | `semgrep_analyze` | Includes potential PHP performance and maintainability patterns |
 
 The PHP-specific analyzers are enabled automatically in PHP scans when their entries are absent.
-Install PHPMD and Semgrep to use those external tools; missing tools are reported as analyzer
-failures. Lizard is included with the analyzer's Python dependencies.
+PHPMD 3 is bundled in the analyzer's `php/composer.json` development dependencies and is found
+under `php/vendor/bin` after the Composer setup above. If that bundled executable is missing, the
+analyzer retains its external fallback: a `phpmd` on `PATH`, the configured settings path, or the
+interactive path prompt. Semgrep remains an optional external tool; missing tools are reported as
+analyzer failures. Lizard is included with the analyzer's Python dependencies.
 
 Set an analyzer's `enabled` field to `false` in the project rules file to opt out. Each function
 metric's `warning` and `error` limits are configurable, and path exceptions can tune thresholds

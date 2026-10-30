@@ -7,10 +7,13 @@ analyzer reports supported cyclomatic complexity, NPath complexity, excessive me
 and excessive parameter count findings with their function names and source locations.
 
 It is registered for PHP scans and is enabled by default when its rule entry is absent. Set
-`enabled` to `false` to opt out. PHPMD is an optional external executable; install it and make
-`phpmd` available on `PATH`, configure its path through the analyzer's settings, or provide it
-when prompted. If PHPMD is unavailable or returns invalid output, the analyzer reports a failed
-rule result instead of treating the scan as clean.
+`enabled` to `false` to opt out. PHPMD 3 is included in the analyzer's PHP Composer development
+dependencies. From the analyzer checkout, run `cd php && composer install` (or `php/install.bat`)
+to install it under `php/vendor/bin`. The analyzer checks that bundled executable first, then
+falls back to an external `phpmd` on `PATH`, the configured settings path, or the interactive
+path prompt. The Composer executable wrapper uses the PHP selected by the calling project's
+`PATH`. If PHPMD is unavailable or returns invalid output, the analyzer reports a failed rule
+result instead of treating the scan as clean.
 
 ## Configuration
 
