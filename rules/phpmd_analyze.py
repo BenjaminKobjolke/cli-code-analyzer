@@ -1,5 +1,7 @@
 """Project-wide PHPMD analysis for PHP maintainability rules."""
 
+import subprocess
+import sys
 import xml.etree.ElementTree as ElementTree
 from pathlib import Path
 
@@ -72,7 +74,14 @@ class PHPMDAnalyzeRule(ProjectWideRule):
                     '--exclude', ','.join(exclude_patterns),
                     '--ignore-violations-on-exit', '--no-progress',
                 ])
-                result = self._run_subprocess(command, self.base_path)
+                if sys.platform == 'win32':
+                    command.append('--threads=1')
+                try:
+                    result = self._run_subprocess(command, self.base_path)
+                except subprocess.TimeoutExpired as error:
+                    return self._failed(
+                        f'PHPMD timed out after {error.timeout} seconds'
+                    )
                 if result.returncode != 0:
                     raise ToolOutputError(
                         f"PHPMD failed (exit {result.returncode}): "

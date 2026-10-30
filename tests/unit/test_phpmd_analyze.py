@@ -1,4 +1,5 @@
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -59,6 +60,52 @@ def test_phpmd_invokes_xml_report_with_scoped_php_files(tmp_path: Path, monkeypa
     assert command[command.index("--suffixes") + 1] == "php"
     assert "--ignore-violations-on-exit" in command
     assert cwd == tmp_path
+
+
+@pytest.mark.parametrize(
+    ("platform", "expected_threads"),
+    [("win32", ["--threads=1"]), ("linux", [])],
+)
+def test_phpmd_uses_single_pdepend_thread_only_on_windows(
+    tmp_path: Path, monkeypatch, platform: str, expected_threads: list[str]
+):
+    rule = _rule(tmp_path)
+    calls = []
+    monkeypatch.setattr(sys, "platform", platform)
+    monkeypatch.setattr(rule, "_get_tool_path", lambda *_args: "phpmd")
+    monkeypatch.setattr("rules.phpmd_analyze.get_bundled_php_tool_path", lambda *_args: None)
+    monkeypatch.setattr(
+        rule,
+        "_run_subprocess",
+        lambda command, _cwd: calls.append(command) or subprocess.CompletedProcess(
+            command, 0, "<pmd />", ""
+        ),
+    )
+
+    result = rule.check(tmp_path / "src" / "Example.php")
+
+    assert result.status == RuleStatus.OK
+    command = calls[0]
+    assert (
+        [argument for argument in command if argument.startswith("--threads")]
+        == expected_threads
+    )
+
+
+def test_phpmd_timeout_is_reported_as_a_failed_result(tmp_path: Path, monkeypatch):
+    rule = _rule(tmp_path)
+    monkeypatch.setattr("rules.phpmd_analyze.get_bundled_php_tool_path", lambda *_args: None)
+    monkeypatch.setattr(rule, "_get_tool_path", lambda *_args: "phpmd")
+
+    def timeout(*_args):
+        raise subprocess.TimeoutExpired("phpmd analyze", timeout=300)
+
+    monkeypatch.setattr(rule, "_run_subprocess", timeout)
+
+    result = rule.check(tmp_path / "src" / "Example.php")
+
+    assert result.status == RuleStatus.FAILED
+    assert "timed out" in result.message.lower()
 
 
 def test_phpmd_project_scan_excludes_dependencies_and_keeps_project_root(

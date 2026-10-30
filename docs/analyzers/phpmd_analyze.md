@@ -36,6 +36,18 @@ the global log level, and the maximum-finding limit apply as for other analyzers
 excludes, so `vendor` remains excluded even when no setting is provided. The project root stays
 the PHPMD scan target, which keeps application PHP files in scope.
 
+## Windows workers, timeout, and cache
+
+On Windows the analyzer passes `--threads=1` to PHPMD so PDepend parses files without starting
+parallel worker processes. Other platforms keep PDepend's default thread behavior. Each PHPMD
+subprocess is bounded by the analyzer's existing 300-second timeout; if it expires, PHPMD is
+reported as failed with a timeout message instead of leaving the analyzer waiting indefinitely.
+
+PDepend prefers a writable user cache (`XDG_CACHE_HOME` or `HOME/.cache`) and only falls back to
+the system temporary directory when that cache is unavailable. Redirecting `TEMP` or `TMP` alone
+may therefore leave PDepend's cache on the original drive. When diagnosing disk-space failures,
+check the active PDepend cache location as well as the system temporary directory.
+
 ## Excluded folders
 
 PHPMD always skips the default PHP excludes from file discovery: `vendor`, `node_modules`,
