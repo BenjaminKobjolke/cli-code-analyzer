@@ -36,13 +36,13 @@
       "code_quality": "green"
     },
     "tools\\run_tests.bat": {
-      "test": "green"
+      "test": "failed"
     },
     "tools\\run_integration_tests.bat": {
-      "test": "green"
+      "test": "failed"
     },
     "tools\\analyze_changed_and_new_files.bat": {
-      "code_quality": "green"
+      "code_quality": "failed"
     }
   },
   "analysis_format_command": "tools/fix_ruff_issues.bat",
@@ -51,5 +51,56 @@
     "tools\\run_integration_tests.bat": "test",
     "tools\\analyze_changed_and_new_files.bat": "code_quality"
   },
-  "project_id": 12287
+  "project_id": 12287,
+  "analysis_command_failing_tests": {
+    "tools\\run_integration_tests.bat": [
+      "tests/integration/test_autohotkey_language.py::test_max_lines_fires_on_ahk_and_validate_skips",
+      "tests/integration/test_cli_dart.py::test_cli_dart_analyzes_large_changed_scope",
+      "tests/integration/test_cli_dart.py::test_cli_dart_runs_dart_analyze_without_tool_failure",
+      "tests/integration/test_cli_dart.py::test_cli_dart_unused_code_confirms_source_references",
+      "tests/integration/test_cli_dart.py::test_cli_dart_unused_files_checks_each_rootless_workspace_package",
+      "tests/integration/test_cli_dependency_audit.py::test_cli_accepts_composer_with_no_packages",
+      "tests/integration/test_cli_dependency_audit.py::test_cli_audits_stacks_emits_json_and_leaves_checkout_unchanged[False]",
+      "tests/integration/test_cli_dependency_audit.py::test_cli_audits_stacks_emits_json_and_leaves_checkout_unchanged[True]",
+      "tests/integration/test_cli_dependency_audit.py::test_cli_uses_fvm_for_pinned_flutter_checkout_and_leaves_checkout_unchanged",
+      "tests/integration/test_cli_fail_on.py::test_builtin_warning_fails_when_configured_and_writes_csv",
+      "tests/integration/test_cli_fail_on.py::test_clean_project_succeeds_with_warning_threshold",
+      "tests/integration/test_cli_fail_on.py::test_error_finding_fails_when_warnings_are_configured",
+      "tests/integration/test_cli_fail_on.py::test_fail_on_warnings_cli_flag_allows_clean_project",
+      "tests/integration/test_cli_fail_on.py::test_fail_on_warnings_cli_flag_reports_ruff_warning_and_default_is_unchanged",
+      "tests/integration/test_cli_fail_on.py::test_invalid_fail_on_configuration_exits_nonzero",
+      "tests/integration/test_cli_fail_on.py::test_only_changed_fail_on_warnings_checks_only_changed_files",
+      "tests/integration/test_cli_fail_on.py::test_ruff_warning_fails_only_when_configured",
+      "tests/integration/test_cli_fail_on_findings.py::test_clean_project_succeeds_with_strict_mode",
+      "tests/integration/test_cli_fail_on_findings.py::test_error_fails_with_strict_mode",
+      "tests/integration/test_cli_fail_on_findings.py::test_json_warning_fails_with_strict_mode",
+      "tests/integration/test_cli_fail_on_findings.py::test_warning_only_fails_only_when_strict_mode_is_enabled",
+      "tests/integration/test_cli_max_errors.py::test_rules_json_max_errors_caps_per_rule_csv",
+      "tests/integration/test_cli_most_complex_function.py::test_cli_diff_base_selects_changed_function_only",
+      "tests/integration/test_cli_most_complex_function.py::test_cli_invalid_diff_base_is_an_error_without_stdout",
+      "tests/integration/test_cli_most_complex_function.py::test_cli_prints_only_json_with_winning_function_and_full_line_range",
+      "tests/integration/test_cli_most_complex_function.py::test_cli_requires_files_from",
+      "tests/integration/test_cli_most_complex_function.py::test_cli_returns_null_for_file_without_functions",
+      "tests/integration/test_cli_only_changed_since.py::test_only_changed_includes_committed_files_since_env_commit",
+      "tests/integration/test_cli_tool_failure.py::test_dart_failure_is_not_cached_as_clean",
+      "tests/integration/test_cpp_language.py::test_discovery_finds_cpp_extensions_and_excludes_build_caches",
+      "tests/integration/test_cpp_language.py::test_max_lines_analyzer_checks_ino_files",
+      "tests/integration/test_cpp_language.py::test_only_changed_analyzes_changed_ino_and_returns_finding_exit_code",
+      "tests/integration/test_cpp_language.py::test_only_changed_clean_cpp_project_returns_zero",
+      "tests/integration/test_cpp_language.py::test_only_changed_includes_untracked_cpp_header",
+      "tests/integration/test_kotlin_language.py::test_cli_accepts_kt_alias",
+      "tests/integration/test_kotlin_language.py::test_cli_reports_complexity_and_clean_exit_codes",
+      "tests/integration/test_kotlin_language.py::test_discovery_includes_kotlin_and_skips_generated_directories",
+      "tests/integration/test_kotlin_language.py::test_only_changed_checks_untracked_kotlin_files",
+      "tests/integration/test_pmd_languages.py::test_pmd_detects_duplicates_per_language[cpp]",
+      "tests/integration/test_pmd_languages.py::test_pmd_detects_duplicates_per_language[csharp]",
+      "tests/integration/test_pmd_languages.py::test_pmd_detects_duplicates_per_language[flutter]",
+      "tests/integration/test_pmd_languages.py::test_pmd_detects_duplicates_per_language[javascript]",
+      "tests/integration/test_pmd_languages.py::test_pmd_detects_duplicates_per_language[kotlin]",
+      "tests/integration/test_pmd_languages.py::test_pmd_detects_duplicates_per_language[php]",
+      "tests/integration/test_pmd_languages.py::test_pmd_detects_duplicates_per_language[python]",
+      "tests/integration/test_pmd_languages.py::test_pmd_missing_binary_surfaces_failure",
+      "tests/integration/test_pmd_languages.py::test_pmd_svelte_runs_without_tool_failure"
+    ]
+  }
 }
