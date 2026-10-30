@@ -20,12 +20,18 @@ result instead of treating the scan as clean.
 ```json
 "phpmd_analyze": {
   "enabled": true,
-  "log_level": "warning"
+  "log_level": "warning",
+  "exclude_patterns": ["vendor/**", "generated/**"]
 }
 ```
 
 The PHPMD rulesets are currently fixed to `codesize,design`. Rule-level severity filtering,
 the global log level, and the maximum-finding limit apply as for other analyzers.
+
+`exclude_patterns` accepts a flat list of PHP path patterns or a language-keyed object such as
+`{"php": ["vendor/**", "generated/**"]}`. The configured patterns are added to the default
+excludes, so `vendor` remains excluded even when no setting is provided. The project root stays
+the PHPMD scan target, which keeps application PHP files in scope.
 
 ## Excluded folders
 
@@ -42,6 +48,6 @@ project/
 └── src/VendorService.php   analyzed (not a folder named vendor)
 ```
 
-Each folder is passed with both `/` and `\` separators (`*/vendor/*,*\vendor\*`), because
-PHPMD matches the patterns against the raw operating-system path. The list is fixed and cannot
-be changed in the rules file.
+Each default folder is passed with both `/` and `\` separators (for example,
+`*/vendor/*,*\vendor\*`), because PHPMD matches those patterns against the raw operating-system
+path. Additional configured patterns are also passed to PHPMD's `--exclude` option.

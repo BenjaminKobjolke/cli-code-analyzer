@@ -5,13 +5,14 @@ from pathlib import Path
 
 from file_discovery import DEFAULT_EXCLUDE_PATTERNS
 from models import RuleResult, Severity, Violation
+from path_utils import resolve_exclude_patterns
 from rules.base import ProjectWideRule
 from rules.filter_scope import ToolOutputError
 from rules.php_tool_paths import get_bundled_php_tool_path
 
 # PHPMD scans --path recursively, so mirror the PHP file-discovery excludes (vendor/** -> */vendor/*).
 # PDepend matches the raw OS path, so each folder needs both separator forms.
-_EXCLUDES = ','.join(
+_DEFAULT_EXCLUDES = tuple(
     f"*{sep}{pattern.removesuffix('/**')}{sep}*"
     for pattern in DEFAULT_EXCLUDE_PATTERNS['php']
     for sep in ('/', '\\')
@@ -50,6 +51,11 @@ class PHPMDAnalyzeRule(ProjectWideRule):
             return self._failed('PHPMD cannot run without a project path')
 
         try:
+            exclude_patterns = list(_DEFAULT_EXCLUDES)
+            exclude_patterns.extend(resolve_exclude_patterns(
+                self.config.get('exclude_patterns'), ('php',)
+            ))
+            exclude_patterns = list(dict.fromkeys(exclude_patterns))
             commands = self._scoped_commands(
                 [phpmd_path, 'analyze'], ('.php',), [str(self.base_path)]
             )
@@ -63,7 +69,7 @@ class PHPMDAnalyzeRule(ProjectWideRule):
                     '--format', 'xml',
                     '--ruleset', 'codesize', '--ruleset', 'design',
                     '--suffixes', 'php',
-                    '--exclude', _EXCLUDES,
+                    '--exclude', ','.join(exclude_patterns),
                     '--ignore-violations-on-exit', '--no-progress',
                 ])
                 result = self._run_subprocess(command, self.base_path)

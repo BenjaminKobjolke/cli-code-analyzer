@@ -298,6 +298,7 @@
     "exclude_patterns": ["vendor/**", "**/vendor/**"]
   },
   "phpmd_analyze": {
-    "enabled": true
+    "enabled": true,
+    "exclude_patterns": ["vendor/**"]
   }
 }

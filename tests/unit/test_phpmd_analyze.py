@@ -10,12 +10,12 @@ from rules.context import RuleContext
 from rules.phpmd_analyze import PHPMDAnalyzeRule
 
 
-def _rule(tmp_path: Path, filter_files=None) -> PHPMDAnalyzeRule:
+def _rule(tmp_path: Path, filter_files=None, config=None) -> PHPMDAnalyzeRule:
     source = tmp_path / "src" / "Example.php"
     source.parent.mkdir(parents=True, exist_ok=True)
     source.write_text("<?php\n", encoding="utf-8")
     return PHPMDAnalyzeRule(RuleContext(
-        config={},
+        config=config or {},
         base_path=tmp_path,
         logger=Logger(quiet=True),
         filter_files=filter_files,
@@ -52,7 +52,9 @@ def test_phpmd_invokes_xml_report_with_scoped_php_files(tmp_path: Path, monkeypa
     assert cwd == tmp_path
 
 
-def test_phpmd_excludes_dependency_folders_by_default(tmp_path: Path, monkeypatch):
+def test_phpmd_project_scan_excludes_dependencies_and_keeps_project_root(
+    tmp_path: Path, monkeypatch
+):
     rule = _rule(tmp_path)
     calls = []
 
@@ -70,9 +72,45 @@ def test_phpmd_excludes_dependency_folders_by_default(tmp_path: Path, monkeypatc
 
     command = calls[0]
     excludes = command[command.index("--exclude") + 1].split(",")
+    assert command[:3] == ["phpmd", "analyze", str(tmp_path)]
     assert "*/vendor/*" in excludes
     assert "*\\vendor\\*" in excludes
     assert "*/node_modules/*" in excludes
+
+
+@pytest.mark.parametrize(
+    "exclude_patterns",
+    [
+        ["generated/**", "tests/fixtures/**"],
+        {"php": ["generated/**", "tests/fixtures/**"]},
+    ],
+    ids=["flat", "php-keyed"],
+)
+def test_phpmd_project_scan_combines_configured_exclusions(
+    tmp_path: Path, monkeypatch, exclude_patterns
+):
+    rule = _rule(tmp_path, config={"exclude_patterns": exclude_patterns})
+    calls = []
+
+    monkeypatch.setattr(rule, "_get_tool_path", lambda *_args: "phpmd")
+    monkeypatch.setattr("rules.phpmd_analyze.get_bundled_php_tool_path", lambda *_args: None)
+    monkeypatch.setattr(
+        rule,
+        "_run_subprocess",
+        lambda command, _cwd: calls.append(command) or subprocess.CompletedProcess(
+            command, 0, '<pmd version="1" />', ""
+        ),
+    )
+
+    result = rule.check(tmp_path / "src" / "Example.php")
+
+    assert result.status == RuleStatus.OK
+    command = calls[0]
+    assert command[:3] == ["phpmd", "analyze", str(tmp_path)]
+    excludes = command[command.index("--exclude") + 1].split(",")
+    assert "*/vendor/*" in excludes
+    assert "generated/**" in excludes
+    assert "tests/fixtures/**" in excludes
 
 
 def test_phpmd_prefers_bundled_executable_to_global_lookup(tmp_path: Path, monkeypatch):
