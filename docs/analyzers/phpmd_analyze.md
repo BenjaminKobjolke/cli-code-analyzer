@@ -4,7 +4,8 @@
 
 Runs PHP Mess Detector (PHPMD) over PHP files using its `codesize` and `design` rulesets. The
 analyzer reports supported cyclomatic complexity, NPath complexity, excessive method length,
-and excessive parameter count findings with their function names and source locations.
+excessive parameter count, class coupling, and empty catch block findings with their source
+locations.
 
 It is registered for PHP scans and is enabled by default when its rule entry is absent. Set
 `enabled` to `false` to opt out. PHPMD 3 is included in the analyzer's PHP Composer development

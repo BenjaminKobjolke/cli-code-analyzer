@@ -26,6 +26,8 @@ _SUPPORTED_RULES = {
     'ExcessiveParameterList',
     'LongMethod',
     'LongParameterList',
+    'CouplingBetweenObjects',
+    'EmptyCatchBlock',
 }
 _RECOMMENDATIONS = {
     'CyclomaticComplexity': 'Simplify branching or extract focused decision logic.',
@@ -34,6 +36,8 @@ _RECOMMENDATIONS = {
     'LongMethod': 'Split the method into focused steps with clear responsibilities.',
     'ExcessiveParameterList': 'Group related inputs behind a focused collaborator or value object.',
     'LongParameterList': 'Group related inputs behind a focused collaborator or value object.',
+    'CouplingBetweenObjects': 'Reduce direct dependencies or split the class responsibilities.',
+    'EmptyCatchBlock': 'Handle the exception or document why ignoring it is safe.',
 }
 
 

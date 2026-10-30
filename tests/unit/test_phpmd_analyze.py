@@ -293,6 +293,8 @@ def test_phpmd_parses_each_supported_rule_id(tmp_path: Path):
         "NPathComplexity",
         "ExcessiveMethodLength",
         "ExcessiveParameterList",
+        "CouplingBetweenObjects",
+        "EmptyCatchBlock",
     )
     findings = "".join(
         f'<violation beginline="{line}" rule="{name}" class="Example" method="run">{name}</violation>'
@@ -303,7 +305,7 @@ def test_phpmd_parses_each_supported_rule_id(tmp_path: Path):
         f'<pmd><file name="src/Example.php">{findings}</file></pmd>'
     )
 
-    assert [item.line for item in violations] == [1, 2, 3, 4]
+    assert [item.line for item in violations] == [1, 2, 3, 4, 5, 6]
     assert all("Example::run" in item.message for item in violations)
     assert all(name in item.message for name, item in zip(supported_rules, violations, strict=True))
 
