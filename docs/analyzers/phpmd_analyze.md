@@ -19,6 +19,12 @@ The Composer executable wrapper uses the PHP selected by the calling project's `
 unavailable or returns invalid output, the analyzer reports a failed rule result instead of treating
 the scan as clean.
 
+PHPMD can also fail before producing its XML report when PDepend cannot parse the analyzed
+project's class hierarchy, for example when it reports an endless inheritance hierarchy. Without
+a valid XML report, the scan failed and returned no PHPMD findings; it must not be presented as a
+clean scan. Repair the hierarchy in the analyzed project rather than treating this tool failure as
+successful analysis.
+
 ## Configuration
 
 ```json
