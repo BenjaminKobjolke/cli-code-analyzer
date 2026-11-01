@@ -6,9 +6,11 @@ import tempfile
 from contextlib import suppress
 from pathlib import Path
 
+from file_discovery import FileDiscovery
 from models import RuleResult, Severity, Violation
 from rules.base import ProjectWideRule
 from rules.php_tool_paths import get_bundled_php_tool_path
+from rules.php_trait_scope import build_trait_index, resolve_used_trait_files
 from rules.phpstan_config import (
     build_phpstan_config,
     is_excluded_path,
@@ -69,15 +71,26 @@ class PHPStanAnalyzeRule(ProjectWideRule):
         paths = analyze_path if isinstance(analyze_path, list) else [analyze_path]
         paths = [p if Path(p).is_absolute() else str(self.base_path / p) for p in paths]
         try:
-            commands = self._scoped_commands(
-                cmd,
-                ('.php',),
-                paths,
-                exclude=lambda path: is_excluded_path(path, exclude_dirs),
-            )
-            if commands is None:
+            def exclude(path):
+                return is_excluded_path(path, exclude_dirs)
+            targets = self._filtered_paths(('.php',), exclude)
+            if targets is None:
+                commands = self._scoped_commands(cmd, ('.php',), paths, exclude=exclude)
+            elif not targets:
                 self.logger.info("Skipping PHPStan: no changed PHP files outside exclude_patterns")
                 return self._ok([])
+            else:
+                project_files = FileDiscovery(
+                    'php', str(self.base_path), self.config.get('exclude_patterns')
+                ).discover()
+                project_files = [path for path in project_files if not is_excluded_path(path, exclude_dirs)]
+                trait_files = resolve_used_trait_files(targets, build_trait_index(project_files))
+                if trait_files:
+                    self.logger.info(f"Adding {len(trait_files)} trait file(s) used by changed classes")
+                commands = self._scoped_commands(cmd, explicit_files=[*targets, *trait_files])
+                if commands is None:
+                    self.logger.info("Skipping PHPStan: no changed PHP files outside exclude_patterns")
+                    return self._ok([])
             documents = self._run_json('PHPStan', commands, self.base_path)
             data = {'files': {}, 'errors': []}
             for document in documents:
@@ -98,6 +111,12 @@ class PHPStanAnalyzeRule(ProjectWideRule):
                         raise ValueError('PHPStan returned unexpected file result structure')
                     data['files'].update(files)
                 data['errors'].extend(document['errors'])
+            if self.filter_files is not None:
+                data['files'] = {
+                    file_path: file_data
+                    for file_path, file_data in data['files'].items()
+                    if self._get_relative_path(Path(file_path)).replace('\\', '/') in self.filter_files
+                }
             violations = self._parse_phpstan_json(data)
         except FileNotFoundError:
             self.logger.error(f"Error: PHPStan executable not found: {phpstan_path}")

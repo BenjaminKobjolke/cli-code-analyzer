@@ -42,6 +42,12 @@ With `--only-changed` or `--file`, changed PHP files matching `exclude_patterns`
 are not passed to PHPStan. If all changed PHP files are excluded, PHPStan is
 skipped and reports no findings.
 
+Scoped runs also pass the trait files used by changed classes, including traits
+used by those traits, so PHPStan can analyze each class with its trait context.
+Findings from an unchanged trait are omitted; findings remain when the trait
+itself changed. Trait files are found by scanning project PHP files, with
+excluded directories skipped. Full-project runs are unchanged.
+
 ## Bootstrap Files
 
 Use `bootstrap_files` when a project needs its own autoloader, constants, or
