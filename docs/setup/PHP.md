@@ -173,6 +173,8 @@ The `intelephense-mpc-windows` project must be present as a sibling directory to
 
 ## PHP-CS-Fixer Configuration
 
+Under `--only-changed` or `--file`, PHP-CS-Fixer checks only the changed `.php` files inside its configured `analyze_path`; the PHP-CS-Fixer configuration's excludes still apply. It is skipped when no selected PHP file is inside that path.
+
 | Option | Description | Default |
 |--------|-------------|---------|
 | `rules` | Coding standard to enforce | `@PSR12` |

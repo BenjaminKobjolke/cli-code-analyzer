@@ -1,5 +1,6 @@
 """PHP-CS-Fixer analyze rule for PHP code style checking"""
 
+import json
 import re
 from pathlib import Path
 
@@ -182,9 +183,6 @@ return (new PhpCsFixer\\Config())
             if rules:
                 cmd.extend(['--rules', rules])
 
-        # Add path to analyze
-        cmd.append(analyze_path)
-
         # Print scanning info
         exclude_paths = self._get_exclude_paths()
         rules = self._get_rules()
@@ -193,20 +191,42 @@ return (new PhpCsFixer\\Config())
         self.logger.info(f"  Rules: {rules}")
 
         try:
-            result = self._run_subprocess(cmd, self.base_path)
-            output = result.stdout
+            commands = self._scoped_commands(
+                cmd,
+                ('.php',),
+                [analyze_path],
+                exclude=lambda path: not path.resolve().is_relative_to(Path(analyze_path).resolve()),
+            )
+            if commands is None:
+                self.logger.info(f"Skipping PHP-CS-Fixer: no changed PHP files inside {analyze_path}")
+                return self._ok([])
 
-            # Show stderr for progress info (PHP-CS-Fixer outputs progress there)
-            if result.stderr and 'legend:' not in result.stderr.lower():
-                # Filter out the legend and empty lines, show actual progress
-                stderr_lines = [
-                    line
-                    for line in result.stderr.strip().split('\n')
-                    if line.strip() and 'legend:' not in line.lower() and line.strip() != '.'
-                ]
-                if stderr_lines:
-                    for line in stderr_lines[:5]:  # Show first few lines of progress
+            outputs = []
+            scoped_files = []
+            for command in commands:
+                result = self._run_subprocess(command, self.base_path)
+                output = result.stdout or ''
+                outputs.append(output)
+
+                # Show stderr for progress info (PHP-CS-Fixer outputs progress there)
+                if result.stderr and 'legend:' not in result.stderr.lower():
+                    stderr_lines = [
+                        line
+                        for line in result.stderr.strip().split('\n')
+                        if line.strip() and 'legend:' not in line.lower() and line.strip() != '.'
+                    ]
+                    for line in stderr_lines[:5]:
                         self.logger.info(f"  {line}")
+
+                if self.filter_files is not None:
+                    if not output.strip():
+                        raise ValueError('PHP-CS-Fixer returned empty JSON output')
+                    data = json.loads(output)
+                    if not isinstance(data, dict) or not isinstance(data.get('files'), list):
+                        raise ValueError('PHP-CS-Fixer returned unexpected JSON structure')
+                    scoped_files.extend(data['files'])
+
+            output = json.dumps({'files': scoped_files}) if self.filter_files is not None else outputs[0]
 
             violations = parse_fixer_json(output, self._get_relative_path, self.logger)
             violations = self._filter_violations_by_log_level(violations)

@@ -100,6 +100,7 @@ python main.py --language php --path ./src --rules rules.json --verbosity error
 
 - Intelephense executes once per analysis run (project-wide, not per-file)
 - The analyzer starts an LSP server, indexes all PHP files, then collects diagnostics
+- Under `--only-changed` or `--file`, it still indexes the whole project but reports diagnostics only for the selected files. It is skipped when no selected PHP file is outside `exclude_patterns`.
 - The `timeout` setting controls how long to wait for the LSP to process all files
 - For large projects, you may need to increase the timeout value
 - The `ignore_unused_underscore` option filters hints about intentionally unused variables (e.g., `$_response`)

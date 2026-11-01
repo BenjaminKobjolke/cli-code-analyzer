@@ -1,6 +1,7 @@
 """Intelephense analyze rule for PHP code analysis using LSP."""
 
 import csv
+import fnmatch
 from pathlib import Path
 
 from models import RuleResult, Severity, Violation
@@ -58,6 +59,20 @@ class IntelephenseAnalyzeRule(ProjectWideRule):
         exclude_patterns = self.config.get("exclude_patterns", ["vendor/**", "node_modules/**"])
 
         try:
+            if self.filter_files is not None:
+                scoped_paths = self._filtered_paths(
+                    ('.php',),
+                    exclude=lambda path: any(
+                        fnmatch.fnmatch(path.relative_to(self.base_path).as_posix(), pattern)
+                        for pattern in exclude_patterns
+                    ),
+                )
+                if not scoped_paths:
+                    self.logger.info(
+                        "Skipping Intelephense: no changed PHP files outside exclude_patterns"
+                    )
+                    return self._ok([])
+
             diagnostics = get_diagnostics_func(
                 project_path=str(self.base_path),
                 min_severity=min_severity,
@@ -69,6 +84,12 @@ class IntelephenseAnalyzeRule(ProjectWideRule):
             diagnostics = [
                 diag for diag in diagnostics if Path(diag.file_path).name != GENERATED_FIXER_CONFIG
             ]
+            if self.filter_files is not None:
+                diagnostics = [
+                    diag
+                    for diag in diagnostics
+                    if diag.file_path.replace('\\', '/') in self.filter_files
+                ]
 
             violations = []
             for diag in diagnostics:

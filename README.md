@@ -448,7 +448,7 @@ python main.py --language flutter --path ./lib --file ./lib/screens/home.dart -m
 
 #### Only Changed Files (git-aware)
 
-Use `--only-changed` to report violations only for files that are new or modified vs git `HEAD` (includes untracked, skips deletes). Project-wide analyzers still run on the whole tree, but the report is filtered to the changed set — same mechanism as `--file`, just for many files at once.
+Use `--only-changed` to report violations only for files that are new or modified vs git `HEAD` (includes untracked, skips deletes). Most project-wide analyzers are now scoped to the changed files. The rest still run on the whole tree or are skipped, and the report is filtered either way — the same mechanism as `--file`, just for many files at once.
 
 Set `CLI_ANALYZER_CHANGED_SINCE` to a commit to include tracked files changed between that commit and the working tree, along with current untracked files. This covers committed and uncommitted changes; deletions stay skipped and renames are reported by their new path. An unset or blank value keeps the usual `HEAD`-only behavior. An invalid value prints an error naming the variable and exits with code 1. The variable only affects `--only-changed`.
 

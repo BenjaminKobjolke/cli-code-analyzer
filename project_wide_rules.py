@@ -66,11 +66,12 @@ PROJECT_WIDE_ANALYZERS = [
 # (cross-file/whole-graph analysis, project/solution-based tools, or whole-suite
 # coverage). Under --only-changed / --file these are skipped rather than run over
 # the whole project. The scopeable ones (dart_analyze, flutter_analyze,
-# ruff_analyze, eslint_analyze, phpstan_analyze, semgrep_analyze, and PMD) accept a file list and
-# are scoped instead — see BaseRule._scoped_commands / PMD --file-list.
+# ruff_analyze, eslint_analyze, phpstan_analyze, php_cs_fixer, intelephense_analyze,
+# semgrep_analyze, and PMD) accept or filter to a file list and are scoped instead — see
+# BaseRule._scoped_commands / PMD --file-list.
 FILTER_INCAPABLE = {
     'dart_code_linter', 'pyscn_analyze', 'svelte_check', 'tsc_analyze',
-    'php_cs_fixer', 'intelephense_analyze', 'dotnet_analyze',
+    'dotnet_analyze',
     'dart_unused_files', 'dart_unused_dependencies', 'dart_import_rules',
     'dart_unused_code', 'dart_missing_dispose',
     'dart_test_coverage', 'dart_crap_score',
