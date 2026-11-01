@@ -67,7 +67,9 @@ def test_php_cs_fixer_scopes_changed_php_inside_analyze_path(tmp_path: Path, mon
         "classes/Changed.php"
     ]
     assert len(calls) == 1
-    assert calls[0][-1] == str(tmp_path / "classes/Changed.php")
+    assert str(tmp_path / "classes/Changed.php") in calls[0]
+    assert str(tmp_path / "classes/Other.php") in calls[0]
+    assert str(tmp_path / "src/Outside.php") not in calls[0]
     assert str(tmp_path / "classes") not in calls[0]
 
 
