@@ -23,6 +23,14 @@ A flexible command-line tool for analyzing code files based on configurable rule
 - **ESLint integration**: Integrated [ESLint](https://eslint.org/) for JavaScript/TypeScript linting with auto-detection of Svelte projects
 - **Svelte type checking**: Integrated [svelte-check](https://github.com/sveltejs/language-tools/tree/master/packages/svelte-check) for Svelte/TypeScript type checking with configurable compiler warning suppression
 - **TypeScript type checking**: Integrated `tsc --noEmit` for project-wide TypeScript type checking with error code filtering
+- **Dart project hygiene**: Unused files, unused dependencies, unused code, missing `dispose()` calls, architecture import rules, test coverage and CRAP score (complexity x coverage); package-aware rules run once per package in rootless workspaces
+- **Python test metrics**: Test coverage (coverage.py + pytest) and per-function CRAP score
+- **PHP analysis**: [PHPStan](https://phpstan.org/), [PHP-CS-Fixer](https://cs.symfony.com/), [Intelephense](https://intelephense.com/) diagnostics, [PHPMD](https://phpmd.org/) and lizard-based function quality metrics; with `--only-changed`, PHPStan, PHP-CS-Fixer and Intelephense run only on the changed files
+- **C# analysis**: Compiler and analyzer diagnostics from `dotnet build` via `dotnet_analyze`
+- **Pattern scanning**: [Semgrep](https://semgrep.dev/) rules for Python, JavaScript/TypeScript, Svelte, PHP, C# and Dart
+- **Coupling checks**: `graphify_fanout` flags files with too many outgoing dependencies, using a graphify `graphify-out/graph.json`
+- **Dependency audit**: `--audit-dependencies` reports known advisories and outdated direct dependencies from lock files (pub, Composer, pip/uv)
+- **Most complex function**: `--most-complex-function` reports the highest-complexity function from a list of changed files as JSON
 - **Auto-fix support**: Automatically fix Python issues using Ruff with `ruff_fixer.py`, PHP with `php_fixer.py`, Dart/Flutter with `dart_fixer.py` (`dart fix --apply`)
 - **Language-specific exclusions**: Automatically exclude generated files (e.g., `**.g.dart`, `**.freezed.dart`)
 - **Relative path display**: Clean, readable output with relative file paths
@@ -32,6 +40,13 @@ A flexible command-line tool for analyzing code files based on configurable rule
 - **Git-aware mode**: `--only-changed` reports violations only for files new or modified vs git `HEAD` (includes untracked, skips deletes) — ideal for iterating on a feature branch or AI-assisted post-implementation checks
 - **Single-analyzer runs**: `--only-analyzer` runs just the named analyzer(s) from `--rules` for a run, skipping every other enabled rule
 
+## Documentation
+
+- Per-language setup: [docs/setup/](docs/setup/) (Flutter, Python, PHP, WordPress, C#, JavaScript/TypeScript, Svelte, Kotlin, AutoHotkey, Arduino/C++)
+- Per-analyzer configuration and output: [docs/analyzers/](docs/analyzers/)
+- `rules.json` reference: [docs/RULES_JSON.md](docs/RULES_JSON.md)
+- List analyzers per language: `python main.py --list-analyzers all`
+
 ## Installation
 
 1. Clone the repository:
@@ -40,7 +55,7 @@ git clone https://github.com/BenjaminKobjolke/cli-code-analyzer.git
 cd cli-code-analyzer
 ```
 
-2. Install Python dependencies (Python 3.7+ required):
+2. Install Python dependencies (Python 3.10+ required):
 ```bash
 # On Windows
 install.bat
@@ -88,11 +103,11 @@ python main.py --language <language> --path <path> [options]
 
 | Argument | Short | Required | Default | Description |
 |----------|-------|----------|---------|-------------|
-| `--language` | `-l` | Yes | - | Language(s) to analyze: `flutter`, `python`, `php`, `csharp`, `javascript`, `svelte`, `autohotkey`, `cpp`. Supports multiple languages (space-separated or comma-separated). Aliases: `dart`, `ts`, `js`, `py`, `cs`, `ahk`, `arduino`, `ino`, `c++` |
+| `--language` | `-l` | Yes | - | Language(s) to analyze: `flutter`, `python`, `php`, `csharp`, `javascript`, `svelte`, `autohotkey`, `kotlin`, `cpp`. Supports multiple languages (space-separated or comma-separated). Aliases: `dart`, `ts`, `js`, `py`, `cs`, `ahk`, `kt`, `arduino`, `ino`, `c++` |
 | `--path` | `-p` | Yes | - | Path to the code directory (analyzes recursively) or single file to analyze |
 | `--rules` | `-r` | No | `rules.json` | Path to the rules JSON configuration file |
 | `--verbosity` | `-v` | No | `normal` | Output verbosity level: `minimal`, `normal`, or `verbose` |
-| `--output` | `-o` | No | - | Path to output folder for reports. If set, saves reports to files (`line_count_report.txt`, `duplicate_code.csv`) instead of console output |
+| `--output` | `-o` | No | - | Path to output folder for reports. If set, saves reports to files (one CSV per analyzer) instead of console output. Previous reports in the folder are removed first |
 | `--loglevel` | `-L` | No | `all` | Filter violations by severity: `error`, `warning`, or `all` |
 | `--maxamountoferrors` | `-m` | No | unlimited | Maximum number of violations to include in reports. When exceeded, keeps the largest violations (e.g., duplicates with most lines) |
 | `--file` | `-F` | No | - | Filter violations to a single file (requires `--path`). Defaults `--maxamountoferrors` to 5. Suppresses progress output. |
@@ -1569,39 +1584,28 @@ configured, validation for those scripts is skipped (not a failure). See
 
 ```
 cli-code-analyzer/
-├── main.py                     # CLI entry point
-├── analyzer.py                 # Main analyzer orchestration
-├── ruff_fixer.py               # Ruff auto-fix tool for Python
-├── php_fixer.py                # PHP-CS-Fixer auto-fix tool for PHP
-├── dart_fixer.py               # dart fix --apply wrapper for Dart/Flutter
-├── file_discovery.py           # File discovery logic
-├── config.py                   # Configuration loading
-├── settings.py                 # Settings management (INI-based)
-├── models.py                   # Data models (Violation, Severity, etc.)
-├── reporter.py                 # Report formatting (minimal/normal/verbose/file)
-├── rules/
-│   ├── __init__.py            # Rules module
-│   ├── base.py                # Base rule class
-│   ├── max_lines.py           # Max lines per file rule
-│   ├── kotlin_complexity.py   # Kotlin function metric rule
-│   ├── autohotkey_analyze.py  # AutoHotkey syntax/load validation rule (v1/v2)
-│   ├── pmd_duplicates.py      # PMD duplicate code detection rule
-│   ├── pmd_similar_code.py    # PMD similar code detection rule
-│   ├── dart_analyze.py        # Dart static analysis rule
-│   ├── flutter_analyze.py     # Flutter static analysis rule
-│   ├── dart_code_linter.py    # Dart code metrics analysis rule
-│   ├── ruff_analyze.py        # Ruff Python linter rule
-│   ├── pyscn_analyze.py       # pyscn structural analysis rule (complexity/deadcode/CBO)
-│   ├── eslint_analyze.py      # ESLint JavaScript/TypeScript/Svelte rule
-│   ├── svelte_check.py        # Svelte type checking rule
-│   └── tsc_analyze.py         # TypeScript type checking rule (tsc --noEmit)
-├── rules.json                  # Default rules configuration
-├── settings.ini                # User settings (PMD path, Dart path, etc.)
-├── fix_python_ruff_issues.bat  # Batch file to auto-fix Python issues
-└── example/                    # Example project for testing
-    ├── rules.json             # Example rules (warning:200, error:300)
-    └── lib/
-        └── sample_widget.dart  # Sample Flutter file (350+ lines)
+├── main.py                 # CLI entry point
+├── cli_parser.py           # Argument parsing
+├── cli_analysis.py         # Runs an analysis from parsed arguments
+├── analyzer.py             # Orchestration (project-wide and per-file rules)
+├── analyzer_registry.py    # Languages -> available analyzers
+├── file_discovery.py       # File discovery and language extensions
+├── git_changes.py          # --only-changed file selection
+├── violation_cache.py      # SQLite violation cache
+├── reporter.py             # Text/JSON/CSV output
+├── config.py / settings.py # rules.json loading / settings.ini tool paths
+├── ruff_fixer.py, php_fixer.py, dart_fixer.py  # Auto-fix tools
+├── rules/                  # One module per analyzer (BaseRule subclasses)
+├── dependency_audit/       # --audit-dependencies
+├── function_complexity/    # --most-complex-function
+├── semgrep_rules/          # Bundled Semgrep rules
+├── docs/
+│   ├── RULES_JSON.md       # rules.json reference
+│   ├── analyzers/          # Per-analyzer docs
+│   └── setup/              # Per-language setup guides
+├── tests/                  # pytest suite
+├── example/                # Example projects and rules for testing
+└── rules.json              # Default rules configuration
 ```
 
 ## Exit Codes
@@ -1709,39 +1713,7 @@ python main.py --language flutter --path lib/ --output reports/
 
 ## Extending the Analyzer
 
-### Adding New Rules
-
-1. Create a new rule class in `rules/` directory:
-
-```python
-# rules/my_custom_rule.py
-from rules.base import BaseRule
-from models import Violation, Severity
-
-class MyCustomRule(BaseRule):
-    def check(self, file_path):
-        # Your rule logic here
-        violations = []
-        # ... check logic ...
-        return violations
-```
-
-2. Register the rule in `analyzer.py`
-
-3. Add configuration to `rules.json`
-
-### Adding New Languages
-
-1. Update `file_discovery.py` with new file extensions:
-
-```python
-LANGUAGE_EXTENSIONS = {
-    'flutter': ['.dart'],
-    'python': ['.py'],  # Add new language
-}
-```
-
-2. Test with your language-specific code
+See [CREATING_NEW_ANALYZER.md](CREATING_NEW_ANALYZER.md) for the step-by-step guide: create a `BaseRule` subclass in `rules/`, export it from `rules/__init__.py`, register it in `analyzer.py` and `analyzer_registry.py`, add its default config to `rules.json`, and document it in `docs/analyzers/`. New file extensions go in `FileDiscovery.LANGUAGE_EXTENSIONS` in `file_discovery.py`.
 
 ## Contributing
 
