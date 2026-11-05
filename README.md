@@ -110,8 +110,8 @@ python main.py --language <language> --path <path> [options]
 | `--output` | `-o` | No | - | Path to output folder for reports. If set, saves reports to files (one CSV per analyzer) instead of console output. Previous reports in the folder are removed first |
 | `--loglevel` | `-L` | No | `all` | Filter violations by severity: `error`, `warning`, or `all` |
 | `--maxamountoferrors` | `-m` | No | unlimited | Maximum number of violations to include in reports. When exceeded, keeps the largest violations (e.g., duplicates with most lines) |
-| `--file` | `-F` | No | - | Filter violations to a single file (requires `--path`). Defaults `--maxamountoferrors` to 5. Suppresses progress output. |
-| `--only-changed` | | No | off | Analyze only files new or modified in git vs HEAD (includes untracked, skips deletes). Set `CLI_ANALYZER_CHANGED_SINCE=<commit>` to also include files changed since a commit. Requires `--path` inside a git repo. Mutually exclusive with `--file`. Defaults `--maxamountoferrors` to 5. |
+| `--file` | `-F` | No | - | Filter violations to a single file (requires `--path`). Configured global and `max_lines_per_file` excludes apply; an excluded file is reported as excluded and skipped. Defaults `--maxamountoferrors` to 5. Suppresses progress output. |
+| `--only-changed` | | No | off | Analyze only files new or modified in git vs HEAD (includes untracked, skips deletes). Configured `global_exclude_paths` and `max_lines_per_file` excludes apply to discovery, and each tool's `exclude_paths` / `exclude_patterns` apply to its scoped file list. Set `CLI_ANALYZER_CHANGED_SINCE=<commit>` to also include files changed since a commit. Requires `--path` inside a git repo. Mutually exclusive with `--file`. Defaults `--maxamountoferrors` to 5. |
 | `--fail-on-warnings` | | No | off | Exit 1 when the report includes a WARNING or ERROR after `--loglevel` filtering. INFO never fails the run. |
 | `--list-files` | `-f` | No | off | List all analyzed file paths after analysis |
 | `--list-analyzers` | `-a` | No | - | List available analyzers for a language (or all) |
@@ -463,7 +463,7 @@ python main.py --language flutter --path ./lib --file ./lib/screens/home.dart -m
 
 #### Only Changed Files (git-aware)
 
-Use `--only-changed` to report violations only for files that are new or modified vs git `HEAD` (includes untracked, skips deletes). Most project-wide analyzers are now scoped to the changed files. The rest still run on the whole tree or are skipped, and the report is filtered either way — the same mechanism as `--file`, just for many files at once.
+Use `--only-changed` to report violations only for files that are new or modified vs git `HEAD` (includes untracked, skips deletes). `global_exclude_paths` and the `max_lines_per_file` excludes remove files from discovery. Each project's `exclude_paths` and `exclude_patterns` also remove files from that rule's scoped tool arguments, so tools receive only files they own. Most project-wide analyzers are scoped to the remaining changed files. The rest still run on the whole tree or are skipped, and the report is filtered either way — the same mechanism as `--file`, just for many files at once.
 
 Set `CLI_ANALYZER_CHANGED_SINCE` to a commit to include tracked files changed between that commit and the working tree, along with current untracked files. This covers committed and uncommitted changes; deletions stay skipped and renames are reported by their new path. An unset or blank value keeps the usual `HEAD`-only behavior. An invalid value prints an error naming the variable and exits with code 1. The variable only affects `--only-changed`.
 
