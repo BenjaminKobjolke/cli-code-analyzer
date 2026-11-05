@@ -51,6 +51,47 @@ def test_filtered_paths_returns_existing_matches_only(tmp_path: Path):
     assert out == [tmp_path / "src" / "a.py"]
 
 
+@pytest.mark.parametrize(
+    "config",
+    [
+        {"exclude_paths": ["api"]},
+        {"exclude_patterns": ["api/**"]},
+        {"exclude_patterns": {"php": ["api/**"]}},
+    ],
+)
+def test_filtered_paths_applies_rule_excludes(tmp_path: Path, config: dict):
+    _touch(tmp_path, "src/a.php", "api/b.php", "src/gen.g.dart")
+    rule = _NoopRule(_ctx(
+        base_path=tmp_path,
+        language="php",
+        config=config,
+        filter_files={"src/a.php", "api/b.php", "src/gen.g.dart"},
+    ))
+    assert set(rule._filtered_paths()) == {tmp_path / "src/a.php", tmp_path / "src/gen.g.dart"}
+
+
+def test_filtered_paths_keep_all_files_for_empty_rule_config(tmp_path: Path):
+    _touch(tmp_path, "api/b.php")
+    rule = _NoopRule(_ctx(base_path=tmp_path, filter_files={"api/b.php"}))
+    assert rule._filtered_paths() == [tmp_path / "api/b.php"]
+
+
+def test_filtered_paths_ignore_non_dict_rule_config(tmp_path: Path):
+    _touch(tmp_path, "api/b.php")
+    rule = _NoopRule(_ctx(base_path=tmp_path, config="php-cs-fixer.php", filter_files={"api/b.php"}))
+    assert rule._filtered_paths() == [tmp_path / "api/b.php"]
+
+
+def test_filtered_paths_applies_callable_exclude_with_configured_excludes(tmp_path: Path):
+    _touch(tmp_path, "api/b.php", "vendor/c.php", "src/a.php")
+    rule = _NoopRule(_ctx(
+        base_path=tmp_path,
+        config={"exclude_paths": ["api"]},
+        filter_files={"api/b.php", "vendor/c.php", "src/a.php"},
+    ))
+    assert set(rule._filtered_paths(exclude=lambda path: "vendor" in path.parts)) == {tmp_path / "src/a.php"}
+
+
 # --- _scope_args -----------------------------------------------------------
 
 def test_scope_args_whole_project_fallback_when_no_filter(tmp_path: Path):

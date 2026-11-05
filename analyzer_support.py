@@ -3,6 +3,17 @@
 from config import Config
 from logger import Logger
 from models import LogLevel
+from path_utils import dir_paths_to_patterns, resolve_exclude_patterns
+
+
+def discovery_exclude_patterns(config: Config, languages: list[str]) -> list[str]:
+    """Build global and max-lines exclusions shared by discovery consumers."""
+    patterns = dir_paths_to_patterns(config.get_global_exclude_paths())
+    if config.is_rule_enabled('max_lines_per_file'):
+        rule_config = config.get_rule('max_lines_per_file')
+        patterns += dir_paths_to_patterns(rule_config.get('exclude_paths'))
+        patterns += resolve_exclude_patterns(rule_config.get('exclude_patterns'), languages)
+    return patterns
 
 
 def resolve_log_level(

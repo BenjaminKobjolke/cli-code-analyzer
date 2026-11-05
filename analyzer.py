@@ -6,16 +6,12 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from analyzer_registry import get_analyzers_for_language
-from analyzer_support import resolve_log_level
+from analyzer_support import discovery_exclude_patterns, resolve_log_level
 from config import Config
 from file_discovery import FileDiscovery
 from logger import Logger
 from models import LogLevel, RuleResult, RuleStatus, Severity, Violation
-from path_utils import (
-    dir_paths_to_patterns,
-    resolve_exclude_patterns,
-    to_relative_posix,
-)
+from path_utils import to_relative_posix
 from project_wide_rules import FILTER_INCAPABLE, PROJECT_WIDE_ANALYZERS
 from rules import (
     KotlinComplexityRule,
@@ -133,20 +129,9 @@ class CodeAnalyzer:
 
     def analyze(self):
         """Run the analysis"""
-        # Discovery excludes: the global `global_exclude_paths` list plus the
-        # max_lines_per_file block's `exclude_paths` (bare dirs) and
-        # `exclude_patterns` (globs). Language defaults are merged in by
-        # FileDiscovery itself.
-        exclude_patterns = dir_paths_to_patterns(self.config.get_global_exclude_paths())
-        if self.config.is_rule_enabled('max_lines_per_file'):
-            rule_config = self.config.get_rule('max_lines_per_file')
-            exclude_patterns += dir_paths_to_patterns(rule_config.get('exclude_paths'))
-            exclude_patterns += resolve_exclude_patterns(
-                rule_config.get('exclude_patterns'), self.languages,
-            )
-
         # Discover files (single pass for all languages)
         self.logger.info("\nDiscovering files...")
+        exclude_patterns = discovery_exclude_patterns(self.config, self.languages)
         discovery = FileDiscovery(self.languages, self.path, exclude_patterns)
         self.files = discovery.discover()
         self.logger.info(f"Found {len(self.files)} file(s)")

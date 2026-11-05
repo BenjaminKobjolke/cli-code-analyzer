@@ -3,11 +3,20 @@
 import sys
 from pathlib import Path
 
+from analyzer_support import discovery_exclude_patterns
 from cli_support import clean_report_files, resolve_reporter_log_level
-from file_discovery import FileDiscovery
+from config import Config
+from file_discovery import FileDiscovery, matches_exclude_pattern
 
 
 def run_analysis(args, languages, logger, only_analyzers):
+    config = Config(args.rules)
+    discovery = FileDiscovery(
+        languages,
+        args.path,
+        discovery_exclude_patterns(config, languages),
+    )
+
     # -----------------------------------------------------------
     # Resolve filter_files (set of base-relative posix paths)
     # Drives both --file (1-element set) and --only-changed (N-element set).
@@ -24,6 +33,10 @@ def run_analysis(args, languages, logger, only_analyzers):
     if args.file:
         filter_files = {to_relative_posix(args.file, base_path_resolved)}
         filter_mode = "file"
+        rel = next(iter(filter_files))
+        if matches_exclude_pattern(rel, discovery.exclude_patterns):
+            print(f"File {rel} is excluded by the configured excludes", file=sys.stderr)
+            sys.exit(0)
 
     if args.only_changed:
         from git_changes import (
@@ -44,7 +57,6 @@ def run_analysis(args, languages, logger, only_analyzers):
             sys.exit(1)
 
         # Reuse FileDiscovery for extension + exclusion filtering.
-        discovery = FileDiscovery(languages, args.path)
         discovered_files = discovery.discover()
         discovered_set = {p.resolve() for p in discovered_files}
 
@@ -63,9 +75,6 @@ def run_analysis(args, languages, logger, only_analyzers):
     #             > filter-mode default (5 for --file / --only-changed) > unlimited.
     # -----------------------------------------------------------
     cli_max_provided = '-m' in sys.argv or '--maxamountoferrors' in sys.argv
-    from config import Config
-
-    config = Config(args.rules)
     fail_on = config.get_global_fail_on()
     if not cli_max_provided:
         rules_max = config.get_global_max_errors()
@@ -108,7 +117,7 @@ def run_analysis(args, languages, logger, only_analyzers):
     # Discover source files once for cache validation (mtime / file-set checks).
     if cache and discovered_files is None:
         try:
-            discovered_files = FileDiscovery(languages, args.path).discover()
+            discovered_files = discovery.discover()
         except ValueError:
             discovered_files = None  # unsupported language — surfaces in the analyzer run
 

@@ -36,7 +36,7 @@ def test_ruff_merges_batches_then_caps(tmp_path: Path, monkeypatch):
     assert len(result.violations) == 2
 
 
-def test_ruff_excludes_are_attached_and_apply_to_explicit_filter_files(tmp_path: Path):
+def test_ruff_skips_explicit_filter_files_excluded_by_config(tmp_path: Path):
     target = tmp_path / "vend" / "thing.py"
     target.parent.mkdir()
     target.touch()
@@ -57,10 +57,7 @@ def test_ruff_excludes_are_attached_and_apply_to_explicit_filter_files(tmp_path:
     result = rule._run_ruff_check("ruff")
 
     assert result.status == RuleStatus.OK
-    assert len(calls) == 1
-    assert "--force-exclude" in calls[0]
-    assert "--exclude=vend/**" in calls[0]
-    assert "--exclude" not in calls[0]
+    assert calls == []
 
 
 def test_ruff_rejects_untrusted_output(tmp_path: Path):

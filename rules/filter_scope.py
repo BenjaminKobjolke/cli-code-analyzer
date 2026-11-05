@@ -12,6 +12,13 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
+from file_discovery import matches_exclude_pattern
+from path_utils import (
+    dir_paths_to_patterns,
+    resolve_exclude_patterns,
+    to_relative_posix,
+)
+
 # ponytail: one tool start per roughly 70 files; revisit for thousands of changed files.
 MAX_COMMAND_CHARS = 6000
 
@@ -32,18 +39,34 @@ class FilterScopeMixin:
 
         Returns None when no filter is active (caller runs whole-project mode).
         Returns [] when a filter is set but no file matches this language or all
-        matching files are excluded; the caller MUST short-circuit, since passing
-        zero paths makes most CLIs fall back to scanning the CWD. Deleted files
-        drop out (only existing paths).
+        matching files are excluded by the rule config or callback; the caller
+        MUST short-circuit, since passing zero paths makes most CLIs fall back to
+        scanning the CWD. Deleted files drop out (only existing paths).
         """
         if self.filter_files is None or self.base_path is None:
             return None
+        patterns: list[str] = []
+        config = self.config
+        if isinstance(config, dict):
+            exclude_config = config.get('exclude_patterns')
+            languages = (
+                [self.language]
+                if self.language
+                else list(exclude_config.keys()) if isinstance(exclude_config, dict) else []
+            )
+            patterns = resolve_exclude_patterns(exclude_config, languages)
+            patterns += dir_paths_to_patterns(config.get('exclude_paths'))
+
         paths: list[Path] = []
         for rel in self.filter_files:
             if extensions and not rel.lower().endswith(extensions):
                 continue
             p = self.base_path / rel
-            if p.exists() and not (exclude and exclude(p)):
+            if (
+                p.exists()
+                and not matches_exclude_pattern(to_relative_posix(p, self.base_path), patterns)
+                and not (exclude and exclude(p))
+            ):
                 paths.append(p)
         return paths
 

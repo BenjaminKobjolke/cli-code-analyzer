@@ -11,7 +11,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
-from file_discovery import FileDiscovery
+from file_discovery import FileDiscovery, matches_exclude_pattern
 
 BASE = Path("/repo")
 NESTED_VENDOR = BASE / "wp-content/themes/x/vendor/a/b.php"
@@ -65,6 +65,20 @@ def test_segment_safe_no_false_prefix_match():
     # 'vendor' must not match a sibling dir that merely starts with it.
     vendored = BASE / "vendored-thing/a.php"
     assert _excluded(["vendor/**"], vendored) is False
+
+
+def test_matches_exclude_pattern_matches_root_and_nested_directories():
+    assert matches_exclude_pattern("api/x.php", ["api/**"]) is True
+    assert matches_exclude_pattern("x/api/y.php", ["api/**"]) is True
+
+
+def test_matches_exclude_pattern_is_segment_safe():
+    assert matches_exclude_pattern("apis/x.php", ["api/**"]) is False
+
+
+def test_matches_exclude_pattern_supports_globstar_and_filename_globs():
+    assert matches_exclude_pattern("x/vendor/y.php", ["**/vendor/**"]) is True
+    assert matches_exclude_pattern("lib/model.g.dart", ["*.g.dart"]) is True
 
 
 if __name__ == "__main__":

@@ -22,6 +22,34 @@ DEFAULT_EXCLUDE_PATTERNS = {
 }
 
 
+def matches_exclude_pattern(rel_path: str, patterns: list[str]) -> bool:
+    """Return whether a base-relative POSIX path matches an exclusion pattern."""
+    path_str = rel_path.replace('\\', '/')
+    file_name = path_str.rsplit('/', 1)[-1]
+
+    for pattern in patterns:
+        pattern = pattern.replace('\\', '/')
+
+        # Directory forms match a complete segment at any depth, including root.
+        if pattern.endswith(('/**', '/**/*')):
+            dir_prefix = pattern.split('/**')[0]
+            if dir_prefix.startswith('**/'):
+                dir_prefix = dir_prefix[3:]
+            if dir_prefix and (
+                path_str == dir_prefix
+                or path_str.startswith(dir_prefix + '/')
+                or ('/' + dir_prefix + '/') in ('/' + path_str + '/')
+            ):
+                return True
+        elif '**' in pattern:
+            if fnmatch.fnmatch(path_str, pattern):
+                return True
+        elif fnmatch.fnmatch(path_str, pattern) or fnmatch.fnmatch(file_name, pattern):
+            return True
+
+    return False
+
+
 class FileDiscovery:
     """Discovers files to analyze based on language"""
 
@@ -93,9 +121,6 @@ class FileDiscovery:
         Returns:
             True if file should be excluded, False otherwise
         """
-        if not self.exclude_patterns:
-            return False
-
         # Get path relative to base for matching
         try:
             rel_path = file_path.relative_to(self.path)
@@ -103,35 +128,4 @@ class FileDiscovery:
             # File is not relative to base path, use absolute
             rel_path = file_path
 
-        # Convert to string with forward slashes for consistent matching
-        path_str = str(rel_path).replace('\\', '/')
-
-        for pattern in self.exclude_patterns:
-            # Normalize pattern
-            pattern = pattern.replace('\\', '/')
-
-            # Handle directory patterns like venv/**, **/vendor/**, foo/**/*
-            if pattern.endswith(('/**', '/**/*')):
-                # Extract the directory prefix, tolerating a leading **/ so that
-                # **/vendor/** matches a vendor dir at ANY depth, not just root.
-                dir_prefix = pattern.split('/**')[0]
-                if dir_prefix.startswith('**/'):
-                    dir_prefix = dir_prefix[3:]
-                # Match the dir as a path-segment run at any depth. Wrapping both
-                # sides in '/' keeps it segment-safe (vendor != vendored-thing) and
-                # still matches the root case (path == prefix or path starts with it).
-                if (dir_prefix and (
-                        path_str == dir_prefix
-                        or path_str.startswith(dir_prefix + '/')
-                        or ('/' + dir_prefix + '/') in ('/' + path_str + '/'))):
-                    return True
-            elif '**' in pattern:
-                # General glob pattern with **
-                if fnmatch.fnmatch(path_str, pattern):
-                    return True
-            else:
-                # Simple pattern (e.g., *.pyc)
-                if fnmatch.fnmatch(path_str, pattern) or fnmatch.fnmatch(file_path.name, pattern):
-                    return True
-
-        return False
+        return matches_exclude_pattern(str(rel_path), self.exclude_patterns)
