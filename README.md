@@ -4,9 +4,9 @@ A flexible command-line tool for analyzing code files based on configurable rule
 
 ## Features
 
-- **Multi-language support**: Supports Flutter/Dart, Python, PHP, C#, JavaScript/TypeScript, Svelte, AutoHotkey, Kotlin, and Arduino/C++
+- **Multi-language support**: Supports Flutter/Dart, Python, PHP, C#, JavaScript/TypeScript, Svelte, AutoHotkey, Kotlin, Arduino/C++, and shared API contract JSON
 - **Multi-language analysis**: Analyze multiple languages in a single run via space-separated or comma-separated arguments
-- **Language aliases**: Shorthand aliases for convenience (`dart` for flutter, `ts`/`js` for javascript, `py` for python, `cs` for csharp, `ahk` for autohotkey, `kt` for kotlin, `arduino`/`ino`/`c++` for cpp)
+- **Language aliases**: Shorthand aliases for convenience (`dart` for flutter, `ts`/`js` for javascript, `py` for python, `cs` for csharp, `ahk` for autohotkey, `kt` for kotlin, `json` for contract, `arduino`/`ino`/`c++` for cpp)
 - **Configurable rules**: Define custom rules via JSON configuration
 - **Multiple output formats**: Minimal, normal, and verbose output modes
 - **File export capability**: Save analysis reports to files for CI/CD integration
@@ -20,6 +20,7 @@ A flexible command-line tool for analyzing code files based on configurable rule
 - **Python linting**: Integrated [Ruff](https://docs.astral.sh/ruff/) for fast Python linting with 800+ rules
 - **Python structural analysis**: Integrated [pyscn](https://github.com/ludo-technologies/pyscn) for cyclomatic complexity, CFG-based dead code detection, class coupling (CBO), and circular dependency detection
 - **Kotlin function metrics**: Uses lizard to check Kotlin function complexity, length, and parameter count without an external Kotlin toolchain
+- **Contract validation**: Checks JSON syntax and validates sorted, unique enum values and required metadata in shared contract `enums.json` files
 - **ESLint integration**: Integrated [ESLint](https://eslint.org/) for JavaScript/TypeScript linting with auto-detection of Svelte projects
 - **Svelte type checking**: Integrated [svelte-check](https://github.com/sveltejs/language-tools/tree/master/packages/svelte-check) for Svelte/TypeScript type checking with configurable compiler warning suppression
 - **TypeScript type checking**: Integrated `tsc --noEmit` for project-wide TypeScript type checking with error code filtering
@@ -42,8 +43,9 @@ A flexible command-line tool for analyzing code files based on configurable rule
 
 ## Documentation
 
-- Per-language setup: [docs/setup/](docs/setup/) (Flutter, Python, PHP, WordPress, C#, JavaScript/TypeScript, Svelte, Kotlin, AutoHotkey, Arduino/C++)
+- Per-language setup: [docs/setup/](docs/setup/) (Flutter, Python, PHP, WordPress, C#, JavaScript/TypeScript, Svelte, Kotlin, Contract JSON, AutoHotkey, Arduino/C++)
 - Per-analyzer configuration and output: [docs/analyzers/](docs/analyzers/)
+- Contract setup: [docs/setup/CONTRACT.md](docs/setup/CONTRACT.md); enum analyzer: [docs/analyzers/contract_enums.md](docs/analyzers/contract_enums.md)
 - `rules.json` reference: [docs/RULES_JSON.md](docs/RULES_JSON.md)
 - List analyzers per language: `python main.py --list-analyzers all`
 
@@ -103,7 +105,7 @@ python main.py --language <language> --path <path> [options]
 
 | Argument | Short | Required | Default | Description |
 |----------|-------|----------|---------|-------------|
-| `--language` | `-l` | Yes | - | Language(s) to analyze: `flutter`, `python`, `php`, `csharp`, `javascript`, `svelte`, `autohotkey`, `kotlin`, `cpp`. Supports multiple languages (space-separated or comma-separated). Aliases: `dart`, `ts`, `js`, `py`, `cs`, `ahk`, `kt`, `arduino`, `ino`, `c++` |
+| `--language` | `-l` | Yes | - | Language(s) to analyze: `flutter`, `python`, `php`, `csharp`, `javascript`, `svelte`, `autohotkey`, `kotlin`, `contract`, `cpp`. Supports multiple languages (space-separated or comma-separated). Aliases: `dart`, `ts`, `js`, `py`, `cs`, `ahk`, `kt`, `json`, `arduino`, `ino`, `c++` |
 | `--path` | `-p` | Yes | - | Path to the code directory (analyzes recursively) or single file to analyze |
 | `--rules` | `-r` | No | `rules.json` | Path to the rules JSON configuration file |
 | `--verbosity` | `-v` | No | `normal` | Output verbosity level: `minimal`, `normal`, or `verbose` |
@@ -126,6 +128,11 @@ python main.py --language <language> --path <path> [options]
 | `--diff-base` | | No | - | With `--most-complex-function`, count only functions touched since this commit. New files count in full. |
 
 ## JSON Output
+
+Contract repositories can be checked with `--language contract` (or its `json` alias). The
+language discovers `.json` files and validates enum entries in `enums.json` (`.json` → `contract`);
+see the
+[contract setup guide](docs/setup/CONTRACT.md) and [`contract_enums` analyzer](docs/analyzers/contract_enums.md).
 
 Use `--format json` to get machine-readable output:
 
