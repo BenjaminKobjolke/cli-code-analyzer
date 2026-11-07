@@ -90,6 +90,9 @@ ANALYZER_REGISTRY = {
         ('pmd_similar_code', 'Similar code pattern detection', 'PMD'),
         ('kotlin_complexity', 'Function complexity, length, parameters', 'lizard (pip, bundled)'),
     ],
+    'contract': [
+        ('contract_enums', 'JSON and contract enum validation', None),
+    ],
 }
 
 # Shorthand and alternative language names that map to canonical names above
@@ -105,6 +108,7 @@ LANGUAGE_ALIASES = {
     'ino': 'cpp',
     'c++': 'cpp',
     'kt': 'kotlin',
+    'json': 'contract',
 }
 
 

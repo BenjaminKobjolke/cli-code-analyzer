@@ -19,6 +19,10 @@ DEFAULT_EXCLUDE_PATTERNS = {
     'autohotkey': ['.git/**'],
     'cpp': ['.pio/**', 'build/**', '.git/**'],
     'kotlin': ['build/**', '.gradle/**', '.idea/**', '.git/**'],
+    'contract': [
+        '.git/**', '.claude/**', 'node_modules/**', 'graphify-out/**', 'tickets/**',
+        'code_analysis_results/**', 'tmp/**', 'coding-rules.json',
+    ],
 }
 
 
@@ -63,6 +67,7 @@ class FileDiscovery:
         'autohotkey': ['.ahk', '.ah2', '.ahk2'],
         'cpp': ['.ino', '.cpp', '.h', '.hpp', '.c', '.cc'],
         'kotlin': ['.kt', '.kts'],
+        'contract': ['.json'],
     }
 
     def __init__(self, languages: str | list[str], path: str,

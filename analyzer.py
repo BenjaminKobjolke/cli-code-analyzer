@@ -14,6 +14,7 @@ from models import LogLevel, RuleResult, RuleStatus, Severity, Violation
 from path_utils import to_relative_posix
 from project_wide_rules import FILTER_INCAPABLE, PROJECT_WIDE_ANALYZERS
 from rules import (
+    ContractEnumsRule,
     KotlinComplexityRule,
     MaxLinesRule,
     PHPFunctionQualityRule,
@@ -27,6 +28,7 @@ PHP_DEFAULT_ANALYZERS = frozenset({
     'php_function_quality',
     'semgrep_analyze',
 })
+CONTRACT_DEFAULT_ANALYZERS = frozenset({'contract_enums'})
 
 
 @dataclass(frozen=True)
@@ -99,9 +101,10 @@ class CodeAnalyzer:
         if self.only_analyzers is not None and analyzer_name not in self.only_analyzers:
             return False
         php_default = analyzer_name in PHP_DEFAULT_ANALYZERS and 'php' in self.languages
+        contract_default = analyzer_name in CONTRACT_DEFAULT_ANALYZERS and 'contract' in self.languages
         return analyzer_name in self._enabled_analyzers and self.config.is_rule_enabled(
             analyzer_name,
-            default_enabled=php_default,
+            default_enabled=php_default or contract_default,
         )
 
     def _get_languages_for_analyzer(self, analyzer_name: str) -> list[str]:
@@ -248,6 +251,11 @@ class CodeAnalyzer:
         if self._should_run('php_function_quality'):
             rule_config = self.config.get_rule('php_function_quality')
             rule = PHPFunctionQualityRule(self._make_ctx(rule_config))
+            self._run_and_record(rule, file_path)
+
+        if self._should_run('contract_enums'):
+            rule_config = self.config.get_rule('contract_enums')
+            rule = ContractEnumsRule(self._make_ctx(rule_config))
             self._run_and_record(rule, file_path)
 
     def _run_and_record(self, rule, file_path: Path) -> None:

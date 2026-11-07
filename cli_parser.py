@@ -83,9 +83,9 @@ Examples:
         nargs='+',
         help=(
             'Programming language(s) to analyze (space-separated or comma-separated). '
-            'Supported: flutter, python, php, csharp, javascript, svelte, autohotkey, cpp, kotlin. Aliases: '
+            'Supported: flutter, python, php, csharp, javascript, svelte, autohotkey, cpp, kotlin, contract. Aliases: '
             'typescript/ts/js -> javascript, dart -> flutter, cs -> csharp, py -> python, ahk -> autohotkey, '
-            'arduino/ino/c++ -> cpp, kt -> kotlin'
+            'arduino/ino/c++ -> cpp, kt -> kotlin, json -> contract'
         ),
     )
     parser.add_argument(

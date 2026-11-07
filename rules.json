@@ -14,6 +14,9 @@
   "autohotkey_analyze": {
     "enabled": true
   },
+  "contract_enums": {
+    "enabled": true
+  },
   "pmd_duplicates": {
     "enabled": true,
     "minimum_tokens": 100,
