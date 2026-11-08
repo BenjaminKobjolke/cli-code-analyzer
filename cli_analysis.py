@@ -17,17 +17,12 @@ def run_analysis(args, languages, logger, only_analyzers):
         discovery_exclude_patterns(config, languages),
     )
 
-    # -----------------------------------------------------------
-    # Resolve filter_files (set of base-relative posix paths)
-    # Drives both --file (1-element set) and --only-changed (N-element set).
-    # -----------------------------------------------------------
     from path_utils import to_relative_posix
 
     filter_files: set[str] | None = None
     filter_mode: str | None = None
     base_path_resolved = Path(args.path).resolve()
 
-    # Discovered source files, reused for cache mtime/file-set validation.
     discovered_files: list[Path] | None = None
 
     if args.file:
@@ -69,11 +64,6 @@ def run_analysis(args, languages, logger, only_analyzers):
         filter_files = {to_relative_posix(p, base_path_resolved) for p in matching}
         filter_mode = "only_changed"
 
-    # -----------------------------------------------------------
-    # Resolve the max-errors cap (violations reported per rule/analyzer).
-    # Precedence: CLI --maxamountoferrors > rules.json "max_errors"
-    #             > filter-mode default (5 for --file / --only-changed) > unlimited.
-    # -----------------------------------------------------------
     cli_max_provided = '-m' in sys.argv or '--maxamountoferrors' in sys.argv
     fail_on = config.get_global_fail_on()
     if not cli_max_provided:
@@ -83,18 +73,15 @@ def run_analysis(args, languages, logger, only_analyzers):
         elif filter_files is not None:
             args.maxamountoferrors = 5
 
-    # Import analysis modules (deferred to avoid loading when using --list-analyzers)
     from analyzer import AnalyzerConfig, CodeAnalyzer
     from models import LogLevel, OutputLevel
     from report_config import ReportConfig
     from reporter import Reporter
-    from violation_cache import ViolationCache
+    from violation_cache import CACHE_HIT_MESSAGE, ViolationCache
+    from violation_cache_helpers import report_cached_results
 
-    # Convert verbosity string to enum
     output_level = OutputLevel(args.verbosity)
 
-    # Determine if --loglevel was explicitly provided by user
-    # If not provided, pass None to let CodeAnalyzer use config values
     cli_log_level = None
     if '--loglevel' in sys.argv or '-L' in sys.argv:
         cli_log_level = LogLevel(args.loglevel)
@@ -122,8 +109,15 @@ def run_analysis(args, languages, logger, only_analyzers):
             discovered_files = None  # unsupported language — surfaces in the analyzer run
 
     def cache_is_valid() -> bool:
-        return cache.is_valid(args.cache_max_age, rules_hash,
-                              current_files=discovered_files, base_path=args.path)
+        return (
+            cache.is_valid(
+                args.cache_max_age,
+                rules_hash,
+                current_files=discovered_files,
+                base_path=args.path,
+            )
+            and cache.covers(filter_files)
+        )
 
     # --build-cache: build cache and exit
     if args.build_cache:
@@ -160,7 +154,14 @@ def run_analysis(args, languages, logger, only_analyzers):
             ))
             reporter.report_json() if args.format == 'json' else reporter.report()
             sys.exit(1)
-        cache.save(all_violations, rules_hash, languages, args.path, analyzer.get_analyzed_file_paths())
+        cache.save(
+            all_violations,
+            rules_hash,
+            languages,
+            args.path,
+            analyzer.get_analyzed_file_paths(),
+            scope_files=filter_files,
+        )
         logger.info("Cache built successfully")
         sys.exit(0)
 
@@ -168,25 +169,21 @@ def run_analysis(args, languages, logger, only_analyzers):
     has_filter_and_cache = bool(filter_files) and bool(cache)
     can_use_violation_cache = has_filter_and_cache and cache_is_valid()
     if can_use_violation_cache:
-        all_violations = cache.load_for_files(filter_files)
-
-        reporter_log_level = resolve_reporter_log_level(cli_log_level, args.rules)
-        reporter = Reporter(ReportConfig(
-            violations=all_violations,
+        # Stderr stays visible in quiet and JSON modes without polluting JSON stdout.
+        print(CACHE_HIT_MESSAGE, file=sys.stderr)
+        report_config = ReportConfig(
+            violations=[],
             file_count=0,
             output_level=output_level,
-            log_level=reporter_log_level,
+            log_level=resolve_reporter_log_level(cli_log_level, args.rules),
             output_folder=output_folder,
             max_errors=args.maxamountoferrors,
             logger=logger,
             fail_on_findings=args.fail_on_findings,
             fail_on_warnings=args.fail_on_warnings,
             fail_on=fail_on,
-        ))
-        if args.format == 'json':
-            has_errors = reporter.report_json()
-        else:
-            has_errors = reporter.report()
+        )
+        has_errors = report_cached_results(cache, filter_files, report_config, args.format)
         sys.exit(1 if has_errors else 0)
 
     # -----------------------------------------------------------
@@ -198,7 +195,7 @@ def run_analysis(args, languages, logger, only_analyzers):
         failures = []
         # Check cache first for normal runs
         if cache and cache_is_valid():
-            logger.info("Using cached results")
+            print(CACHE_HIT_MESSAGE, file=sys.stderr)
             all_violations, all_file_paths = cache.load_all_with_paths()
             total_file_count = len(all_file_paths)
         else:
@@ -245,7 +242,14 @@ def run_analysis(args, languages, logger, only_analyzers):
             # Save to cache whenever output folder is set (keeps cache fresh for --file queries)
             if cache and not failures:
                 logger.info("Saving results to violation cache...")
-                cache.save(all_violations, rules_hash, languages, args.path, all_file_paths)
+                cache.save(
+                    all_violations,
+                    rules_hash,
+                    languages,
+                    args.path,
+                    all_file_paths,
+                    scope_files=filter_files,
+                )
             elif cache:
                 logger.info(f"Skipping violation cache: {len(failures)} tool(s) failed")
 

@@ -1,20 +1,22 @@
-"""
-SQLite-based violation cache for fast --file queries.
+"""SQLite-based violation cache for fast scoped analyzer queries.
 
-The cache stores analyzer results so that subsequent --file queries
-can filter from cached data instead of re-running all analyzers.
+The cache stores analyzer results and the file scope the run actually checked,
+so a later query only reuses results when that scope covers its requested files.
 """
 
 import hashlib
+import json
 import sqlite3
 from collections.abc import Iterable
-from contextlib import suppress
 from datetime import datetime, timezone
 from pathlib import Path
 
 from analyzer_fingerprint import compute_analyzer_hash
 from logger import Logger
 from models import Severity, Violation
+from violation_cache_helpers import newest_mtime, row_to_violation
+
+CACHE_HIT_MESSAGE = "Using cached results (no fresh analysis)"
 
 
 class ViolationCache:
@@ -25,9 +27,7 @@ class ViolationCache:
         self.logger = logger or Logger()
         self.analyzer_hash = compute_analyzer_hash()
 
-    # ------------------------------------------------------------------
     # Connection
-    # ------------------------------------------------------------------
 
     def _connect(self) -> sqlite3.Connection:
         """Open a connection with WAL mode and busy timeout."""
@@ -36,9 +36,7 @@ class ViolationCache:
         con.execute("PRAGMA busy_timeout=5000")
         return con
 
-    # ------------------------------------------------------------------
     # Public API
-    # ------------------------------------------------------------------
 
     def is_valid(self, max_age_minutes: int, rules_hash: str,
                  current_files: list[Path] | None = None,
@@ -118,9 +116,15 @@ class ViolationCache:
             return False
         return True
 
-    def save(self, violations: list[Violation], rules_hash: str,
-             languages: list[str], base_path: str,
-             file_paths: list[str] | None = None) -> None:
+    def save(
+        self,
+        violations: list[Violation],
+        rules_hash: str,
+        languages: list[str],
+        base_path: str,
+        file_paths: list[str] | None = None,
+        scope_files: Iterable[str] | None = None,
+    ) -> None:
         """Persist violations to the SQLite cache, replacing any previous data."""
         con = self._connect()
         cur = con.cursor()
@@ -163,7 +167,16 @@ class ViolationCache:
         cur.execute("INSERT INTO cache_meta VALUES (?, ?)", ("languages", ",".join(languages)))
         cur.execute("INSERT INTO cache_meta VALUES (?, ?)", ("base_path", base_path))
         cur.execute("INSERT INTO cache_meta VALUES (?, ?)",
-                    ("newest_mtime", repr(self._newest_mtime(base_path, file_paths))))
+                    ("newest_mtime", repr(newest_mtime(base_path, file_paths))))
+        normalized_scope = (
+            sorted(path.replace("\\", "/") for path in scope_files)
+            if scope_files is not None
+            else None
+        )
+        cur.execute(
+            "INSERT INTO cache_meta VALUES (?, ?)",
+            ("scope", json.dumps(normalized_scope)),
+        )
 
         # Bulk-insert violations
         rows = [
@@ -187,6 +200,39 @@ class ViolationCache:
         con.commit()
         con.close()
         self.logger.info(f"Cache saved to: {self.db_path} ({len(violations)} violation(s))")
+
+    def covers(self, requested_files: Iterable[str] | None) -> bool:
+        """Return whether this cache analyzed every requested file."""
+        if not self.db_path.exists():
+            self.logger.info("Cache scope unknown, will run fresh analysis")
+            return False
+        try:
+            con = self._connect()
+            cur = con.cursor()
+            cur.execute("SELECT value FROM cache_meta WHERE key = 'scope'")
+            row = cur.fetchone()
+            con.close()
+            if not row:
+                self.logger.info("Cache scope unknown, will run fresh analysis")
+                return False
+            scope = json.loads(row[0])
+            if scope is None:
+                return True
+            if requested_files is None:
+                return False
+            cached_files = {path.replace("\\", "/") for path in scope}
+            requested = {path.replace("\\", "/") for path in requested_files}
+            uncovered_count = len(requested - cached_files)
+            if uncovered_count:
+                self.logger.info(
+                    f"Cache did not analyze {uncovered_count} requested file(s), "
+                    "will run fresh analysis"
+                )
+                return False
+            return True
+        except Exception:
+            self.logger.info("Cache scope unknown, will run fresh analysis")
+            return False
 
     def load_for_files(self, file_paths: Iterable[str]) -> list[Violation]:
         """Load violations whose file_path matches any of `file_paths`.
@@ -218,7 +264,7 @@ class ViolationCache:
             )
             rows = cur.fetchall()
             con.close()
-            return [self._row_to_violation(r) for r in rows]
+            return [row_to_violation(r) for r in rows]
         except sqlite3.OperationalError:
             return []
 
@@ -233,7 +279,7 @@ class ViolationCache:
                 "SELECT file_path, rule_name, severity, message, line, column_num, line_count "
                 "FROM violations"
             )
-            violations = [self._row_to_violation(r) for r in cur.fetchall()]
+            violations = [row_to_violation(r) for r in cur.fetchall()]
             cur.execute("SELECT file_path FROM file_paths")
             file_paths = [r[0] for r in cur.fetchall()]
             con.close()
@@ -241,38 +287,7 @@ class ViolationCache:
         except sqlite3.OperationalError:
             return ([], [])
 
-    def load_all(self) -> list[Violation]:
-        """Load every violation from the cache."""
-        if not self.db_path.exists():
-            return []
-        try:
-            con = self._connect()
-            cur = con.cursor()
-            cur.execute(
-                "SELECT file_path, rule_name, severity, message, line, column_num, line_count "
-                "FROM violations"
-            )
-            rows = cur.fetchall()
-            con.close()
-            return [self._row_to_violation(r) for r in rows]
-        except sqlite3.OperationalError:
-            return []
-
-    # ------------------------------------------------------------------
     # Helpers
-    # ------------------------------------------------------------------
-
-    @staticmethod
-    def _newest_mtime(base_path: str, file_paths: list[str] | None) -> float:
-        """Max st_mtime over `file_paths` (relative to `base_path`); 0.0 if none."""
-        newest = 0.0
-        for fp in file_paths or []:
-            p = Path(fp)
-            if not p.is_absolute():
-                p = Path(base_path) / p
-            with suppress(OSError):
-                newest = max(newest, p.stat().st_mtime)
-        return newest
 
     @staticmethod
     def compute_rules_hash(rules_file: str) -> str:
@@ -280,15 +295,3 @@ class ViolationCache:
         with open(rules_file, "rb") as f:
             return hashlib.sha256(f.read()).hexdigest()
 
-    @staticmethod
-    def _row_to_violation(row: tuple) -> Violation:
-        severity_map = {"ERROR": Severity.ERROR, "WARNING": Severity.WARNING, "INFO": Severity.INFO}
-        return Violation(
-            file_path=row[0],
-            rule_name=row[1],
-            severity=severity_map.get(row[2], Severity.WARNING),
-            message=row[3],
-            line=row[4],
-            column=row[5],
-            line_count=row[6],
-        )
