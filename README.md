@@ -249,7 +249,7 @@ Kotlin function parsing is heuristic; lambdas may count toward their enclosing f
 
 ## Violation Cache
 
-The cache stores analyzer results in a SQLite database so that subsequent runs skip analysis when the cache is valid — i.e. no analyzed source file was added, removed, or modified since it was written, `rules.json` and the analyzer implementation are unchanged, and it is younger than `--cache-max-age`. Requires `--output`.
+The cache stores analyzer results and the files the run actually analyzed in a SQLite database. A full run's cache can answer any file query; a `--file` or `--only-changed` run's cache can answer only requests for files within that run's scope. A cache is reusable when its source file set and modification times, `rules.json`, analyzer implementation, age, and analyzed scope are still valid. Requires `--output`.
 
 ### Automatic caching
 
@@ -259,7 +259,7 @@ Every normal run with `--output` automatically saves results to the cache. On th
 # First run: full analysis, results saved to cache
 python main.py --language python --path ./src --output ./reports
 
-# Second run (no source changes, within cache-max-age): instant, loaded from cache
+# Second run (no source changes, within cache-max-age): loaded from cache
 python main.py --language python --path ./src --output ./reports
 
 # After editing/adding/removing a source file: cache is stale, fresh analysis runs
@@ -274,7 +274,7 @@ python main.py --language python --path ./src --output ./reports --file src/app.
 python main.py --language python --path ./src --output ./reports --file src/app.py --format json
 ```
 
-If no valid cache exists when using `--file`, a full analysis runs automatically, saves the cache, then filters results.
+If no cache covers the requested file, the analyzer checks that file, saves the result with its scope, then reports its violations. A cache hit prints `Using cached results (no fresh analysis)` to stderr, including in quiet and JSON modes.
 
 ### Explicit cache build
 
@@ -292,6 +292,7 @@ python main.py --language python --path ./src --output ./reports --build-cache
 - `--cache-max-age 60` (default): cache expires after 60 minutes
 - Editing `rules.json` invalidates the cache (hash mismatch)
 - Editing production analyzer Python modules invalidates the cache (hash mismatch)
+- A cached run can answer only requests covered by its recorded analyzed scope; an uncovered request is freshly analyzed and replaces the cache
 - Caches created before analyzer fingerprints were introduced are rebuilt once
 - Cache status is logged (not found, too old, rules changed, analyzer changed, files changed)
 
