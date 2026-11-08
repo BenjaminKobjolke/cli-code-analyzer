@@ -22,7 +22,7 @@ def _current_files(proj):
     return sorted(proj.glob("*.py"))
 
 
-def _save_cache(tmp_path, proj):
+def _save_cache(tmp_path, proj, scope_files=None):
     cache = ViolationCache(tmp_path / "cache.db")
     violation = Violation(
         file_path="a.py",
@@ -32,7 +32,10 @@ def _save_cache(tmp_path, proj):
         line=1,
         column=1,
     )
-    cache.save([violation], RULES_HASH, ["python"], str(proj), ["a.py", "b.py"])
+    cache.save(
+        [violation], RULES_HASH, ["python"], str(proj), ["a.py", "b.py"],
+        scope_files=scope_files,
+    )
     return cache
 
 
@@ -178,6 +181,39 @@ def test_load_for_files_roundtrip(tmp_path):
     assert loaded[0].file_path == "a.py"
     assert loaded[0].severity == Severity.WARNING
     assert cache.load_for_files(["b.py"]) == []
+
+
+def test_full_scope_cache_covers_any_request(tmp_path):
+    proj = _make_project(tmp_path)
+    cache = _save_cache(tmp_path, proj, scope_files=None)
+
+    assert cache.covers(None)
+    assert cache.covers({"a.py"})
+
+
+def test_filtered_scope_cache_only_covers_subset(tmp_path):
+    proj = _make_project(tmp_path)
+    cache = _save_cache(tmp_path, proj, scope_files={"a.py"})
+
+    assert cache.covers({"a.py"})
+    assert not cache.covers({"a.py", "b.py"})
+    assert not cache.covers(None)
+
+
+def test_unknown_scope_does_not_cover_request(tmp_path):
+    proj = _make_project(tmp_path)
+    cache = _save_cache(tmp_path, proj, scope_files={"a.py"})
+    with sqlite3.connect(str(tmp_path / "cache.db")) as con:
+        con.execute("DELETE FROM cache_meta WHERE key = 'scope'")
+
+    assert not cache.covers({"a.py"})
+
+
+def test_scope_comparison_normalizes_backslashes(tmp_path):
+    proj = _make_project(tmp_path)
+    cache = _save_cache(tmp_path, proj, scope_files={"sub\\a.py"})
+
+    assert cache.covers({"sub/a.py"})
 
 
 def test_analyzer_hash_is_deterministic_and_tracks_content(tmp_path):
