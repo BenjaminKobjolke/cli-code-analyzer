@@ -23,7 +23,7 @@ from pathlib import Path
 from file_discovery import FileDiscovery
 from models import RuleResult, Severity, Violation
 from path_utils import to_relative_posix
-from rules.base import ProjectWideRule
+from rules.project_wide_rule import ProjectWideRule
 
 AHK_EXTENSIONS = ('.ahk', '.ah2', '.ahk2')
 

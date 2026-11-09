@@ -14,7 +14,7 @@ from pathlib import Path
 
 from models import RuleResult
 from rules._crap import CrapScoreMixin
-from rules.base import ProjectWideRule
+from rules.project_wide_rule import ProjectWideRule
 from rules.python_coverage_io import run_tests_with_coverage
 
 

@@ -29,7 +29,7 @@ from pathlib import Path
 from typing import Any
 
 from models import RuleResult, Severity, Violation
-from rules.base import ProjectWideRule
+from rules.project_wide_rule import ProjectWideRule
 
 # Relation kinds that are structural containment (file -> its own class), not real
 # outgoing coupling. Excluding them keeps file-container nodes off the report.

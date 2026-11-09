@@ -8,7 +8,6 @@ from pathlib import Path
 
 from file_discovery import FileDiscovery
 from models import RuleResult, Severity, Violation
-from rules.base import ProjectWideRule
 from rules.php_tool_paths import get_bundled_php_tool_path
 from rules.php_trait_scope import build_trait_index, resolve_used_trait_files
 from rules.phpstan_config import (
@@ -18,6 +17,7 @@ from rules.phpstan_config import (
     resolve_config_file,
     resolve_exclude_dirs,
 )
+from rules.project_wide_rule import ProjectWideRule
 
 
 class PHPStanAnalyzeRule(ProjectWideRule):

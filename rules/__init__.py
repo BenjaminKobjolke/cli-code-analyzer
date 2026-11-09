@@ -3,7 +3,7 @@ Rules module
 """
 
 from rules.autohotkey_analyze import AutoHotkeyAnalyzeRule
-from rules.base import BaseRule, ProjectWideRule
+from rules.base import BaseRule
 from rules.contract_enums import ContractEnumsRule
 from rules.dart_analyze import DartAnalyzeRule
 from rules.dart_code_linter import DartCodeLinterRule
@@ -28,6 +28,7 @@ from rules.phpmd_analyze import PHPMDAnalyzeRule
 from rules.phpstan_analyze import PHPStanAnalyzeRule
 from rules.pmd_duplicates import PMDDuplicatesRule
 from rules.pmd_similar_code import PMDSimilarCodeRule
+from rules.project_wide_rule import ProjectWideRule
 from rules.pyscn_analyze import PyscnAnalyzeRule
 from rules.python_crap_score import PythonCrapScoreRule
 from rules.python_test_coverage import PythonTestCoverageRule

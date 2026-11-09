@@ -5,8 +5,8 @@ import fnmatch
 from pathlib import Path
 
 from models import RuleResult, Severity, Violation
-from rules.base import ProjectWideRule
 from rules.php_cs_fixer_analyze import GENERATED_FIXER_CONFIG
+from rules.project_wide_rule import ProjectWideRule
 
 
 class IntelephenseAnalyzeRule(ProjectWideRule):

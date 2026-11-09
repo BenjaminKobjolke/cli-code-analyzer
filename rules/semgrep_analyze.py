@@ -11,8 +11,8 @@ from pathlib import Path
 import yaml
 
 from models import RuleResult, RuleStatus, Violation
-from rules.base import ProjectWideRule
 from rules.filter_scope import ToolOutputError
+from rules.project_wide_rule import ProjectWideRule
 
 SEMGREP_EXTENSIONS = ('.py', '.js', '.jsx', '.ts', '.tsx', '.php', '.cs', '.dart')
 BUNDLED_RULES_DIR = Path(__file__).parent.parent / 'semgrep_rules'

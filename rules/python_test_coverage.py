@@ -23,7 +23,7 @@ from pathlib import Path
 from typing import Any
 
 from models import RuleResult, Severity, Violation
-from rules.base import ProjectWideRule
+from rules.project_wide_rule import ProjectWideRule
 from rules.python_coverage_io import run_tests_with_coverage
 
 

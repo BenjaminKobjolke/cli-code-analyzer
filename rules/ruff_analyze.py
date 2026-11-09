@@ -7,7 +7,7 @@ from pathlib import Path
 
 from models import LogLevel, RuleResult, Severity, Violation
 from path_utils import resolve_exclude_patterns, ruff_exclude_args
-from rules.base import ProjectWideRule
+from rules.project_wide_rule import ProjectWideRule
 
 
 class RuffAnalyzeRule(ProjectWideRule):

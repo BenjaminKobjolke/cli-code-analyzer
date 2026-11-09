@@ -4,9 +4,9 @@ from collections.abc import Callable
 from pathlib import Path
 
 from models import RuleResult, RuleStatus
-from rules.base import ProjectWideRule
 from rules.context import RuleContext
 from rules.dart_utils import find_dart_package_roots
+from rules.project_wide_rule import ProjectWideRule
 
 
 class DartPackageRule(ProjectWideRule):

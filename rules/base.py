@@ -273,31 +273,3 @@ class BaseRule(FilterScopeMixin, ViolationReportMixin, ABC):
             return ['fvm', 'dart']
         path = self._get_tool_path('dart')
         return [path] if path else []
-
-class ProjectWideRule(BaseRule):
-    """Base for rules that run once per project regardless of file count.
-
-    Subclasses implement `_run(file_path)`; this class handles the once-only
-    guard. The first call to `check()` runs the body and caches; subsequent
-    calls return an empty list.
-    """
-
-    def __init__(self, ctx: RuleContext):
-        super().__init__(ctx)
-        self._executed = False
-
-    def check(self, file_path: Path) -> RuleResult:
-        if self._executed:
-            return self._ok([])
-        self._executed = True
-        try:
-            return self._run(file_path)
-        except Exception as e:
-            # Safety net: a rule that forgets to catch an error fails loudly
-            # rather than crashing the run or silently returning nothing.
-            self.logger.error(f"Error running {self._result_name()}: {e}")
-            return self._failed(f"unexpected error: {e}")
-
-    @abstractmethod
-    def _run(self, file_path: Path) -> RuleResult:
-        """Execute the project-wide analysis exactly once."""

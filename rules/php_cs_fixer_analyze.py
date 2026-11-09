@@ -5,9 +5,9 @@ import re
 from pathlib import Path
 
 from models import RuleResult
-from rules.base import ProjectWideRule
 from rules.php_cs_fixer_report import parse_fixer_json, write_fixer_csv
 from rules.php_tool_paths import get_bundled_php_tool_path
+from rules.project_wide_rule import ProjectWideRule
 
 # Default paths to exclude if none specified
 DEFAULT_EXCLUDE_PATHS = ['vendor', '.git']

@@ -5,7 +5,7 @@ import re
 from pathlib import Path
 
 from models import RuleResult, Severity, Violation
-from rules.base import ProjectWideRule
+from rules.project_wide_rule import ProjectWideRule
 
 
 class DotnetAnalyzeRule(ProjectWideRule):

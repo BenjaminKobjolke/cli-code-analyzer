@@ -12,8 +12,8 @@ from pathlib import Path
 
 from models import RuleResult
 from path_utils import resolve_exclude_patterns
-from rules.base import ProjectWideRule
 from rules.pmd_temp_copies import copy_ino_as_cpp, sanitize_shebang_files
+from rules.project_wide_rule import ProjectWideRule
 
 # Default exclude patterns per language (glob patterns)
 DEFAULT_EXCLUDE_PATTERNS = {

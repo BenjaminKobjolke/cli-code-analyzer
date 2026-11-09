@@ -6,7 +6,7 @@ import csv
 from pathlib import Path
 
 from models import LogLevel, RuleResult, Severity, Violation
-from rules.base import ProjectWideRule
+from rules.project_wide_rule import ProjectWideRule
 
 
 class DartAnalyzeRule(ProjectWideRule):

@@ -6,9 +6,9 @@ import json
 from pathlib import Path
 
 from models import RuleResult
-from rules.base import ProjectWideRule
 from rules.context import RuleContext
 from rules.eslint_report import parse_eslint_json, write_eslint_csv
+from rules.project_wide_rule import ProjectWideRule
 
 
 class ESLintAnalyzeRule(ProjectWideRule):
