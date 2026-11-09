@@ -1,15 +1,17 @@
 """Project-wide PHPMD analysis for PHP maintainability rules."""
 
+import os
 import subprocess
+import tempfile
 import xml.etree.ElementTree as ElementTree
 from pathlib import Path
 
 from file_discovery import DEFAULT_EXCLUDE_PATTERNS, FileDiscovery
 from models import RuleResult, Severity, Violation
 from path_utils import resolve_exclude_patterns
-from rules.base import ProjectWideRule
 from rules.filter_scope import ToolOutputError
 from rules.php_tool_paths import get_bundled_php_tool_path
+from rules.project_wide_rule import ProjectWideRule
 
 # Keep PHPMD exclusions aligned with discovery. PDepend matches raw OS paths, so each folder needs
 # both separator forms.
@@ -77,32 +79,37 @@ class PHPMDAnalyzeRule(ProjectWideRule):
                 self.logger.info('Skipping PHPMD: no PHP files in the selected scope')
                 return self._ok([])
 
-            violations = []
-            for command in commands:
-                command.extend([
-                    '--format', 'xml',
-                    '--ruleset', 'codesize', '--ruleset', 'design',
-                    '--suffixes', 'php',
-                    '--exclude', ','.join(exclude_patterns),
-                    '--ignore-violations-on-exit', '--no-progress',
-                ])
-                # PDepend's worker protocol shares stdout with its framed results. Keep
-                # PHPMD in-process so worker diagnostics cannot corrupt the XML run output.
-                command.append('--threads=1')
-                try:
-                    result = self._run_subprocess(command, self.base_path)
-                except subprocess.TimeoutExpired as error:
-                    return self._failed(
-                        f'PHPMD timed out after {error.timeout} seconds'
-                    )
-                if result.returncode != 0:
-                    raise ToolOutputError(
-                        f"PHPMD failed (exit {result.returncode}): "
-                        f"{(result.stderr or '').strip()[:300]}"
-                    )
-                if not result.stdout or not result.stdout.strip():
-                    raise ToolOutputError('PHPMD returned empty XML output')
-                violations.extend(self._parse_report(result.stdout))
+            # PDepend collects its whole shared file cache on every start; isolating it
+            # keeps startup independent of the cache accumulated across projects.
+            with tempfile.TemporaryDirectory(
+                prefix='cli-analyzer-pdepend-', ignore_cleanup_errors=True
+            ) as cache_dir:
+                env = {**os.environ, 'XDG_CACHE_HOME': cache_dir}
+                violations = []
+                for command in commands:
+                    command.extend([
+                        '--format', 'xml',
+                        '--ruleset', 'codesize', '--ruleset', 'design',
+                        '--suffixes', 'php',
+                        '--exclude', ','.join(exclude_patterns),
+                        '--ignore-violations-on-exit', '--no-progress',
+                    ])
+                    # Keep PHPMD in-process so worker diagnostics cannot corrupt XML output.
+                    command.append('--threads=1')
+                    try:
+                        result = self._run_subprocess(command, self.base_path, env=env)
+                    except subprocess.TimeoutExpired as error:
+                        return self._failed(
+                            f'PHPMD timed out after {error.timeout} seconds'
+                        )
+                    if result.returncode != 0:
+                        raise ToolOutputError(
+                            f"PHPMD failed (exit {result.returncode}): "
+                            f"{(result.stderr or '').strip()[:300]}"
+                        )
+                    if not result.stdout or not result.stdout.strip():
+                        raise ToolOutputError('PHPMD returned empty XML output')
+                    violations.extend(self._parse_report(result.stdout))
         except FileNotFoundError:
             return self._failed(f'PHPMD executable not found: {phpmd_path}')
         except Exception as error:

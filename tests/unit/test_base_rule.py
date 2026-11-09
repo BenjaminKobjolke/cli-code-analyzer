@@ -125,6 +125,16 @@ def test_run_subprocess_returns_completed_process():
     assert result.stdout.strip() == "done"
 
 
+def test_run_subprocess_passes_environment_to_child():
+    result = _NoopRule(_ctx())._run_subprocess(
+        [sys.executable, "-c", "import os; print(os.environ['CLI_ANALYZER_TEST_ENV'])"],
+        env={**os.environ, "CLI_ANALYZER_TEST_ENV": "x"},
+    )
+
+    assert result.returncode == 0
+    assert result.stdout.strip() == "x"
+
+
 def test_match_file_path_exact_glob_endswith():
     rule = _NoopRule(_ctx())
     assert rule._match_file_path("foo/bar.py", "foo/bar.py")

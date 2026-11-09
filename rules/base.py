@@ -81,8 +81,8 @@ class BaseRule(FilterScopeMixin, ViolationReportMixin, ABC):
         try:
             with open(file_path, encoding='utf-8') as f:
                 return sum(1 for _ in f)
-        except Exception as e:
-            self.logger.warning(f"Warning: Could not read {file_path}: {e}")
+        except Exception as error:
+            self.logger.warning(f"Warning: Could not read {file_path}: {error}")
             return 0
 
     def _build_threshold_dict(self, exception: dict | None, base: dict) -> dict[str, float | None]:
@@ -178,12 +178,18 @@ class BaseRule(FilterScopeMixin, ViolationReportMixin, ABC):
 
         return filtered
 
-    def _run_subprocess(self, cmd: list[str], cwd: Path | None = None, timeout: int = 300) -> subprocess.CompletedProcess:
-        """Run subprocess with timeout and no stdin to prevent interactive prompts."""
+    def _run_subprocess(
+        self,
+        cmd: list[str],
+        cwd: Path | None = None,
+        timeout: int = 300,
+        env: dict[str, str] | None = None,
+    ) -> subprocess.CompletedProcess:
+        """Run subprocess; env replaces the child environment when provided."""
         process = subprocess.Popen(
             cmd, cwd=cwd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
             encoding='utf-8', errors='replace', stdin=subprocess.DEVNULL,
-            start_new_session=sys.platform != 'win32',
+            start_new_session=sys.platform != 'win32', env=env,
         )
         try:
             stdout, stderr = process.communicate(timeout=timeout)

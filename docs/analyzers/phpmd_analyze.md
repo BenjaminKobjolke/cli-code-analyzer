@@ -52,10 +52,11 @@ stream on large scopes. It does not reduce the selected PHP file scope or discar
 PHPMD subprocess is bounded by the analyzer's existing 300-second timeout; if it expires, PHPMD is
 reported as failed with a timeout message instead of leaving the analyzer waiting indefinitely.
 
-PDepend prefers a writable user cache (`XDG_CACHE_HOME` or `HOME/.cache`) and only falls back to
-the system temporary directory when that cache is unavailable. Redirecting `TEMP` or `TMP` alone
-may therefore leave PDepend's cache on the original drive. When diagnosing disk-space failures,
-check the active PDepend cache location as well as the system temporary directory.
+Each PHPMD run gets a fresh temporary `XDG_CACHE_HOME`, shared by that run's scoped commands and
+removed afterward. PDepend otherwise garbage-collects the full file cache at every startup, so a
+shared cache accumulated across projects can make even a small analysis take minutes. The analyzer
+does not delete existing user caches: remove `%HOME%/.cache/pdepend` or `%HOME%/.pdepend` manually
+if you want to reclaim their disk space and know no other tool needs them.
 
 ## Excluded folders
 
