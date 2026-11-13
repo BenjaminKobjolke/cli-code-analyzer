@@ -176,6 +176,40 @@ def test_get_tool_path_finds_project_composer_phpmd_launcher(
     rule.settings.get_path.assert_not_called()
 
 
+@pytest.mark.parametrize("launcher", ["semgrep.exe", "semgrep"])
+def test_get_tool_path_finds_tool_in_interpreter_scripts_dir(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, launcher: str
+):
+    scripts_dir = tmp_path / "venv" / "Scripts"
+    scripts_dir.mkdir(parents=True)
+    executable = scripts_dir / launcher
+    executable.touch()
+    project_path = tmp_path / "project"
+    project_path.mkdir()
+    rule = _NoopRule(_ctx(base_path=project_path, language="php"))
+    rule._settings = MagicMock(spec=Settings)
+
+    monkeypatch.setattr("rules.base.shutil.which", lambda _name: None)
+    monkeypatch.setattr("rules.base.interpreter_scripts_dir", lambda: scripts_dir)
+
+    assert rule._get_tool_path("semgrep") == str(executable)
+    rule.settings.get_path.assert_not_called()
+
+
+def test_get_tool_path_prefers_path_to_interpreter_scripts_dir(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    scripts_dir = tmp_path / "Scripts"
+    scripts_dir.mkdir()
+    (scripts_dir / "semgrep.exe").touch()
+    rule = _NoopRule(_ctx(base_path=tmp_path))
+
+    monkeypatch.setattr("rules.base.shutil.which", lambda _name: "on-path/semgrep")
+    monkeypatch.setattr("rules.base.interpreter_scripts_dir", lambda: scripts_dir)
+
+    assert rule._get_tool_path("semgrep") == "on-path/semgrep"
+
+
 def test_get_tool_path_falls_back_to_configured_path_without_composer_phpmd(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ):
