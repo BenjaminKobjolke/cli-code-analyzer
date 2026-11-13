@@ -335,6 +335,59 @@ def test_php_performance_patterns_require_repository_evidence(tmp_path: Path):
 
 
 @pytest.mark.skipif(shutil.which("semgrep") is None, reason="Semgrep executable is optional")
+def test_php_n_plus_one_ignores_lookup_producing_the_loop_collection(tmp_path: Path):
+    source = tmp_path / "sample.php"
+    source.write_text(
+        """<?php
+        function headerOnly($userRepository) {
+            foreach ($userRepository->findBy(['active' => true]) as $user) {
+                echo $user;
+            }
+        }
+        function headerAndBody($repository) {
+            foreach ($repository->findBy(['a' => 1]) as $row) {
+                $repository->findBy(['parent' => $row]);
+            }
+        }
+        function nestedBody(array $ids, $repository) {
+            foreach ($ids as $id) {
+                if ($id > 0) {
+                    $item = $repository->find($id);
+                }
+            }
+        }
+        function innerLoopHeader(array $groups, $repository) {
+            foreach ($groups as $group) {
+                foreach ($repository->findBy(['group' => $group]) as $row) {
+                    echo $row;
+                }
+            }
+        }
+        """,
+        encoding="utf-8",
+    )
+
+    result = subprocess.run(
+        ["semgrep", "scan", "--json", "--metrics=off", "--quiet", "--config",
+         str(BUNDLED_RULES_DIR), str(source)],
+        capture_output=True,
+        text=True,
+        timeout=30,
+        check=False,
+    )
+    assert result.returncode in (0, 1), result.stderr
+    lines = sorted(
+        finding["start"]["line"]
+        for finding in json.loads(result.stdout)["results"]
+        if finding["check_id"].endswith("php-potential-n-plus-one")
+    )
+
+    # line 3 builds the collection once; 9 runs per row, 15 is nested in the body,
+    # 21 is an inner loop header that runs once per outer group
+    assert lines == [9, 15, 21]
+
+
+@pytest.mark.skipif(shutil.which("semgrep") is None, reason="Semgrep executable is optional")
 def test_php_maintainability_patterns_need_multiple_signals(tmp_path: Path):
     source = tmp_path / "sample.php"
     source.write_text(

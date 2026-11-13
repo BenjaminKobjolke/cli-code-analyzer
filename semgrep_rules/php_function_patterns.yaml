@@ -11,18 +11,23 @@ rules:
       confidence: medium
       evidence: repository receiver, configured lookup method, and loop context
       recommendation: Batch or preload the lookup, or cache results by lookup key.
+    # The lookup must be in the loop body: a lookup that produces the collection
+    # (`foreach ($repository->findBy(...) as $row)`) runs once. A pattern-inside of the
+    # whole foreach would include its header, hence the body pattern focused on the call.
     patterns:
-      - pattern-inside: |
+      - pattern: |
           foreach ($COLLECTION as $ITEM) {
             ...
+            <... $RECEIVER->$METHOD(...) ...>;
+            ...
           }
-      - pattern: $RECEIVER->$METHOD(...)
       - metavariable-regex:
           metavariable: $RECEIVER
           regex: (?i).*(repo|repository|entitymanager|manager|database|connection|\bdb\b).*
       - metavariable-regex:
           metavariable: $METHOD
           regex: (?i)^(findbyid|findactivebyid|findoneby|findby|find|findmany|query|select|execute|fetch|fetchall)$
+      - focus-metavariable: $METHOD
 
   - id: php-nested-database-loop-risk
     languages: [php]

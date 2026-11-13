@@ -12,7 +12,7 @@ Note: Dart is an *experimental* language in semgrep Community Edition — parsin
 pip install semgrep
 ```
 
-Semgrep runs natively on Windows (no WSL/Docker needed) since the Fall 2025 release. Path resolution: PATH → `settings.ini` (`[semgrep] semgrep_path`) → interactive prompt.
+Semgrep runs natively on Windows (no WSL/Docker needed) since the Fall 2025 release. Path resolution: PATH → the analyzer venv's `Scripts`/`bin` dir (so `venv\Scripts\python.exe -m pip install semgrep` works without activating the venv) → `settings.ini` (`[semgrep] semgrep_path`) → interactive prompt.
 
 ## Configuration
 

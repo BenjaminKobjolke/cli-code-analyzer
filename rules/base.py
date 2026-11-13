@@ -6,6 +6,7 @@ import contextlib
 import shutil
 import subprocess
 import sys
+import sysconfig
 import threading
 from abc import ABC, abstractmethod
 from fnmatch import fnmatch
@@ -18,6 +19,16 @@ from rules.context import RuleContext
 from rules.filter_scope import FilterScopeMixin
 from rules.process_utils import kill_process_tree
 from rules.reporting import ViolationReportMixin
+
+
+def interpreter_scripts_dir() -> Path | None:
+    """Scripts/bin dir of the running interpreter, where `pip install <tool>` puts executables.
+
+    The project bats call `venv\\Scripts\\python.exe` directly without activating
+    the venv, so that dir is not on PATH.
+    """
+    scripts = sysconfig.get_path('scripts')
+    return Path(scripts) if scripts else None
 
 
 class BaseRule(FilterScopeMixin, ViolationReportMixin, ABC):
@@ -208,7 +219,7 @@ class BaseRule(FilterScopeMixin, ViolationReportMixin, ABC):
         return subprocess.CompletedProcess(cmd, process.returncode, stdout, stderr)
 
     def _get_tool_path(self, tool_name: str, settings_name: str | None = None) -> str | None:
-        """Get tool path from PATH, local package bins, settings, or prompt user.
+        """Get tool path from PATH, the analyzer venv, local package bins, settings, or prompt user.
 
         `tool_name` is the executable name (PATH/node_modules lookup). `settings_name`
         is the Settings key; defaults to `tool_name` when they match (most tools).
@@ -217,6 +228,14 @@ class BaseRule(FilterScopeMixin, ViolationReportMixin, ABC):
         tool_in_path = shutil.which(tool_name)
         if tool_in_path:
             return tool_in_path
+
+        # Python tools installed into the analyzer's own venv (e.g. `pip install semgrep`)
+        scripts_dir = interpreter_scripts_dir()
+        if scripts_dir:
+            for suffix in ['.exe', '.cmd', '.bat', '']:
+                venv_bin = scripts_dir / (tool_name + suffix)
+                if venv_bin.is_file():
+                    return str(venv_bin)
 
         # Check project-local node_modules/.bin/ for Node-based tools
         if self.base_path:

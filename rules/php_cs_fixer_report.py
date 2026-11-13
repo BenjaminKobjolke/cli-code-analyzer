@@ -12,6 +12,25 @@ from pathlib import Path
 from models import Severity, Violation
 
 
+def drop_fixer_from_json(output: str, fixer: str) -> str:
+    """Remove one fixer from every file's appliedFixers (files left without fixers drop out).
+
+    Output that is not the expected JSON is returned unchanged so the parser reports it.
+    """
+    try:
+        data = json.loads(output)
+    except (json.JSONDecodeError, TypeError):
+        return output
+    if not isinstance(data, dict) or not isinstance(data.get('files'), list):
+        return output
+    files = []
+    for file_info in data['files']:
+        fixers = [name for name in file_info.get('appliedFixers', []) if name != fixer]
+        if fixers:
+            files.append({**file_info, 'appliedFixers': fixers})
+    return json.dumps({**data, 'files': files})
+
+
 def parse_fixer_json(output: str, get_relative_path, logger) -> list[Violation]:
     """Parse PHP-CS-Fixer JSON into one violation per file (listing the fixers)."""
     violations: list[Violation] = []
