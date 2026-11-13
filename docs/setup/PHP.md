@@ -100,7 +100,7 @@ Create a `code_analysis_rules.json` file in your project:
   "php_cs_fixer": {
     "enabled": true,
     "rules": "@PSR12",
-    "exclude_patterns": ["vendor/**", "node_modules/**", ".git/**"]
+    "exclude_paths": ["vendor", "node_modules", ".git"]
   },
   "intelephense_analyze": {
     "enabled": true,
@@ -178,7 +178,8 @@ Under `--only-changed` or `--file`, PHP-CS-Fixer checks only the changed `.php` 
 | Option | Description | Default |
 |--------|-------------|---------|
 | `rules` | Coding standard to enforce | `@PSR12` |
-| `exclude_patterns` | Glob patterns to exclude from analysis | `[]` |
+| `exclude_paths` | Directory paths (no globs) written into the generated `.php-cs-fixer.dist.php` Finder `->exclude([...])`. A bare name (`node_modules`) matches at any depth, a path with a slash (`application/var`) matches that relative sub-path. `exclude_patterns` is **not** read by this rule. | `["vendor", ".git"]` |
+| `managed` | Set to `false` to stop the analyzer from creating/updating `.php-cs-fixer.dist.php` | `true` |
 
 ### Common Rule Sets
 
