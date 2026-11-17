@@ -20,6 +20,7 @@ ANALYZER_REGISTRY = {
         ('intelephense_analyze', 'LSP diagnostics', 'Intelephense (npm)'),
         ('graphify_fanout', 'Fan-out / outgoing coupling', 'graphify (graph.json)'),
         ('semgrep_analyze', 'Pattern scanning', 'semgrep (pip)'),
+        ('php_unused_dependencies', 'Unused dependency detection', None),
     ],
     'python': [
         ('max_lines_per_file', 'File length checks', None),
@@ -29,6 +30,7 @@ ANALYZER_REGISTRY = {
         ('pyscn_analyze', 'Complexity, dead code, coupling', 'pyscn (pipx)'),
         ('python_test_coverage', 'Test coverage checking', 'coverage.py + pytest'),
         ('python_crap_score', 'CRAP score (complexity x coverage) per function', 'pyscn + coverage.py'),
+        ('python_unused_dependencies', 'Unused dependency detection', None),
         ('graphify_fanout', 'Fan-out / outgoing coupling', 'graphify (graph.json)'),
         ('semgrep_analyze', 'Pattern scanning', 'semgrep (pip)'),
     ],
@@ -65,6 +67,7 @@ ANALYZER_REGISTRY = {
         ('tsc_analyze', 'TypeScript type checking', 'TypeScript (npm)'),
         ('graphify_fanout', 'Fan-out / outgoing coupling', 'graphify (graph.json)'),
         ('semgrep_analyze', 'Pattern scanning', 'semgrep (pip)'),
+        ('javascript_unused_dependencies', 'Unused dependency detection', None),
     ],
     'svelte': [
         ('max_lines_per_file', 'File length checks', None),
@@ -74,6 +77,7 @@ ANALYZER_REGISTRY = {
         ('svelte_check', 'TypeScript/Svelte type checking', 'svelte-check (npm)'),
         ('graphify_fanout', 'Fan-out / outgoing coupling', 'graphify (graph.json)'),
         ('semgrep_analyze', 'Pattern scanning', 'semgrep (pip)'),
+        ('javascript_unused_dependencies', 'Unused dependency detection', None),
     ],
     'autohotkey': [
         ('max_lines_per_file', 'File length checks', None),

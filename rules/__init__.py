@@ -20,10 +20,12 @@ from rules.eslint_analyze import ESLintAnalyzeRule
 from rules.flutter_analyze import FlutterAnalyzeRule
 from rules.graphify_fanout import GraphifyFanoutRule
 from rules.intelephense_analyze import IntelephenseAnalyzeRule
+from rules.javascript_unused_dependencies import JavaScriptUnusedDependenciesRule
 from rules.kotlin_complexity import KotlinComplexityRule
 from rules.max_lines import MaxLinesRule
 from rules.php_cs_fixer_analyze import PHPCSFixerAnalyzeRule
 from rules.php_function_quality import PHPFunctionQualityRule
+from rules.php_unused_dependencies import PHPUnusedDependenciesRule
 from rules.phpmd_analyze import PHPMDAnalyzeRule
 from rules.phpstan_analyze import PHPStanAnalyzeRule
 from rules.pmd_duplicates import PMDDuplicatesRule
@@ -32,6 +34,7 @@ from rules.project_wide_rule import ProjectWideRule
 from rules.pyscn_analyze import PyscnAnalyzeRule
 from rules.python_crap_score import PythonCrapScoreRule
 from rules.python_test_coverage import PythonTestCoverageRule
+from rules.python_unused_dependencies import PythonUnusedDependenciesRule
 from rules.ruff_analyze import RuffAnalyzeRule
 from rules.semgrep_analyze import SemgrepAnalyzeRule
 from rules.svelte_check import SvelteCheckRule
@@ -56,18 +59,21 @@ __all__ = [
     'FlutterAnalyzeRule',
     'GraphifyFanoutRule',
     'IntelephenseAnalyzeRule',
+    'JavaScriptUnusedDependenciesRule',
     'KotlinComplexityRule',
     'MaxLinesRule',
     'PHPCSFixerAnalyzeRule',
     'PHPFunctionQualityRule',
     'PHPMDAnalyzeRule',
     'PHPStanAnalyzeRule',
+    'PHPUnusedDependenciesRule',
     'PMDDuplicatesRule',
     'PMDSimilarCodeRule',
     'ProjectWideRule',
     'PyscnAnalyzeRule',
     'PythonCrapScoreRule',
     'PythonTestCoverageRule',
+    'PythonUnusedDependenciesRule',
     'RuffAnalyzeRule',
     'SemgrepAnalyzeRule',
     'SvelteCheckRule',

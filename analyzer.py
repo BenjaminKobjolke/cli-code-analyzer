@@ -27,6 +27,7 @@ PHP_DEFAULT_ANALYZERS = frozenset({
     'phpmd_analyze',
     'php_function_quality',
     'semgrep_analyze',
+    'php_unused_dependencies',
 })
 CONTRACT_DEFAULT_ANALYZERS = frozenset({'contract_enums'})
 

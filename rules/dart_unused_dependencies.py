@@ -6,9 +6,15 @@ from pathlib import Path
 
 import yaml
 
-from models import RuleResult, Violation
+from models import RuleResult
 from rules.dart_package_rule import DartPackageRule
 from rules.dart_utils import collect_dart_files, parse_imports
+from rules.unused_dependencies import (
+    DependencyDeclarations,
+    UnusedDependencyOptions,
+    build_unused_dependency_violations,
+    find_unused_dependencies,
+)
 
 
 class DartUnusedDependenciesRule(DartPackageRule):
@@ -35,27 +41,27 @@ class DartUnusedDependenciesRule(DartPackageRule):
         if not pubspec_data:
             return self._skipped("pubspec.yaml is empty")
 
-        ignore_packages = set(self.config.get('ignore_packages', [
+        default_ignore_packages = (
             'flutter', 'flutter_localizations', 'flutter_test', 'flutter_lints',
             'dart_code_linter', 'build_runner', 'json_serializable', 'freezed', 'freezed_annotation'
-        ]))
-        check_dev = self.config.get('check_dev_dependencies', True)
-        severity_str = self.config.get('severity', 'warning')
-        scan_paths = self.config.get('scan_paths', {
-            'dependencies': ['lib'],
-            'dev_dependencies': ['test', 'integration_test']
-        })
+        )
+        default_scan_paths = {
+            'dependencies': ('lib',),
+            'dev_dependencies': ('test', 'integration_test'),
+        }
+        options = UnusedDependencyOptions.from_config(
+            self.config,
+            default_ignore_packages=default_ignore_packages,
+            default_scan_paths=default_scan_paths,
+        )
 
         # Collect dependencies from pubspec.yaml
         deps = pubspec_data.get('dependencies', {}) or {}
         dev_deps = pubspec_data.get('dev_dependencies', {}) or {}
-
-        # Remove ignored packages
-        deps_to_check = {name for name in deps if name not in ignore_packages}
-        dev_deps_to_check = {name for name in dev_deps if name not in ignore_packages} if check_dev else set()
+        declarations = DependencyDeclarations(frozenset(deps), frozenset(dev_deps))
 
         # Scan source files for package imports
-        def collect_used_packages(paths: list[str]) -> set[str]:
+        def collect_used_packages(paths: tuple[str, ...]) -> set[str]:
             used = set()
             for scan_path in paths:
                 scan_dir = project_root / scan_path
@@ -70,36 +76,21 @@ class DartUnusedDependenciesRule(DartPackageRule):
                             used.add(pkg_name)
             return used
 
-        dep_scan_paths = scan_paths.get('dependencies', ['lib'])
-        dev_scan_paths = scan_paths.get('dev_dependencies', ['test', 'integration_test'])
-
-        used_in_lib = collect_used_packages(dep_scan_paths)
-        used_in_test = collect_used_packages(dev_scan_paths) if check_dev else set()
-
-        violations = []
-        severity = self._map_severity(severity_str)
-
-        # Check regular dependencies
-        for pkg in sorted(deps_to_check):
-            if pkg not in used_in_lib:
-                rel_scan = ', '.join(dep_scan_paths)
-                violations.append(Violation(
-                    file_path=self._workspace_relative('pubspec.yaml') or 'pubspec.yaml',
-                    rule_name='dart_unused_dependencies',
-                    severity=severity,
-                    message=f"Package '{pkg}' is listed in pubspec.yaml dependencies but never imported in {rel_scan}"
-                ))
-
-        # Check dev dependencies
-        for pkg in sorted(dev_deps_to_check):
-            if pkg not in used_in_test and pkg not in used_in_lib:
-                rel_scan = ', '.join(dev_scan_paths)
-                violations.append(Violation(
-                    file_path=self._workspace_relative('pubspec.yaml') or 'pubspec.yaml',
-                    rule_name='dart_unused_dependencies',
-                    severity=severity,
-                    message=f"Package '{pkg}' is listed in pubspec.yaml dev_dependencies but never imported in {rel_scan}"
-                ))
+        dependency_paths = options.scan_paths['dependencies']
+        dev_dependency_paths = options.scan_paths['dev_dependencies']
+        used_in_dependencies = collect_used_packages(dependency_paths)
+        used_in_dev_dependencies = (
+            collect_used_packages(dev_dependency_paths) if options.check_dev_dependencies else set()
+        )
+        unused_dependencies = find_unused_dependencies(
+            declarations, used_in_dependencies, used_in_dev_dependencies, options)
+        violations = build_unused_dependency_violations(
+            unused_dependencies,
+            manifest_name='pubspec.yaml',
+            manifest_path=self._workspace_relative('pubspec.yaml') or 'pubspec.yaml',
+            rule_name=self.rule_name,
+            severity=self._map_severity(options.severity),
+        )
 
         violations = self._filter_violations_by_log_level(violations)
 

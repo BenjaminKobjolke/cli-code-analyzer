@@ -163,6 +163,15 @@
       "dev_dependencies": ["test", "integration_test"]
     }
   },
+  "php_unused_dependencies": {
+    "enabled": true
+  },
+  "python_unused_dependencies": {
+    "enabled": true
+  },
+  "javascript_unused_dependencies": {
+    "enabled": true
+  },
   "dart_import_rules": {
     "enabled": true,
     "analyze_path": "lib",
