@@ -63,3 +63,9 @@ python main.py --language cpp --path . --rules code_analysis_rules.json --only-c
 ```
 
 The command exits with code `1` when it finds an error or cannot complete analysis, and `0` when no errors are found. Duplicate and similar-code findings are warnings by default, so configure the analyzer's severity policy as needed for CI.
+
+## Unused Dependencies
+
+Unused Arduino/C++ library detection is not provided because library manifests vary and header
+names do not reliably identify library names. See
+[unsupported ecosystems](../analyzers/unused_dependencies.md#unsupported-ecosystems).

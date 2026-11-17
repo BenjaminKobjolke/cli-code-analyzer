@@ -258,3 +258,9 @@ The recommended workflow for Python projects:
    ```
 
 Some issues cannot be auto-fixed and require manual intervention (e.g., unused arguments that might be needed for API compatibility).
+
+## Unused Dependencies
+
+The `python_unused_dependencies` analyzer checks declared Python packages against source imports.
+See the [unused dependencies guide](../analyzers/unused_dependencies.md) for configuration,
+development dependency paths, import-name overrides, and its limits.

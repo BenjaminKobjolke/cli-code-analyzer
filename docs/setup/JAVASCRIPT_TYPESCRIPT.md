@@ -383,3 +383,10 @@ When using `config_mode: "builtin"`, you can configure these common rules:
 | `prefer-const` | Prefer const over let |
 
 See https://eslint.org/docs/rules/ for all available rules.
+
+## Unused Dependencies
+
+The `javascript_unused_dependencies` analyzer checks `package.json` dependencies against
+JavaScript and TypeScript imports. See the
+[unused dependencies guide](../analyzers/unused_dependencies.md) for options, Svelte support,
+tool-package exemptions, and limitations.

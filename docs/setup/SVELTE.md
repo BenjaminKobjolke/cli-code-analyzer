@@ -208,3 +208,9 @@ If you get a PMD path error:
 ### .svelte-kit files being analyzed
 
 Ensure `.svelte-kit/**` is in your exclusion patterns. This is included by default but may need to be added to custom rules files.
+
+## Unused Dependencies
+
+The `javascript_unused_dependencies` analyzer also checks Svelte and TypeScript imports in
+Svelte projects. See the [unused dependencies guide](../analyzers/unused_dependencies.md) for
+configuration and limitations.

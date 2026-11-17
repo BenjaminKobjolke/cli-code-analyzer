@@ -4,6 +4,9 @@
 
 The Dart Unused Dependencies analyzer finds packages listed in `pubspec.yaml` that are never imported anywhere in the codebase. This helps keep dependencies lean and reduces build times and binary size.
 
+For PHP, Python, JavaScript/TypeScript, and Svelte dependency checks, see the
+[cross-ecosystem unused dependencies guide](unused_dependencies.md).
+
 ## Supported Languages
 
 - Dart

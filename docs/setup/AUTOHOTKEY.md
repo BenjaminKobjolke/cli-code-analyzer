@@ -62,3 +62,8 @@ reported against the correct sub-file. Scripts are loaded and syntax-checked
   }
 }
 ```
+
+## Unused Dependencies
+
+Unused-package detection is not applicable to AutoHotkey because it has no package manifest. See
+[unsupported ecosystems](../analyzers/unused_dependencies.md#unsupported-ecosystems).

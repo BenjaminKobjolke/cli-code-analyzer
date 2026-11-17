@@ -54,3 +54,9 @@ python main.py --language kotlin --path . --rules code_analysis_rules.json --onl
 The command exits with code `1` when an error finding is reported or analysis fails, and `0` when
 there are no errors. Warnings alone do not fail the run; set a metric's `error` threshold to the
 value that should block your build.
+
+## Unused Dependencies
+
+Unused Gradle dependency detection is not provided because declarations, version catalogs, and
+plugins need resolved artifact metadata to map reliably to source packages. See
+[unsupported ecosystems](../analyzers/unused_dependencies.md#unsupported-ecosystems).

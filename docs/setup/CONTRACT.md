@@ -45,3 +45,8 @@ JSON in scope so malformed files and invalid enum definitions are reported. For 
 ```
 
 See [`contract_enums`](../analyzers/contract_enums.md) for the enum format and findings.
+
+## Unused Dependencies
+
+Unused-package detection is not applicable to contract JSON because it has no package manifest.
+See [unsupported ecosystems](../analyzers/unused_dependencies.md#unsupported-ecosystems).

@@ -40,8 +40,19 @@ This guide explains how to set up cli-code-analyzer for PHP projects.
 | `phpmd_analyze` | PHPMD function complexity, path complexity, size, and parameter checks |
 | `php_function_quality` | Lizard-backed function length and complexity thresholds |
 | `semgrep_analyze` | Includes potential PHP performance and maintainability patterns |
+| `php_unused_dependencies` | Finds Composer requirements with no matching PHP namespace use |
 
 The PHP-specific analyzers are enabled automatically in PHP scans when their entries are absent.
+`php_unused_dependencies` follows this default too: it is on when its entry is absent, and an
+explicit `"enabled": false` disables it. It reads `require` and `require-dev` from
+`composer.json` and needs either `composer.lock` or `vendor/composer/installed.json` to map
+packages to PSR-4/PSR-0 namespaces. Its defaults scan project PHP files for regular requirements
+and `tests`/`test` for development requirements; configure `scan_paths` for another layout.
+Use `ignore_packages` for packages used without namespace references and
+`ignore_tool_packages` to control automatic exemptions for Composer binaries and plugins. See
+the [unused dependencies guide](../analyzers/unused_dependencies.md) for all options and
+limitations.
+
 PHPMD 3 is bundled in the analyzer's `php/composer.json` development dependencies and is found
 under `php/vendor/bin` after the Composer setup above. If that bundled executable is missing, the
 analyzer retains its external fallback: a `phpmd` on `PATH`, a project-local Composer executable

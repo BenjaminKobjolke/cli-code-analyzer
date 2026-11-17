@@ -251,3 +251,9 @@ The analyzer uses the same Roslyn analyzers as Visual Studio, so results should 
 1. Enable "Treat warnings as errors" in project properties for stricter analysis
 2. Add an `.editorconfig` file to configure analyzer rules
 3. Consider adding analyzer packages like StyleCop or Roslynator to your project
+
+## Unused Dependencies
+
+Unused NuGet package detection is not provided because package IDs do not map reliably to source
+namespaces. See [unsupported ecosystems](../analyzers/unused_dependencies.md#unsupported-ecosystems)
+for details.
