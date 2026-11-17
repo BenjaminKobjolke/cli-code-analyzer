@@ -33,9 +33,26 @@ Help me setup the cli-code-analyzer for a new PHP project. Ask me for the local 
     "rules": "@PSR12",
     "exclude_paths": ["vendor", ".git", "storage", "bootstrap/cache"],
     "managed": true
+  },
+  "php_unused_dependencies": {
+    "enabled": true,
+    "check_dev_dependencies": true,
+    "severity": "warning",
+    "ignore_packages": [],
+    "ignore_tool_packages": true,
+    "scan_paths": {
+      "dependencies": ["."],
+      "dev_dependencies": ["tests", "test"]
+    }
   }
 }
 ```
+
+`php_unused_dependencies` is enabled automatically for PHP projects when its rules entry is
+absent; setting `enabled` to `false` opts out. It reads Composer requirements and needs either
+`composer.lock` or `vendor/composer/installed.json` to map packages to PSR-4/PSR-0 namespaces.
+See the [unused dependencies guide](../docs/analyzers/unused_dependencies.md) for options,
+limits, and cases that are skipped.
 
 ## PHP-CS-Fixer Options
 
