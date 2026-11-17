@@ -8,7 +8,14 @@ only_analyzers must produce a warning (nothing to silently swallow). None
 from pathlib import Path
 
 from analyzer import AnalyzerConfig, CodeAnalyzer
+from analyzer_registry import get_analyzers_for_language
 from logger import Logger
+from project_wide_rules import FILTER_INCAPABLE, PROJECT_WIDE_ANALYZERS
+from rules import (
+    JavaScriptUnusedDependenciesRule,
+    PHPUnusedDependenciesRule,
+    PythonUnusedDependenciesRule,
+)
 
 # The analyzer's own rules file — exists in the repo root, has several
 # analyzers enabled (max_lines_per_file, ruff_analyze, etc. for python).
@@ -76,10 +83,11 @@ def test_php_analyzers_default_on_when_rules_are_absent(tmp_path: Path):
     assert analyzer._should_run("phpmd_analyze") is True
     assert analyzer._should_run("php_function_quality") is True
     assert analyzer._should_run("semgrep_analyze") is True
+    assert analyzer._should_run("php_unused_dependencies") is True
 
 
 def test_php_analyzers_can_be_explicitly_disabled(tmp_path: Path):
-    rules = '{"phpmd_analyze":{"enabled":false},"php_function_quality":{"enabled":false},"semgrep_analyze":{"enabled":false}}'
+    rules = '{"phpmd_analyze":{"enabled":false},"php_function_quality":{"enabled":false},"semgrep_analyze":{"enabled":false},"php_unused_dependencies":{"enabled":false}}'
     analyzer = _analyzer(
         tmp_path,
         languages="php",
@@ -89,6 +97,7 @@ def test_php_analyzers_can_be_explicitly_disabled(tmp_path: Path):
     assert analyzer._should_run("phpmd_analyze") is False
     assert analyzer._should_run("php_function_quality") is False
     assert analyzer._should_run("semgrep_analyze") is False
+    assert analyzer._should_run("php_unused_dependencies") is False
 
 
 def test_php_defaults_do_not_enable_analyzers_for_other_languages(tmp_path: Path):
@@ -101,6 +110,7 @@ def test_php_defaults_do_not_enable_analyzers_for_other_languages(tmp_path: Path
     assert analyzer._should_run("semgrep_analyze") is False
     assert analyzer._should_run("phpmd_analyze") is False
     assert analyzer._should_run("php_function_quality") is False
+    assert analyzer._should_run("php_unused_dependencies") is False
 
 
 def test_only_analyzer_narrows_php_defaults(tmp_path: Path):
@@ -114,3 +124,27 @@ def test_only_analyzer_narrows_php_defaults(tmp_path: Path):
     assert analyzer._should_run("phpmd_analyze") is True
     assert analyzer._should_run("php_function_quality") is False
     assert analyzer._should_run("semgrep_analyze") is False
+
+
+def test_unused_dependency_defaults_are_enabled_for_registry_languages(tmp_path: Path):
+    rules_file = str(Path(__file__).resolve().parents[2] / "rules.json")
+    for language, analyzer_name in (
+        ("python", "python_unused_dependencies"),
+        ("javascript", "javascript_unused_dependencies"),
+        ("svelte", "javascript_unused_dependencies"),
+    ):
+        analyzer = _analyzer(tmp_path, languages=language, rules_file=rules_file)
+        assert analyzer._should_run(analyzer_name) is True
+
+
+def test_unused_dependency_rules_are_registered_project_wide_and_filter_incapable():
+    expected = (
+        ("php_unused_dependencies", PHPUnusedDependenciesRule, ("php",)),
+        ("python_unused_dependencies", PythonUnusedDependenciesRule, ("python",)),
+        ("javascript_unused_dependencies", JavaScriptUnusedDependenciesRule, ("javascript", "svelte")),
+    )
+    for name, rule_class, languages in expected:
+        assert (name, rule_class) in PROJECT_WIDE_ANALYZERS
+        assert name in FILTER_INCAPABLE
+        for language in languages:
+            assert name in {row[0] for row in get_analyzers_for_language(language)}
