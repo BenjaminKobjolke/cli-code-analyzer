@@ -25,6 +25,7 @@ A flexible command-line tool for analyzing code files based on configurable rule
 - **Svelte type checking**: Integrated [svelte-check](https://github.com/sveltejs/language-tools/tree/master/packages/svelte-check) for Svelte/TypeScript type checking with configurable compiler warning suppression
 - **TypeScript type checking**: Integrated `tsc --noEmit` for project-wide TypeScript type checking with error code filtering
 - **Dart project hygiene**: Unused files, unused dependencies, unused code, missing `dispose()` calls, architecture import rules, test coverage and CRAP score (complexity x coverage); package-aware rules run once per package in rootless workspaces
+- **Unused dependency detection**: Checks declared package use for Dart/Flutter, PHP, Python, JavaScript, TypeScript, and Svelte; see the [configuration and ecosystem limits](docs/analyzers/unused_dependencies.md)
 - **Python test metrics**: Test coverage (coverage.py + pytest) and per-function CRAP score
 - **PHP analysis**: [PHPStan](https://phpstan.org/), [PHP-CS-Fixer](https://cs.symfony.com/), [Intelephense](https://intelephense.com/) diagnostics, [PHPMD](https://phpmd.org/) and lizard-based function quality metrics; with `--only-changed`, PHPStan, PHP-CS-Fixer and Intelephense run only on the changed files
 - **C# analysis**: Compiler and analyzer diagnostics from `dotnet build` via `dotnet_analyze`
