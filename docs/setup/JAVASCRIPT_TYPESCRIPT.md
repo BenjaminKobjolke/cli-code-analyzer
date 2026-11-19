@@ -345,6 +345,14 @@ If you get a PMD path error:
 1. Run the analyzer once - it will prompt to download/configure PMD
 2. Or manually edit `settings.ini` in the cli-code-analyzer directory
 
+### Workspace without a root ESLint config
+
+"ESLint couldn't find an eslint.config.* file" in a pnpm/npm/yarn workspace whose
+packages each have their own config: the analyzer handles this itself by running
+ESLint once per package (see [eslint_analyze](../analyzers/eslint_analyze.md#workspaces-monorepos)).
+Do **not** add a root `eslint.config.js` just for the analyzer. If the error
+remains, the checkout is older than this change.
+
 ### TypeScript parsing errors
 
 If ESLint reports parsing errors on TypeScript files:
