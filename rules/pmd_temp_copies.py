@@ -55,6 +55,13 @@ def _copy_files(
     return mapping, temps
 
 
+def _blank_shebang(source: str) -> str:
+    """Replace a leading shebang line with an empty one, keeping every line number."""
+    if not source.startswith("#!"):
+        return source
+    return "\n" + source.split("\n", maxsplit=1)[1] if "\n" in source else "\n"
+
+
 def sanitize_shebang_files(scan_files: list[Path], logger) -> tuple[dict[str, str], list[Path]]:
     """Blank shebang lines for CPD's ecmascript lexer while preserving line numbers."""
     return _copy_files(
@@ -63,8 +70,25 @@ def sanitize_shebang_files(scan_files: list[Path], logger) -> tuple[dict[str, st
         should_copy=lambda _path, source: source.startswith("#!"),
         prefix="pmd_shebang_",
         suffix_for=lambda path: path.suffix,
-        content_for=lambda source: "\n" + source.split("\n", maxsplit=1)[1]
-        if "\n" in source else "\n",
+        content_for=_blank_shebang,
+    )
+
+
+def copy_as_typescript(scan_files: list[Path], logger) -> tuple[dict[str, str], list[Path]]:
+    """Copy every non-.ts source with a .ts suffix so CPD's typescript lexer reads it.
+
+    CPD picks files by extension: its typescript lexer takes only .ts and its
+    ecmascript lexer only .js, so .tsx (and, under ecmascript, all TypeScript)
+    went unchecked. TypeScript's lexer reads JavaScript and JSX as well, so one
+    lexer covers the whole family and finds duplicates across it.
+    """
+    return _copy_files(
+        scan_files,
+        logger,
+        should_copy=lambda path, source: path.suffix.lower() != ".ts" or source.startswith("#!"),
+        prefix="pmd_ts_",
+        suffix_for=lambda _path: ".ts",
+        content_for=_blank_shebang,
     )
 
 

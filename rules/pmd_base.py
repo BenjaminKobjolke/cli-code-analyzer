@@ -12,7 +12,11 @@ from pathlib import Path
 
 from models import RuleResult
 from path_utils import resolve_exclude_patterns
-from rules.pmd_temp_copies import copy_ino_as_cpp, sanitize_shebang_files
+from rules.pmd_temp_copies import (
+    copy_as_typescript,
+    copy_ino_as_cpp,
+    sanitize_shebang_files,
+)
 from rules.project_wide_rule import ProjectWideRule
 
 # Default exclude patterns per language (glob patterns)
@@ -33,8 +37,10 @@ LANGUAGE_TO_PMD = {
     'dart': 'dart',
     'python': 'python',
     'java': 'java',
-    'javascript': 'ecmascript',
-    'js': 'ecmascript',
+    # The typescript lexer, fed through copy_as_typescript, reads the whole JS/TS
+    # family; ecmascript would skip every .ts and .tsx file.
+    'javascript': 'typescript',
+    'js': 'typescript',
     'typescript': 'typescript',
     'ts': 'typescript',
     'php': 'php',
@@ -44,6 +50,13 @@ LANGUAGE_TO_PMD = {
     'cpp': 'cpp',
     'arduino': 'cpp',
     'kotlin': 'kotlin',
+}
+
+# Temp copies a PMD language needs before CPD reads its sources
+PMD_SOURCE_COPIERS = {
+    'ecmascript': sanitize_shebang_files,
+    'typescript': copy_as_typescript,
+    'cpp': copy_ino_as_cpp,
 }
 
 # Windows reserved device names that cause errors when PMD tries to scan them
@@ -141,9 +154,9 @@ def run_cpd(rule, cmd_base: list[str], directory: Path, exclude_paths: list[str]
     curated list of language source files, then use the same mechanism. This
     keeps PMD from traversing excluded cache and metadata directories. Handles
     temp-file cleanup, stderr filtering, and delegates parsing to the rule's
-    ``_result_from_pmd_stdout``. For ecmascript, shebang-led files are fed to
-    CPD as sanitized temp copies (see ``sanitize_shebang_files``) and their
-    paths mapped back to the originals in the output.
+    ``_result_from_pmd_stdout``. Sources a language's lexer would not read as
+    they are (see ``PMD_SOURCE_COPIERS``) are fed to CPD as temp copies and
+    their paths mapped back to the originals in the output.
     """
     cmd = list(cmd_base)
     temps: list[Path | None] = []
@@ -154,8 +167,8 @@ def run_cpd(rule, cmd_base: list[str], directory: Path, exclude_paths: list[str]
         )
 
     temp_copy_map: dict[str, str] = {}
-    if scan_files and pmd_language in {'ecmascript', 'cpp'}:
-        copy_files = sanitize_shebang_files if pmd_language == 'ecmascript' else copy_ino_as_cpp
+    copy_files = PMD_SOURCE_COPIERS.get(pmd_language or '')
+    if scan_files and copy_files:
         temp_copy_map, copy_temps = copy_files(scan_files, rule.logger)
         if temp_copy_map:
             temps.extend(copy_temps)

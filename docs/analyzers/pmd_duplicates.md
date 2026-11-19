@@ -13,6 +13,14 @@ The PMD Duplicates analyzer detects copy-paste code (duplicate code blocks) acro
 - TypeScript
 - Kotlin
 
+**JavaScript/TypeScript:** `--language javascript` covers `.js`, `.mjs`, `.cjs`,
+`.jsx`, `.ts` and `.tsx`. CPD chooses files by extension — its `ecmascript` lexer
+reads only `.js`, its `typescript` lexer only `.ts` — so the analyzer runs the
+`typescript` lexer over the whole family and hands it every other file as a
+temporary `.ts` copy (paths in the report point to the originals). TypeScript's
+lexer reads JavaScript and JSX as well, so duplicates are also found across
+`.js`/`.ts`/`.tsx`. A shebang line is blanked in the copy; line numbers stay.
+
 ## Dependencies
 
 **PMD** must be installed. The analyzer can auto-download PMD if not found:
