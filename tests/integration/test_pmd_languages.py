@@ -99,6 +99,23 @@ def test_pmd_detects_duplicates_per_language(language, tmp_path):
 
 
 @pmd_required
+def test_pmd_javascript_detects_duplicates_across_ts_and_tsx(tmp_path):
+    """A javascript project's TypeScript sources take part in duplicate detection.
+
+    CPD's ecmascript lexer only reads .js files and its typescript lexer only
+    .ts files, so a .tsx copy of .ts code went unreported — in a TypeScript
+    project almost nothing was checked.
+    """
+    fixture = FIXTURES / "typescript_in_javascript"
+    data, result = _run_pmd_json("javascript", fixture, fixture / "b.tsx", tmp_path)
+
+    dups = [v for v in data["violations"] if v["rule_name"] == "pmd_duplicates"]
+    assert dups, f"expected .ts/.tsx duplicates; violations={data['violations']} stderr={result.stderr[:300]}"
+    assert all(v["file_path"].endswith("b.tsx") for v in dups), dups
+    assert not data.get("failures"), f"unexpected tool failure {data.get('failures')}"
+
+
+@pmd_required
 def test_pmd_svelte_runs_without_tool_failure(tmp_path):
     """CPD cannot tokenize .svelte for duplication, but the rule must still run
     cleanly (status OK, no crash) — not report a false FAILED."""

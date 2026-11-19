@@ -172,9 +172,26 @@ ESLint automatically detects these config files (in `config_mode: "auto"` or `co
 - `.eslintrc`
 - `package.json` with `eslintConfig` key
 
+## Workspaces (monorepos)
+
+A workspace often has no ESLint config at its root — each package (`frontend/`,
+`backend/`, …) carries its own `eslint.config.*` and `npm run lint` runs per
+package. ESLint started at such a root aborts with "couldn't find an
+eslint.config.* file".
+
+So when the project root has no config (and `config_mode` is not `builtin`), the
+analyzer looks for packages with their own flat config — not inside
+`node_modules`, `dist`, `build`, `coverage`, `out` or hidden folders, and not
+inside another package — and runs ESLint **once per package, from the package's
+directory**, with the package's own `node_modules/.bin/eslint` if it has one,
+otherwise the root's. Files outside every package (a root `vitest.config.ts`) are
+not linted, as with `npm run lint`. With `--only-changed`, each package gets only
+its own changed files. The console names each package; the CSV has one combined
+list with paths relative to the project root.
+
 ## Notes
 
-- ESLint executes once per analysis run (project-wide, not per-file)
+- ESLint executes once per analysis run (project-wide, not per-file) — or once per package in a workspace (see above)
 - For TypeScript projects, ensure `@typescript-eslint/parser` is configured in your project
 - The `config_mode` option allows flexible handling of existing project configs
 - Environment settings (`env`) define which global variables are available

@@ -7,8 +7,16 @@ from pathlib import Path
 
 from models import RuleResult
 from rules.context import RuleContext
+from rules.eslint_packages import (
+    FLAT_CONFIG_FILES,
+    LEGACY_CONFIG_FILES,
+    EslintTarget,
+    find_eslint_package_roots,
+)
 from rules.eslint_report import parse_eslint_json, write_eslint_csv
 from rules.project_wide_rule import ProjectWideRule
+
+SOURCE_EXTENSIONS = ('.js', '.mjs', '.cjs', '.ts', '.tsx', '.jsx', '.svelte')
 
 
 class ESLintAnalyzeRule(ProjectWideRule):
@@ -22,6 +30,11 @@ class ESLintAnalyzeRule(ProjectWideRule):
 
     def _run(self, _file_path: Path) -> RuleResult:
         self.logger.info("\nRunning ESLint check...")
+
+        if self.config.get('config_mode', 'auto') != 'builtin' and not self._has_project_config():
+            package_roots = find_eslint_package_roots(self.base_path)
+            if package_roots:
+                return self._run_packages(package_roots)
 
         # Check for local node_modules eslint first
         eslint_path = self._find_local_eslint()
@@ -41,8 +54,21 @@ class ESLintAnalyzeRule(ProjectWideRule):
         # Run eslint check
         return self._run_eslint_check(eslint_path)
 
-    def _find_local_eslint(self) -> str | None:
-        """Check for ESLint installed locally in the project's node_modules.
+    def _run_packages(self, package_roots: list[Path]) -> RuleResult:
+        """Lint each workspace package from its own directory (see eslint_packages)."""
+        root_eslint = self._find_local_eslint()
+        targets = []
+        for package_root in package_roots:
+            eslint_path = self._find_local_eslint(package_root) or root_eslint
+            relative_root = self._get_relative_path(package_root).replace('\\', '/')
+            if not eslint_path:
+                return self._failed(f"ESLint is not installed for package {relative_root}")
+            self.logger.info(f"Package {relative_root}")
+            targets.append(EslintTarget(package_root, eslint_path))
+        return self._run_targets(targets)
+
+    def _find_local_eslint(self, directory: Path | None = None) -> str | None:
+        """Check for ESLint installed locally in a node_modules (default: the project's).
 
         Returns:
             Path to local eslint executable, or None if not found
@@ -54,24 +80,32 @@ class ESLintAnalyzeRule(ProjectWideRule):
         else:
             candidates = ['eslint']
         for name in candidates:
-            local_eslint = self.base_path / 'node_modules' / '.bin' / name
+            local_eslint = (directory or self.base_path) / 'node_modules' / '.bin' / name
             if local_eslint.exists():
                 return str(local_eslint)
         return None
 
     def _run_eslint_check(self, eslint_path: str) -> RuleResult:
-        """Execute eslint check and parse results.
+        """Execute eslint over the whole project and parse results."""
+        if self.config.get('config_mode', 'auto') == 'project' and not self._has_project_config():
+            self.logger.error("Error: config_mode is 'project' but no ESLint config found")
+            self.logger.error("Create eslint.config.js or .eslintrc.* in your project")
+            return self._skipped("config_mode is 'project' but no ESLint config found")
+        return self._run_targets([EslintTarget(self.base_path, eslint_path)])
+
+    def _run_targets(self, targets: list[EslintTarget]) -> RuleResult:
+        """Execute eslint once per target, each in its own directory, and parse results.
 
         Args:
-            eslint_path: Path to eslint executable
+            targets: Where each run starts and which executable it uses
 
         Returns:
             RuleResult
         """
-        # Build command with JSON format
-        cmd = [eslint_path, '--format', 'json']
+        # Arguments with JSON format; each target puts its own executable in front
+        cmd = ['--format', 'json']
 
-        # Handle config mode
+        # Handle config mode ('project' is checked in _run_eslint_check)
         config_mode = self.config.get('config_mode', 'auto')
 
         if config_mode == 'builtin':
@@ -86,13 +120,7 @@ class ESLintAnalyzeRule(ProjectWideRule):
             rules_config = self.config.get('rules', {})
             for rule_name, rule_value in rules_config.items():
                 cmd.extend(['--rule', f'{rule_name}: {rule_value}'])
-        elif config_mode == 'project':
-            # Require project config - check if it exists
-            if not self._has_project_config():
-                self.logger.error("Error: config_mode is 'project' but no ESLint config found")
-                self.logger.error("Create eslint.config.js or .eslintrc.* in your project")
-                return self._skipped("config_mode is 'project' but no ESLint config found")
-        # config_mode == 'auto': ESLint will automatically detect project config or use defaults
+        # config_mode 'auto'/'project': ESLint detects the project config itself
 
         # Add exclude patterns as ignore patterns
         if self.config.get('exclude_patterns'):
@@ -114,17 +142,26 @@ class ESLintAnalyzeRule(ProjectWideRule):
                 self.logger.warning("  Then configure your eslint.config.js to use the Svelte parser (see CLI Code Analyzer README)")
         cmd.extend(['--ext', ','.join(extensions)])
 
-        # Add paths to analyze: changed files when filtering, else the whole base path.
+        # Add paths to analyze: changed files when filtering, else each target's directory.
+        eslint_path = ''
         try:
-            commands = self._scoped_commands(
-                cmd, ('.js', '.mjs', '.cjs', '.ts', '.tsx', '.jsx', '.svelte'), [str(self.base_path)])
-            if commands is None:
-                return self._ok([])
+            changed = self._filtered_paths(SOURCE_EXTENSIONS)
             data = []
-            for document in self._run_json('ESLint', commands, self.base_path):
-                if not isinstance(document, list):
-                    raise TypeError('ESLint returned unexpected JSON structure')
-                data.extend(document)
+            for target in targets:
+                eslint_path = target.eslint_path
+                target_cmd = [eslint_path, *cmd]
+                if changed is None:
+                    commands = self._scoped_commands(target_cmd, whole_project=[str(target.root)])
+                else:
+                    root = target.root.resolve()
+                    own = [path for path in changed if path.resolve().is_relative_to(root)]
+                    commands = self._scoped_commands(target_cmd, explicit_files=own)
+                if commands is None:
+                    continue
+                for document in self._run_json('ESLint', commands, target.root):
+                    if not isinstance(document, list):
+                        raise TypeError('ESLint returned unexpected JSON structure')
+                    data.extend(document)
             violations = parse_eslint_json(data, self._get_relative_path, self.logger)
 
             # Apply log level filter to violations
@@ -162,18 +199,7 @@ class ESLintAnalyzeRule(ProjectWideRule):
         Returns:
             True if project config exists
         """
-        config_files = [
-            'eslint.config.js',
-            'eslint.config.mjs',
-            'eslint.config.cjs',
-            '.eslintrc.js',
-            '.eslintrc.cjs',
-            '.eslintrc.yaml',
-            '.eslintrc.yml',
-            '.eslintrc.json',
-            '.eslintrc',
-        ]
-        for config_file in config_files:
+        for config_file in (*FLAT_CONFIG_FILES, *LEGACY_CONFIG_FILES):
             if (self.base_path / config_file).exists():
                 return True
 
