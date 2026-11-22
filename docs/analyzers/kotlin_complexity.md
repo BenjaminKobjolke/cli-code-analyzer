@@ -6,8 +6,9 @@
 cyclomatic complexity, function length in non-comment lines of code (NLOC), and parameter count.
 Each configured metric produces at most one finding per function, at the function's starting line.
 
-Lizard parses Kotlin heuristically. Lambdas may count toward their enclosing function, so review
-findings in code that uses many nested lambdas.
+Lambdas that declare parameters with `->` are reported as their own `(anonymous)` function,
+ending at the lambda's closing brace. Lambdas without `->` (such as those using `it`) still count
+toward the enclosing function.
 
 ## Configuration
 

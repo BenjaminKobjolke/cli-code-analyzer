@@ -8,6 +8,7 @@ import pytest
 
 from function_complexity import run_most_complex_function
 from logger import Logger
+from tests.unit.kotlin_complexity_fixtures import MAIN_ACTIVITY
 
 LANGUAGE_SAMPLES = [
     pytest.param(
@@ -147,6 +148,27 @@ def test_reports_most_complex_function_for_supported_language(
     assert report["errors"] == []
 
 
+def test_kotlin_lambda_does_not_swallow_following_override(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    (tmp_path / "MainActivity.kt").write_text(MAIN_ACTIVITY, encoding="utf-8")
+    files_from = tmp_path / "files.txt"
+    files_from.write_text("MainActivity.kt", encoding="utf-8")
+
+    assert run_most_complex_function(str(tmp_path), str(files_from), Logger(quiet=True)) == 0
+
+    report = json.loads(capsys.readouterr().out)
+    assert report["function"] == {
+        "file_path": "MainActivity.kt",
+        "function_name": "onNewIntent",
+        "language": "kotlin",
+        "start_line": 11,
+        "end_line": 17,
+        "complexity": 3,
+    }
+    assert report["errors"] == []
+
+
 def test_selects_highest_complexity_across_files_in_input_order(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -233,6 +255,7 @@ def test_lizard_import_failure_reports_one_error_per_language(
     files_from.write_text("one.py\ntwo.py\nthree.js", encoding="utf-8")
 
     monkeypatch.setitem(sys.modules, "lizard", None)
+    monkeypatch.setitem(sys.modules, "kotlin_lizard", None)
     assert run_most_complex_function(str(tmp_path), str(files_from), Logger(quiet=True)) == 0
 
     report = json.loads(capsys.readouterr().out)

@@ -2,12 +2,11 @@
 
 from pathlib import Path
 
-import lizard
-
 from logger import Logger
 from models import RuleStatus, Severity
 from rules.context import RuleContext
 from rules.kotlin_complexity import KotlinComplexityRule
+from tests.unit.kotlin_complexity_fixtures import MAIN_ACTIVITY
 
 
 def _make_rule(base_path: Path, config: dict) -> KotlinComplexityRule:
@@ -55,6 +54,18 @@ def test_cyclomatic_complexity_warning_and_clean_thresholds(tmp_path):
 
     assert [v.severity for v in warning.violations] == [Severity.WARNING]
     assert clean.violations == []
+
+
+def test_lambda_does_not_absorb_following_override(tmp_path):
+    source = tmp_path / "MainActivity.kt"
+    source.write_text(MAIN_ACTIVITY, encoding="utf-8")
+    rule = _make_rule(tmp_path, {"cyclomatic_complexity": {"warning": 3, "error": 10}})
+
+    result = rule.check(source)
+
+    assert [violation.line for violation in result.violations] == [11]
+    assert "onNewIntent" in result.violations[0].message
+    assert "(anonymous)" not in result.violations[0].message
 
 
 def test_exception_overrides_metric_threshold_for_one_file(tmp_path):
@@ -115,7 +126,7 @@ def test_lizard_error_is_a_failed_result(tmp_path, monkeypatch):
     def fail(*args, **kwargs):
         raise ValueError("bad Kotlin input")
 
-    monkeypatch.setattr(lizard.FileAnalyzer, "analyze_source_code", fail)
+    monkeypatch.setattr("rules.kotlin_complexity.analyze_functions", fail)
     result = _make_rule(tmp_path, {"cyclomatic_complexity": {"warning": 2, "error": 3}}).check(source)
 
     assert result.status == RuleStatus.FAILED

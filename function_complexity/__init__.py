@@ -2,6 +2,7 @@
 
 import json
 import sys
+from collections.abc import Callable
 from pathlib import Path
 from typing import TextIO
 
@@ -31,15 +32,14 @@ def _language_errors(paths: list[SourceFile], message: str) -> list[LanguageErro
     return [LanguageError(language, message) for language in languages]
 
 
-def _analyze_file(lizard: object, source_file: SourceFile) -> list[object]:
-    """Analyze one in-memory file with a fresh lizard FileAnalyzer."""
-    analyzer = lizard.FileAnalyzer(  # type: ignore[attr-defined]
-        lizard.analyze_file.processors  # type: ignore[attr-defined]
-    )
+def _analyze_file(
+    analyze_functions: Callable[[str, str], list[object]], source_file: SourceFile
+) -> list[object]:
+    """Analyze one in-memory file with the language-aware function reader."""
     text = source_file.path.read_text(encoding="utf-8-sig", errors="replace")
-    return analyzer.analyze_source_code(
+    return analyze_functions(
         analyzer_filename(source_file), prepare_source(text, source_file.language)
-    ).function_list
+    )
 
 
 def _function_is_unchanged(changes, file_path: Path, function) -> bool:
@@ -85,7 +85,7 @@ def run_most_complex_function(
         ]
 
     try:
-        import lizard
+        from kotlin_lizard import analyze_functions
     except ImportError:
         report = ComplexityReport(
             None,
@@ -101,7 +101,7 @@ def run_most_complex_function(
     best: FunctionComplexity | None = None
     for source_file in source_files:
         try:
-            functions = _analyze_file(lizard, source_file)
+            functions = _analyze_file(analyze_functions, source_file)
         except Exception as error:  # malformed or unreadable files should not stop other inputs
             errors.append(LanguageError(source_file.language, f"{source_file.file_path}: {error}"))
             continue

@@ -2,9 +2,8 @@
 
 from pathlib import Path
 
-import lizard
-
 from file_discovery import FileDiscovery
+from kotlin_lizard import analyze_functions
 from models import RuleResult, Severity, Violation
 from rules.base import BaseRule
 
@@ -28,8 +27,7 @@ class KotlinComplexityRule(BaseRule):
         relative_path = self._get_relative_path(file_path)
         try:
             text = file_path.read_text(encoding="utf-8", errors="replace")
-            analyzer = lizard.FileAnalyzer(lizard.analyze_file.processors)
-            functions = analyzer.analyze_source_code(str(file_path), text).function_list
+            functions = analyze_functions(str(file_path), text)
         except Exception as error:
             return self._failed(f"could not analyze {relative_path}: {error}")
 

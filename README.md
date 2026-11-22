@@ -244,7 +244,9 @@ Known parser limits: Dart arrow-bodied members are not detected; AutoHotkey hotk
 not functions, and its comment and keyword normalization is regex-based; Python and TypeScript
 function names do not include their class name.
 
-Kotlin function parsing is heuristic; lambdas may count toward their enclosing function. See
+Kotlin lambdas that declare parameters with `->` are reported as their own `(anonymous)` function,
+ending at the lambda's closing brace. Lambdas without `->` (such as those using `it`) still count
+toward the enclosing function. See
 [`docs/setup/KOTLIN.md`](docs/setup/KOTLIN.md) and
 [`docs/analyzers/kotlin_complexity.md`](docs/analyzers/kotlin_complexity.md) for setup and thresholds.
 
