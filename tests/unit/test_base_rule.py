@@ -190,7 +190,7 @@ def test_get_tool_path_finds_tool_in_interpreter_scripts_dir(
     rule._settings = MagicMock(spec=Settings)
 
     monkeypatch.setattr("rules.base.shutil.which", lambda _name: None)
-    monkeypatch.setattr("rules.base.interpreter_scripts_dir", lambda: scripts_dir)
+    monkeypatch.setattr("rules.context.sysconfig.get_path", lambda _name: str(scripts_dir))
 
     assert rule._get_tool_path("semgrep") == str(executable)
     rule.settings.get_path.assert_not_called()
@@ -205,7 +205,7 @@ def test_get_tool_path_prefers_path_to_interpreter_scripts_dir(
     rule = _NoopRule(_ctx(base_path=tmp_path))
 
     monkeypatch.setattr("rules.base.shutil.which", lambda _name: "on-path/semgrep")
-    monkeypatch.setattr("rules.base.interpreter_scripts_dir", lambda: scripts_dir)
+    monkeypatch.setattr("rules.context.sysconfig.get_path", lambda _name: str(scripts_dir))
 
     assert rule._get_tool_path("semgrep") == "on-path/semgrep"
 
