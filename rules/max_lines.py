@@ -37,6 +37,7 @@ class MaxLinesRule(BaseRule):
         thresholds = self._get_threshold_for_file(file_path, self.config)
         error_threshold = thresholds.get('error')
         warning_threshold = thresholds.get('warning')
+        self._track_exception_growth(file_path, self.config, 'lines', line_count)
 
         if error_threshold and line_count >= error_threshold:
             violations.append(Violation(

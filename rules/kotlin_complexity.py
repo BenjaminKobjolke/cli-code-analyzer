@@ -40,6 +40,13 @@ class KotlinComplexityRule(BaseRule):
 
                 limits = self._get_threshold_for_file(file_path, thresholds)
                 value = getattr(function, attribute)
+                self._track_exception_growth(
+                    file_path,
+                    thresholds,
+                    config_key,
+                    value,
+                    function=function.name,
+                )
                 error_limit = limits.get("error")
                 warning_limit = limits.get("warning")
                 if error_limit is not None and value >= error_limit:

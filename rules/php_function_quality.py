@@ -109,6 +109,13 @@ class PHPFunctionQualityRule(BaseRule):
             configured = {**_DEFAULT_THRESHOLDS[metric], **configured}
 
         thresholds = self._get_threshold_for_file(file_path, configured, metric)
+        self._track_exception_growth(
+            file_path,
+            configured,
+            metric,
+            value,
+            function=function.name,
+        )
         error_limit = thresholds.get("error")
         warning_limit = thresholds.get("warning")
         if error_limit is not None and value >= error_limit:

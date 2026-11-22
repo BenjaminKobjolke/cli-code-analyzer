@@ -8,6 +8,11 @@ from pathlib import Path
 from models import LogLevel, RuleResult, Severity, Violation
 from path_utils import resolve_exclude_patterns, ruff_exclude_args
 from rules.project_wide_rule import ProjectWideRule
+from rules.ruff_suppressions import (
+    COMPLEXITY_CODES,
+    SuppressedValue,
+    parse_suppressed_complexity,
+)
 
 
 class RuffAnalyzeRule(ProjectWideRule):
@@ -63,6 +68,13 @@ class RuffAnalyzeRule(ProjectWideRule):
                 data.extend(document)
             violations = self._parse_ruff_json(data)
 
+            if self.ctx.exception_baseline is not None:
+                suppressed = self._run_suppressed_complexity_check(ruff_path)
+                for value in suppressed:
+                    self._track_suppressed_value(
+                        Path(value.file_path), value.metric, value.value, value.function
+                    )
+
             # Apply log level filter to violations
             violations = self._filter_violations_by_log_level(violations)
 
@@ -90,6 +102,51 @@ class RuffAnalyzeRule(ProjectWideRule):
         except Exception as e:
             self.logger.error(f"Error running ruff check: {e}")
             return self._failed(f"error running ruff check: {e}")
+
+    def _run_suppressed_complexity_check(self, ruff_path: str) -> list[SuppressedValue]:
+        """Run a second, scoped pass and collect findings hidden by noqa comments."""
+        cmd = [
+            ruff_path,
+            'check',
+            '--output-format',
+            'json',
+            '--ignore-noqa',
+            '--select',
+            ','.join(COMPLEXITY_CODES),
+        ]
+        if self.config.get('ignore'):
+            cmd.extend(['--ignore', ','.join(self.config['ignore'])])
+        cmd.extend(ruff_exclude_args(
+            resolve_exclude_patterns(self.config.get('exclude_patterns'), ['python'])
+        ))
+
+        commands = self._scoped_commands(cmd, ('.py',), [str(self.base_path)])
+        if commands is None:
+            return []
+
+        diagnostics = []
+        for document in self._run_json(
+            'ruff', commands, self.base_path, accepted_returncodes={0, 1}
+        ):
+            if not isinstance(document, list):
+                raise TypeError('ruff returned unexpected JSON structure')
+            diagnostics.extend(document)
+
+        cached_lines: dict[str, list[str] | None] = {}
+
+        def read_line(filename: str, row: int) -> str | None:
+            if filename not in cached_lines:
+                path = Path(filename)
+                if not path.is_absolute() and self.base_path is not None:
+                    path = self.base_path / path
+                try:
+                    cached_lines[filename] = path.read_text(encoding='utf-8').splitlines()
+                except (OSError, UnicodeError):
+                    cached_lines[filename] = None
+            lines = cached_lines[filename]
+            return lines[row - 1] if lines is not None and row <= len(lines) else None
+
+        return parse_suppressed_complexity(diagnostics, read_line)
 
     def _map_ruff_severity(self, code: str) -> Severity:
         """Map Ruff rule code to severity.

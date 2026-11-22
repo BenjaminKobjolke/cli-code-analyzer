@@ -129,6 +129,7 @@ class GraphifyFanoutRule(ProjectWideRule):
             rep_nid = rep.get(u)
             name = label.get(rep_nid) or Path(str(u)).stem
             line = self._parse_line(loc.get(rep_nid))
+            self._track_exception_growth(Path(u), self.config, "fan_out", out)
 
             if ratio >= ratio_max:
                 # High fan-out AND high fan-in — a chokepoint, not a greedy consumer.

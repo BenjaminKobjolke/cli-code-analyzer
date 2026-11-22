@@ -8,6 +8,7 @@ from pathlib import Path
 from analyzer_registry import get_analyzers_for_language
 from analyzer_support import discovery_exclude_patterns, resolve_log_level
 from config import Config
+from exception_baseline import ExceptionBaselineLifecycle
 from file_discovery import FileDiscovery
 from logger import Logger
 from models import LogLevel, RuleResult, RuleStatus, Severity, Violation
@@ -61,6 +62,10 @@ class CodeAnalyzer:
         self.base_path = Path(cfg.path).resolve()
         self.config = Config(cfg.rules_file)
         self.rules_file = self.config.rules_file
+        self.exception_baseline_lifecycle = ExceptionBaselineLifecycle(
+            self.rules_file,
+            self.config.is_exception_growth_enabled(),
+        )
         self.violations: list[Violation] = []
         self.results: list[RuleResult] = []
         self.files: list[Path] = []
@@ -192,8 +197,7 @@ class CodeAnalyzer:
             self._check_file(file_path)
 
         # Filter project-wide tool violations to the requested file set
-        if self.filter_files is not None:
-            self._filter_violations_by_files()
+        self.exception_baseline_lifecycle.finish(self.results, self.filter_files, self.violations)
 
     def get_analyzed_file_paths(self) -> list[str]:
         """Get relative paths of all analyzed files."""
@@ -203,28 +207,8 @@ class CodeAnalyzer:
             paths.append(str(relative))
         return paths
 
-    def _filter_violations_by_files(self):
-        """Filter violations to only those matching any path in self.filter_files."""
-        if not self.filter_files:
-            self.violations = []
-            return
-
-        filtered = []
-        for v in self.violations:
-            vp = v.file_path.replace('\\', '/')
-            for filter_rel in self.filter_files:
-                matches_filter = any((
-                    vp == filter_rel,
-                    vp.endswith('/' + filter_rel),
-                    filter_rel.endswith('/' + vp),
-                ))
-                if matches_filter:
-                    filtered.append(v)
-                    break
-        self.violations = filtered
-
     def _make_ctx(self, rule_config: dict, language: str | None = None) -> RuleContext:
-        return RuleContext(
+        return self.exception_baseline_lifecycle.make_context(
             config=rule_config,
             base_path=self.base_path,
             output_folder=self.output_folder,

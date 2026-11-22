@@ -109,6 +109,13 @@ class CrapScoreMixin:
 
     def _maybe_emit(self, rel_path: str, file_abs: Path, name: str, line: int | None,
                     complexity: float, covered: int, total: int, crap: float) -> Violation | None:
+        self._track_exception_growth(
+            file_abs,
+            self.config,
+            "crap",
+            crap,
+            function=name,
+        )
         thresholds = self._get_threshold_for_file(file_abs, self.config)
         warn_t = thresholds.get('warning')
         err_t = thresholds.get('error')

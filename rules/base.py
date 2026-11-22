@@ -6,7 +6,6 @@ import contextlib
 import shutil
 import subprocess
 import sys
-import sysconfig
 import threading
 from abc import ABC, abstractmethod
 from fnmatch import fnmatch
@@ -15,23 +14,14 @@ from typing import Any
 
 from logger import Logger
 from models import LogLevel, RuleResult, RuleStatus, Severity, Violation
-from rules.context import RuleContext
+from rules.context import RuleContext, ToolPathResolver
+from rules.exception_growth import ExceptionGrowthMixin
 from rules.filter_scope import FilterScopeMixin
 from rules.process_utils import kill_process_tree
 from rules.reporting import ViolationReportMixin
 
 
-def interpreter_scripts_dir() -> Path | None:
-    """Scripts/bin dir of the running interpreter, where `pip install <tool>` puts executables.
-
-    The project bats call `venv\\Scripts\\python.exe` directly without activating
-    the venv, so that dir is not on PATH.
-    """
-    scripts = sysconfig.get_path('scripts')
-    return Path(scripts) if scripts else None
-
-
-class BaseRule(FilterScopeMixin, ViolationReportMixin, ABC):
+class BaseRule(FilterScopeMixin, ViolationReportMixin, ExceptionGrowthMixin, ABC):
     """Abstract base class for all rules"""
 
     # Subclasses set this so RuleResults are stamped with a stable name. Falls
@@ -51,6 +41,9 @@ class BaseRule(FilterScopeMixin, ViolationReportMixin, ABC):
         self.filter_files = ctx.filter_files
         self.filter_mode = ctx.filter_mode
         self._settings = None
+        self._tool_paths = ToolPathResolver(
+            self.base_path, self.language, self.logger, lambda: self.settings, Path(__file__).parent.parent
+        )
 
     @property
     def settings(self):
@@ -224,50 +217,7 @@ class BaseRule(FilterScopeMixin, ViolationReportMixin, ABC):
         `tool_name` is the executable name (PATH/node_modules lookup). `settings_name`
         is the Settings key; defaults to `tool_name` when they match (most tools).
         """
-        settings_name = settings_name or tool_name
-        tool_in_path = shutil.which(tool_name)
-        if tool_in_path:
-            return tool_in_path
-
-        # Python tools installed into the analyzer's own venv (e.g. `pip install semgrep`)
-        scripts_dir = interpreter_scripts_dir()
-        if scripts_dir:
-            for suffix in ['.exe', '.cmd', '.bat', '']:
-                venv_bin = scripts_dir / (tool_name + suffix)
-                if venv_bin.is_file():
-                    return str(venv_bin)
-
-        # Check project-local node_modules/.bin/ for Node-based tools
-        if self.base_path:
-            for suffix in ['.cmd', '.bat', '']:
-                local_bin = self.base_path / 'node_modules' / '.bin' / (tool_name + suffix)
-                if local_bin.exists():
-                    return str(local_bin)
-
-            if self.language == 'php':
-                for suffix in ['.bat', '.cmd', '']:
-                    local_bin = self.base_path / 'vendor' / 'bin' / (tool_name + suffix)
-                    if local_bin.exists():
-                        return str(local_bin)
-
-        tool_path = self.settings.get_path(settings_name)
-        if not tool_path:
-            tool_path = self.settings.prompt_and_save(settings_name)
-            if not tool_path:
-                return None
-
-        tool_path_obj = Path(tool_path)
-        if not tool_path_obj.is_absolute():
-            # Resolve relative paths relative to cli-code-analyzer directory
-            script_dir = Path(__file__).parent.parent
-            tool_path_obj = script_dir / tool_path
-            tool_path = str(tool_path_obj)
-
-        if not tool_path_obj.exists():
-            self.logger.error(f"Error: {tool_name} executable not found at: {tool_path}")
-            return None
-
-        return tool_path
+        return self._tool_paths.resolve(tool_name, settings_name)
 
     def _find_pubspec(self) -> Path | None:
         """Find pubspec.yaml in base_path or parent, return containing dir."""

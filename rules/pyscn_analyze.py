@@ -94,8 +94,12 @@ class PyscnAnalyzeRule(ProjectWideRule):
 
     def _check_metric_threshold(self, file_path: Path, metric_name: str,
                                 metric_value: float,
-                                threshold_config: dict) -> tuple[Severity | None, float | None]:
+                                threshold_config: dict,
+                                function_name: str | None = None) -> tuple[Severity | None, float | None]:
         """Return (severity, threshold) for a metric value, or (None, None) if below all thresholds."""
+        self._track_exception_growth(
+            file_path, threshold_config, metric_name, metric_value, function=function_name
+        )
         thresholds = self._get_threshold_for_file(file_path, threshold_config, metric_name)
         error_t = thresholds.get('error')
         warning_t = thresholds.get('warning')
@@ -132,7 +136,7 @@ class PyscnAnalyzeRule(ProjectWideRule):
 
             severity, threshold = self._check_metric_threshold(
                 Path(file_path) if file_path else Path('.'),
-                'complexity', cc, complexity_cfg,
+                'complexity', cc, complexity_cfg, function_name=name,
             )
             if severity is None:
                 continue

@@ -177,6 +177,9 @@ class DartCodeLinterRule(DartPackageRule):
             if threshold_root is not None:
                 threshold_path = threshold_root / workspace_path
         eff = self._get_threshold_for_file(threshold_path, tc, metric_id)
+        if metric_id not in self.INVERSE_METRICS:
+            function = context.removeprefix("function ") if context.startswith("function ") else None
+            self._track_exception_growth(threshold_path, tc, metric_id, value, function=function)
         err_th, warn_th = eff.get('error'), eff.get('warning')
         if err_th == 0 and warn_th == 0:
             return None

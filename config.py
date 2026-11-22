@@ -34,6 +34,10 @@ class Config:
         """Get configuration for a specific rule"""
         return self.rules.get(rule_name, {})
 
+    def is_exception_growth_enabled(self) -> bool:
+        """Whether exception growth tracking is enabled in this rules file."""
+        return self.rules.get('exception_growth', True) is not False
+
     def is_rule_enabled(self, rule_name: str, default_enabled: bool = False) -> bool:
         """Check whether a configured rule is enabled, with an absent-entry default."""
         if rule_name not in self.rules:
