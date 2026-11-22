@@ -91,7 +91,7 @@ python main.py --most-complex-function --path D:\projects\my-checkout --files-fr
 
 ## Architecture
 
-The pipeline flows: `main.py` (CLI parsing) -> `CodeAnalyzer` (orchestration) -> `FileDiscovery` (find files) -> `BaseRule` subclasses (analysis) -> `Reporter` (output). A `Logger` instance is created in `main.py` and propagated to all components. When `--file` is used, the logger is set to quiet mode, suppressing all progress output. `ViolationCache` provides SQLite-based caching of violations for fast `--file` queries and only answers runs whose requested files the cached run analyzed (stored scope); the cache self-invalidates when analyzed source files are added, removed, or modified (file-set + newest-mtime check), when `rules.json` changes (hash), or after `--cache-max-age` minutes.
+The pipeline flows: `main.py` (CLI parsing) -> `CodeAnalyzer` (orchestration) -> `FileDiscovery` (find files) -> `BaseRule` subclasses (analysis) -> `Reporter` (output). A `Logger` instance is created in `main.py` and propagated to all components. When `--file` is used, the logger is set to quiet mode, suppressing all progress output. `ViolationCache` provides SQLite-based caching of violations for fast `--file` queries and only answers runs whose requested files the cached run analyzed (stored scope); the cache self-invalidates when analyzed source files are added, removed, or modified (file-set + newest-mtime check), when `rules.json` changes (hash), or after `--cache-max-age` minutes. `ExceptionBaseline` tracks supported exception and Ruff-suppressed complexity growth in a committed JSON file beside the rules file; cache-only queries do not update it.
 
 ### Two types of analyzers
 
@@ -105,7 +105,8 @@ Precedence: CLI `--loglevel` flag > per-rule `log_level` in rules.json > global 
 
 ### Configuration layers
 
-- `rules.json` - Rule definitions with enable/disable, thresholds, and per-file exceptions
+- `rules.json` - Rule definitions with enable/disable, thresholds, per-file exceptions, and the top-level `exception_growth` opt-out
+- `<rules file without .json>.exception_baseline.json` - Committed accepted measurements for supported exceptions; on by default, lower values are saved, and growth is warned until reviewed and accepted
 - `settings.ini` - Persistent tool paths (PMD, Dart SDK, Ruff, etc.), managed by `settings.py`
 - `analyzer_registry.py` - Metadata registry mapping languages to their available analyzers
 

@@ -10,6 +10,7 @@ is a single JSON object: top-level keys are either **global settings** or
   "log_level": "error",     // global setting
   "fail_on": "warning",     // global setting
   "max_errors": 20,         // global setting
+  "exception_growth": true,  // global setting (default: true)
   "max_lines_per_file": {   // per-rule block
     "enabled": true,
     "warning": 300,
@@ -26,8 +27,9 @@ is a single JSON object: top-level keys are either **global settings** or
 | `fail_on` | `"error"` \| `"warning"` \| `"all"` | `error` | Exit 1 when the report contains a finding at or above this severity. See [Fail on](#fail-on). |
 | `max_errors` | positive int | unset (unlimited) | Caps violations reported **per rule/analyzer** (not a global total). See [Max errors](#max-errors). |
 | `global_exclude_paths` | array of dirs | `[]` | Bare directory paths (`".dart_tool"`, `"vendor"`) skipped by file discovery for every analyzer. Merged with the language defaults (`*.g.dart`, `.dart_tool/**`, `venv/**`, …) and with `max_lines_per_file.exclude_paths` / `exclude_patterns`. |
+| `exception_growth` | boolean | `true` | Track growth in supported file exceptions and Ruff-suppressed complexity. Set to `false` to disable tracking. See [Exception growth tracking](analyzers/exception_growth.md). |
 
-Any other top-level key is treated as a per-rule config block.
+Any other top-level key not listed as a global setting is treated as a per-rule config block.
 
 ## Fail on
 
@@ -114,8 +116,15 @@ Path matching order:
 PMD duplicate exceptions instead use a `files` array (the set of files whose
 mutual duplication is accepted).
 
+Threshold exceptions that keep a measured value below their raised limit are
+checked for growth by default. The analyzer stores the accepted measurements in
+an `.exception_baseline.json` file next to the rules file. See
+[Exception growth tracking](analyzers/exception_growth.md) for the baseline
+lifecycle, supported metrics, Ruff suppressions, and exclusions.
+
 ## Related
 
 - [`README.md`](../README.md) — CLI usage and arguments
 - [`docs/analyzers/`](analyzers/) — per-analyzer configuration and output
+- [`docs/analyzers/exception_growth.md`](analyzers/exception_growth.md) — exception growth baseline behavior
 - [`CREATING_NEW_ANALYZER.md`](../CREATING_NEW_ANALYZER.md) — adding a new analyzer

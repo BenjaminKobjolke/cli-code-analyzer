@@ -12,6 +12,7 @@ A flexible command-line tool for analyzing code files based on configurable rule
 - **File export capability**: Save analysis reports to files for CI/CD integration
 - **Severity filtering**: Filter violations by error or warning levels
 - **Line count rules**: Check maximum lines per file with warning and error thresholds
+- **Exception growth tracking**: Warn when excepted files or Ruff-suppressed Python complexity grows beyond its committed baseline; enabled by default and configurable per rules file ([details](docs/analyzers/exception_growth.md))
 - **Duplicate code detection**: Integrated [PMD](https://pmd.github.io/) CPD for finding copy-paste code across projects
 - **Similar code detection**: PMD CPD with identifier/literal normalization to find structurally similar code where variables or constants were renamed
 - **Flutter/Dart static analysis**: Integrated `dart analyze --fatal-infos` for comprehensive Dart code analysis with severity mapping (info/warning/error)
@@ -46,6 +47,7 @@ A flexible command-line tool for analyzing code files based on configurable rule
 
 - Per-language setup: [docs/setup/](docs/setup/) (Flutter, Python, PHP, WordPress, C#, JavaScript/TypeScript, Svelte, Kotlin, Contract JSON, AutoHotkey, Arduino/C++)
 - Per-analyzer configuration and output: [docs/analyzers/](docs/analyzers/)
+- Exception growth tracking: [baseline, supported exceptions, and configuration](docs/analyzers/exception_growth.md)
 - Contract setup: [docs/setup/CONTRACT.md](docs/setup/CONTRACT.md); enum analyzer: [docs/analyzers/contract_enums.md](docs/analyzers/contract_enums.md)
 - `rules.json` reference: [docs/RULES_JSON.md](docs/RULES_JSON.md)
 - List analyzers per language: `python main.py --list-analyzers all`
